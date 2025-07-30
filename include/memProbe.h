@@ -92,14 +92,46 @@ class memGlobalInfo {
     friend class memLocalInfo;
 
    public:
-    ~memGlobalInfo();
-
-    static memGlobalInfo& instance() {
-        static memGlobalInfo __memGlobalInfo__;
-        return __memGlobalInfo__;
+    ~memGlobalInfo() {
+        memTimer::instance().stop();
+        dump();
     }
 
-    void dump() const;
+    static memGlobalInfo& instance() {
+        if (!_instance) {
+            _instance = std::make_unique<memGlobalInfo>();
+        }
+
+        return *_instance.get();
+    }
+
+    void dump() const {
+        printf("Func Memory Info\n");
+        unsigned count = 0;
+        for (auto& [tid, threadsInfo] : _frames) {
+            for (auto& [frameId, tickInfo] : threadsInfo) {
+                memFrame frame0(0, 0, tickInfo.begin()->second.funcId,
+                                tickInfo.begin()->second.frameId);
+                for (auto& [tick, frame] : tickInfo) {
+                    frame0 += frame;
+                }
+
+                printf("  %u: threadId:%lu %s: alloc %lu free %lu\n", count++,
+                       tid, getCallstack(frameId).c_str(), frame0.mallocBytes,
+                       frame0.freeBytes);
+            }
+        }
+
+        printf("\n");
+        printf("Callstack Info\n");
+        count = 0;
+        for (auto& [frameId, callstack] : _callstacks) {
+            printf("  %u: frame:%lu %s\n", count++, frameId,
+                   getCallstack(frameId).c_str());
+        }
+
+        fflush(stdout);
+    }
 
     std::string getCallstack(size_t frameId) const {
         if (_callstacks.find(frameId) == _callstacks.end())
@@ -123,7 +155,12 @@ class memGlobalInfo {
 
     std::map<size_t, std::array<const char*, MAX_STACK_DEPTH>> _callstacks;
     std::mutex _lk;
+
+   private:
+    static std::unique_ptr<memGlobalInfo> _instance;
 };
+
+inline std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
 
 class memStack {
    public:

@@ -1,9 +1,5 @@
 #include "memProbe.h"
 
-#include <assert.h>
-
-auto& __ = memTimer::instance();
-
 #ifdef JE_MALLOC
 
 #include <jemalloc/jemalloc.h>
@@ -88,37 +84,3 @@ void free(void* p) {
 };
 
 #endif
-
-memGlobalInfo::~memGlobalInfo() {
-    memTimer::instance().stop();
-    memLocalInfo::instance().merge();
-    dump();
-}
-
-void memGlobalInfo::dump() const {
-    printf("Func Memory Info\n");
-    unsigned count = 0;
-    for (auto& [tid, threadsInfo] : _frames) {
-        for (auto& [frameId, tickInfo] : threadsInfo) {
-            memFrame frame0(0, 0, tickInfo.begin()->second.funcId,
-                            tickInfo.begin()->second.frameId);
-            for (auto& [tick, frame] : tickInfo) {
-                frame0 += frame;
-            }
-
-            printf("  %u: threadId:%lu %s: alloc %lu free %lu\n", count++, tid,
-                   getCallstack(frameId).c_str(), frame0.mallocBytes,
-                   frame0.freeBytes);
-        }
-    }
-
-    printf("\n");
-    printf("Callstack Info\n");
-    count = 0;
-    for (auto& [frameId, callstack] : _callstacks) {
-        printf("  %u: frame:%lu %s\n", count++, frameId,
-               getCallstack(frameId).c_str());
-    }
-
-    fflush(stdout);
-}

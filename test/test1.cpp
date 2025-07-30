@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 #include "memProbe.h"
+=======
+#include "test.h"
+
+
+>>>>>>> 4228626bbaf7203cc8745217a0990d92a226991f
 
 void add() {
     MEM_PROBE;
@@ -34,6 +40,7 @@ bool sysCheckJemalloc() {
 }
 
 int main() {
+<<<<<<< HEAD
     MEM_PROBE;
     usleep(500 * 1000);
 
@@ -61,6 +68,10 @@ int main() {
     }
 
     add();
+=======
+    test_thread_local::instance().a = 10;
+    testFunc();
+>>>>>>> 4228626bbaf7203cc8745217a0990d92a226991f
 
     return 0;
 }

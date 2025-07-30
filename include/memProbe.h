@@ -276,6 +276,6 @@ class memProbe {
     ~memProbe() { memStack::instance().pop(); }
 };
 
-#define MEM_PROBE memProbe __probe__(__FUNCTION__);
+#define MEM_PROBE memProbe __probe__(__PRETTY_FUNCTION__);
 
 #endif

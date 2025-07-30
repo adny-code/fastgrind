@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
 
 # 设置项目名称和版本
 set(CMAKE_CXX_STANDARD 17)
@@ -10,14 +10,21 @@ set(CMAKE_INSTALL_PREFIX /usr/local)
 # 添加包含目录
 include_directories(include)
 
-# 添加库目标
-add_library(merecord STATIC src/memRecord.cpp)
+set(WRAP_FLAGS 
+    -Wl,--wrap=malloc
+    -Wl,--wrap=free
+    -Wl,--wrap=_Znwm
+    -Wl,--wrap=_ZdlPv
+    -Wl,--wrap=_ZdaPv
+    -Wl,--wrap=_ZdaPvm
+    -Wl,--wrap=_ZdlPvm)
 
 # 可选：添加可执行文件以测试库
-add_executable(test test/test1.cpp)
+add_executable(test test/test1.cpp src/memProbe.cpp)
 
-target_link_libraries(test pthread)
+target_link_libraries(test pthread dl -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic -lgcc_s)
+
+target_link_options(test PRIVATE ${WRAP_FLAGS})
 
 # 安装头文件和静态库
-install(TARGETS merecord ARCHIVE DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)

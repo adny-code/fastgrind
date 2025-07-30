@@ -20,11 +20,15 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZdaPvm
     -Wl,--wrap=_ZdlPvm)
 
+
+# 添加库目标
+add_library(memProbe STATIC src/memProbe.cpp)
+
 # 可选：添加可执行文件以测试库
 add_executable(test1 test/test1.cpp)
 add_executable(test2 test/test2.cpp src/memProbe.cpp)
 
-target_link_libraries(test2 pthread dl -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic -lgcc_s)
+target_link_libraries(test2 memProbe pthread dl -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic -lgcc_s)
 
 target_link_options(test2 PRIVATE ${WRAP_FLAGS})
 

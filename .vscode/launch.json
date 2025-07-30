@@ -10,7 +10,7 @@
         "stopAtEntry": false,
         "externalConsole": false,
         "cwd": "/code/official/MERecorder/build/",
-        "program": "/code/official/MERecorder/build/test",
+        "program": "/code/official/MERecorder/build/test2",
         "MIMode": "gdb",
         "miDebuggerPath": "gdb",
         "setupCommands": [

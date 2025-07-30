@@ -22,12 +22,21 @@ void __wrap_free(void* p) {
     je_free_default(p);
 }
 
+// override operator new
 void* __wrap__Znwm(size_t sz) {
     auto p = je_malloc_default(sz);
     memLocalInfo::instance().add(malloc_usable_size(p));
     return p;
 }
 
+// override operator new[]
+void* __wrap__Znam(size_t sz) {
+    auto p = je_malloc_default(sz);
+    memLocalInfo::instance().add(malloc_usable_size(p));
+    return p;
+}
+
+// override operator delete
 void __wrap__ZdlPv(void* p) {
     if (p) {
         memLocalInfo::instance().sub(malloc_usable_size(p));
@@ -36,6 +45,7 @@ void __wrap__ZdlPv(void* p) {
     je_free_default(p);
 }
 
+// override operator delete[]
 void __wrap__ZdaPv(void* p) {
     if (p) {
         memLocalInfo::instance().sub(malloc_usable_size(p));
@@ -44,6 +54,7 @@ void __wrap__ZdaPv(void* p) {
     je_free_default(p);
 }
 
+// override operator sized operator delete
 void __wrap__ZdaPvm(void* p, size_t sz) {
     if (p) {
         memLocalInfo::instance().sub(malloc_usable_size(p));
@@ -52,6 +63,7 @@ void __wrap__ZdaPvm(void* p, size_t sz) {
     je_free_default(p);
 }
 
+// override operator sized operator delete[]
 void __wrap__ZdlPvm(void* p, size_t sz) {
     if (p) {
         memLocalInfo::instance().sub(malloc_usable_size(p));

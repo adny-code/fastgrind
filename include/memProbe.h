@@ -206,15 +206,19 @@ class memLocalInfo
         return __memThreadInfo__;
     }
 
+    void reset() {
+        _frames.clear();
+        _callstacks.clear();
+    }
+
     void merge() {
         std::lock_guard<std::mutex> lg(memGlobalInfo::instance()._lk);
-        memGlobalInfo::instance()._frames[tid].merge(*this);
+        memGlobalInfo::instance()._frames[tid].merge(_frames);
 
         for (auto& [k, v] : _callstacks)
             memGlobalInfo::instance()._callstacks[k] = v;
 
-        clear();
-        _callstacks.clear();
+        reset();
     }
 
     void add(size_t sz) {
@@ -248,7 +252,7 @@ class memLocalInfo
             _callstacks[frameId][memStack::instance().depth()] = nullptr;
         }
 
-        auto& frames = this->operator[](frameId);
+        auto& frames = _frames[frameId];
         auto it = frames.find(time);
         if (it == frames.end()) {
             frames[time] = memFrame(0, 0, funcId, frameId);
@@ -259,6 +263,8 @@ class memLocalInfo
     }
 
    protected:
+    // key is frameId, second map key is tick
+    std::unordered_map<size_t, std::unordered_map<size_t, memFrame>> _frames;
     std::unordered_map<size_t, std::array<const char*, MAX_STACK_DEPTH>>
         _callstacks;
     int _nested = 0;

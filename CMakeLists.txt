@@ -14,6 +14,7 @@ set(WRAP_FLAGS
     -Wl,--wrap=malloc
     -Wl,--wrap=free
     -Wl,--wrap=_Znwm
+    -Wl,--wrap=_Znam
     -Wl,--wrap=_ZdlPv
     -Wl,--wrap=_ZdaPv
     -Wl,--wrap=_ZdaPvm

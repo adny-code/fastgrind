@@ -1,13 +1,17 @@
-#include "test.h"
+// #include "test.h"
+
+#include <vector>
 
 int main() {
-    test_thread_local::instance().a = 10;
-    // testFunc();
+    // test_thread_local::instance().a = 10;
+    // // testFunc();
 
-    int* p1 = (int*)malloc(100);
-    printf("p1: %p \n", p1);
+    // int* p1 = (int*)malloc(100);
+    // printf("p1: %p \n", p1);
 
-    test_func_print2();
+    // std::vector<int> v;
+    // v.emplace_back(1);
+
     // testFunc();
 
     // int* p2 = (int*)__wrap_malloc(100);

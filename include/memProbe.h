@@ -295,4 +295,105 @@ class memProbe {
 
 #define MEM_PROBE memProbe __probe__(__PRETTY_FUNCTION__);
 
+#ifdef JE_MALLOC
+#include <jemalloc/jemalloc.h>
+
+extern "C" {
+extern void* je_malloc_default(size_t);
+extern void* je_free_default(void*);
+
+inline void* __wrap_malloc(size_t sz) {
+    auto p = je_malloc_default(sz);
+    memLocalInfo::instance().add(malloc_usable_size(p));
+    return p;
+}
+
+inline void __wrap_free(void* p) {
+    if (p) {
+        memLocalInfo::instance().sub(malloc_usable_size(p));
+    }
+
+    je_free_default(p);
+}
+
+// override operator new
+inline void* __wrap__Znwm(size_t sz) {
+    auto p = je_malloc_default(sz);
+    memLocalInfo::instance().add(malloc_usable_size(p));
+    return p;
+}
+
+// override operator new[]
+inline void* __wrap__Znam(size_t sz) {
+    auto p = je_malloc_default(sz);
+    memLocalInfo::instance().add(malloc_usable_size(p));
+    return p;
+}
+
+// override operator delete
+inline void __wrap__ZdlPv(void* p) {
+    if (p) {
+        memLocalInfo::instance().sub(malloc_usable_size(p));
+    }
+
+    je_free_default(p);
+}
+
+// override operator delete[]
+inline void __wrap__ZdaPv(void* p) {
+    if (p) {
+        memLocalInfo::instance().sub(malloc_usable_size(p));
+    }
+
+    je_free_default(p);
+}
+
+// override operator sized operator delete
+inline void __wrap__ZdaPvm(void* p, size_t sz) {
+    if (p) {
+        memLocalInfo::instance().sub(malloc_usable_size(p));
+    }
+
+    je_free_default(p);
+}
+
+// override operator sized operator delete[]
+inline void __wrap__ZdlPvm(void* p, size_t sz) {
+    if (p) {
+        memLocalInfo::instance().sub(malloc_usable_size(p));
+    }
+
+    je_free_default(p);
+}
+
+static std::vector<void*> mmProbeOverrideFunc = {
+    (void*)&__wrap_malloc,  (void*)&__wrap_free,   (void*)&__wrap__Znwm,
+    (void*)&__wrap__Znam,   (void*)&__wrap__ZdlPv, (void*)&__wrap__ZdaPv,
+    (void*)&__wrap__ZdaPvm, (void*)&__wrap__ZdlPvm};
+};
+
+#else
+
+extern "C" {
+
+extern inline void* __libc_malloc(size_t);
+extern inline void __libc_free(void*);
+
+inline void* malloc(size_t sz) {
+    auto p = __libc_malloc(sz);
+    memLocalInfo::instance().add(malloc_usable_size(p));
+    return p;
+}
+
+inline void free(void* p) {
+    if (p) {
+        memLocalInfo::instance().sub(malloc_usable_size(p));
+    }
+
+    __libc_free(p);
+}
+};
+
+#endif
+
 #endif

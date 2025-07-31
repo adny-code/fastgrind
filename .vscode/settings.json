@@ -43,6 +43,7 @@
         "sstream": "cpp",
         "stdexcept": "cpp",
         "cwctype": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "filesystem": "cpp"
     }
 }

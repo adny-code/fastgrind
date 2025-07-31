@@ -1,6 +1,7 @@
 #ifndef MEM_PROBE_H
 #define MEM_PROBE_H
 
+#define MEM_PROBE_STATUS 1
 #define JE_MALLOC
 
 #include <array>
@@ -99,6 +100,16 @@ class memGlobalInfo {
 
     size_t time() const { return _timer.time(); }
 
+    template <typename... Args>
+    static std::string format(const char* fstr, Args... args) {
+        size_t size = 1 + snprintf(nullptr, 0, fstr, args...);
+        char* bytes = new char[size];
+        snprintf(bytes, size, fstr, args...);
+        std::string out(bytes);
+        delete[] bytes;
+        return out;
+    }
+
     void dump() const {
         printf("Func Memory Info\n");
         unsigned count = 0;
@@ -110,9 +121,9 @@ class memGlobalInfo {
                     frame0 += frame;
                 }
 
-                printf("  %u: threadId:%lu %s: alloc %lu free %lu\n", count++,
-                       tid, getCallstack(frameId).c_str(), frame0.mallocBytes,
-                       frame0.freeBytes);
+                printf("%u: threadId:%lu alloc %lu free %lu\n%s\n", count++,
+                       tid, frame0.mallocBytes, frame0.freeBytes,
+                       getCallstack(frameId).c_str());
             }
         }
 
@@ -120,7 +131,7 @@ class memGlobalInfo {
         printf("Callstack Info\n");
         count = 0;
         for (auto& [frameId, callstack] : _callstacks) {
-            printf("  %u: frame:%lu %s\n", count++, frameId,
+            printf("%u: frame:%lu\n%s\n", count++, frameId,
                    getCallstack(frameId).c_str());
         }
 
@@ -133,10 +144,14 @@ class memGlobalInfo {
 
         std::string r;
         auto& callstack = _callstacks.at(frameId);
-        for (unsigned c = 0; callstack[c] != nullptr; ++c)
-            r += std::string(c > 0 ? "->" : "") + std::string(callstack[c]) +
-                 "() ";
+        unsigned depth = 0;
+        for (depth = 0; callstack[depth] != nullptr; ++depth) {
+        }
 
+        for (unsigned i = 0; i < depth; ++i) {
+            r += format("%s%u: %s", (i ? "\n  " : "  "), i,
+                        callstack[depth - 1 - i]);
+        }
         return r;
     }
 
@@ -268,8 +283,14 @@ class memLocalInfo
 
 class memProbe {
    public:
-    memProbe(const char* name) { memStack::instance().push(name); }
-    ~memProbe() { memStack::instance().pop(); }
+    memProbe(const char* name) {
+        if (MEM_PROBE_STATUS)
+            memStack::instance().push(name);
+    }
+    ~memProbe() {
+        if (MEM_PROBE_STATUS)
+            memStack::instance().pop();
+    }
 };
 
 #define MEM_PROBE memProbe __probe__(__PRETTY_FUNCTION__);

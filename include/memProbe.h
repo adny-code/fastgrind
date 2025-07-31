@@ -66,12 +66,7 @@ class memTimer {
         }
     }
 
-    static memTimer& instance() {
-        static memTimer __memTimer__;
-        return __memTimer__;
-    }
-
-    size_t time() { return _tick; }
+    size_t time() const { return _tick; }
 
    protected:
     void fakeTimer() {
@@ -92,10 +87,7 @@ class memGlobalInfo {
     friend class memLocalInfo;
 
    public:
-    ~memGlobalInfo() {
-        memTimer::instance().stop();
-        dump();
-    }
+    ~memGlobalInfo() { dump(); }
 
     static memGlobalInfo& instance() {
         if (!_instance) {
@@ -104,6 +96,8 @@ class memGlobalInfo {
 
         return *_instance.get();
     }
+
+    size_t time() const { return _timer.time(); }
 
     void dump() const {
         printf("Func Memory Info\n");
@@ -147,6 +141,8 @@ class memGlobalInfo {
     }
 
    protected:
+    memTimer _timer;
+
     // key is threadId, second map key is frameId, second key is tick second is
     // frame info
     std::map<size_t,
@@ -228,7 +224,7 @@ class memLocalInfo
         ++_nested;
         const auto& stack = memStack::instance();
         getFrame(size_t(stack.top()), stack.frameId(),
-                 memTimer::instance().time())
+                 memGlobalInfo::instance().time())
             .mallocBytes += sz;
         --_nested;
     }
@@ -240,7 +236,7 @@ class memLocalInfo
         ++_nested;
         const auto& stack = memStack::instance();
         getFrame(size_t(stack.top()), stack.frameId(),
-                 memTimer::instance().time())
+                 memGlobalInfo::instance().time())
             .freeBytes += sz;
         --_nested;
     }

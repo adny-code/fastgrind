@@ -2,6 +2,15 @@
 
 int main() {
     test_thread_local::instance().a = 10;
-    testFunc();
+    // testFunc();
+
+    int* p1 = (int*)malloc(100);
+    printf("p1: %p \n", p1);
+
+    test_func_print2();
+    // testFunc();
+
+    // int* p2 = (int*)__wrap_malloc(100);
+    // printf("p2: %p \n", p2);
     return 0;
 }

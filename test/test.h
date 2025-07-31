@@ -4,6 +4,30 @@
 #include <iostream>
 #include <stdio.h>
 
+static void   test_func_print() {
+    printf("test_func_print: %s \n", __FUNCTION__);
+}
+
+void test_func_print2();
+
+extern "C" {
+
+inline void* __wrap_malloc(size_t sz) {
+    printf("malloc: %s \n", __FUNCTION__);
+    void* p = nullptr;
+    return p;
+}
+
+inline void __wrap_free(void* p) {
+    printf("free: %s \n", __FUNCTION__);
+    free(p);
+}
+
+}
+
+static void* memFuncTable[] = {(void*)&__wrap_malloc, (void*)&__wrap_free, nullptr};
+
+
 struct test_thread_local
 {
     int a = 0;
@@ -46,6 +70,6 @@ private:
 inline std::unique_ptr<test1> test1::_ptr = nullptr;
 
 
-void testFunc() {
-    static std::unique_ptr<test1>& instance1 = test1::getInstance();
-}
+// void testFunc() {
+//     static std::unique_ptr<test1>& instance1 = test1::getInstance();
+// }

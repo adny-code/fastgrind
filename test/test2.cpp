@@ -1,4 +1,5 @@
 #include "memProbe.h"
+#include <vector>
 
 void add() {
     MEM_PROBE;

@@ -4,8 +4,8 @@
 int main()
 {
     MEM_PROBE;
-    int* p1 = (int*)malloc(1000);
-    int* p2 = new int[1000];
+    int *p1 = (int *)malloc(1000);
+    int *p2 = new int[1000];
 
     free(p1);
 

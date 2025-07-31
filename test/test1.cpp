@@ -2,7 +2,8 @@
 
 #include <vector>
 
-int main() {
+int main()
+{
     // test_thread_local::instance().a = 10;
     // // testFunc();
 

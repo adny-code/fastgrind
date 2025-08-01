@@ -20,13 +20,17 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZdaPvm
     -Wl,--wrap=_ZdlPvm)
 
-# 可选：添加可执行文件以测试库
-add_executable(test1 test/test1.cpp test/test.cpp)
+# test1 使用 tcmalloc
+add_executable(test1 test/test1.cpp)
+target_link_libraries(test1 pthread dl -Wl,-Bstatic -ltcmalloc -Wl,-Bdynamic -lgcc_s unwind)
+target_link_options(test1 PRIVATE ${WRAP_FLAGS})
+target_compile_definitions(test1 PRIVATE TCMALLOC)
+
+# test2 使用 jemalloc
 add_executable(test2 test/test2.cpp)
-
 target_link_libraries(test2 pthread dl -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic -lgcc_s)
-
 target_link_options(test2 PRIVATE ${WRAP_FLAGS})
+target_compile_definitions(test2 PRIVATE JE_MALLOC)
 
 # 安装头文件和静态库
 install(DIRECTORY include/ DESTINATION include)

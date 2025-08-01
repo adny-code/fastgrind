@@ -1,9 +1,6 @@
 #ifndef MEM_PROBE_H
 #define MEM_PROBE_H
 
-#define MEM_PROBE_STATUS 1
-#define JE_MALLOC
-
 #include <array>
 #include <atomic>
 #include <functional>
@@ -25,11 +22,31 @@
 #define MAX_STACK_DEPTH 64
 #define SMAMPLE_INTERVAL_MS 100
 
+#define MEM_PROBE_STATUS 1
+// #define JE_MALLOC
+// #define TCMALLOC
+
+/**
+ * @brief Memory allocation and deallocation information.
+ * @details: MemFrame holds one thread's and one tick's information.
+ * @param mallocBytes: Total bytes allocated in this frame.
+ * @param freeBytes: Total bytes freed in this frame.
+ * @param funcId: Identifier for the function where this frame was created.
+ * @param frameId: Identifier for the frame, used to track the call stack.
+ */
 struct memFrame
 {
-    memFrame()
+    /**
+     * @brief Empty constructor for memFrame.
+     *
+     */
+    memFrame() : mallocBytes(0), freeBytes(0), funcId(0), frameId(0)
     {
     }
+
+    /**
+     * @brief Construct a new mem Frame object
+     */
     memFrame(size_t mallocBytes, size_t freeBytes, size_t funcId, size_t frameId)
         : mallocBytes(mallocBytes), freeBytes(freeBytes), funcId(funcId), frameId(frameId)
     {
@@ -39,8 +56,10 @@ struct memFrame
     {
         mallocBytes += other.mallocBytes;
         freeBytes += other.freeBytes;
-        funcId += other.funcId;
-        frameId += other.frameId;
+        if (!funcId)
+            funcId = other.funcId;
+        if (!frameId)
+            frameId = other.frameId;
 
         return *this;
     }
@@ -432,11 +451,118 @@ extern "C"
         (void *)&__wrap__ZdlPv, (void *)&__wrap__ZdaPv, (void *)&__wrap__ZdaPvm, (void *)&__wrap__ZdlPvm};
 };
 
-#else
+#elif defined(TCMALLOC)
+#include <gperftools/tcmalloc.h>
 
 extern "C"
 {
+    extern void *tc_malloc(size_t);
+    extern void tc_free(void *);
 
+    inline void *__wrap_malloc(size_t sz)
+    {
+        auto p = tc_malloc(sz);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        return p;
+    }
+
+    inline void __wrap_free(void *p)
+    {
+        if (p)
+        {
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        }
+        tc_free(p);
+    }
+
+    // override operator new
+    inline void *__wrap__Znwm(size_t sz)
+    {
+        auto p = tc_malloc(sz);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        return p;
+    }
+
+    // override operator new[]
+    inline void *__wrap__Znam(size_t sz)
+    {
+        auto p = tc_malloc(sz);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        return p;
+    }
+
+    // override operator delete
+    inline void __wrap__ZdlPv(void *p)
+    {
+        if (p)
+        {
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        }
+        tc_free(p);
+    }
+
+    // override operator delete[]
+    inline void __wrap__ZdaPv(void *p)
+    {
+        if (p)
+        {
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        }
+        tc_free(p);
+    }
+
+    // override operator sized operator delete
+    inline void __wrap__ZdaPvm(void *p, size_t sz)
+    {
+        if (p)
+        {
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        }
+        tc_free(p);
+    }
+
+    // override operator sized operator delete[]
+    inline void __wrap__ZdlPvm(void *p, size_t sz)
+    {
+        if (p)
+        {
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        }
+        tc_free(p);
+    }
+
+    inline void *__wrap_calloc(size_t nmemb, size_t size)
+    {
+        auto p = tc_calloc(nmemb, size);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        return p;
+    }
+
+    inline void *__wrap_realloc(void *ptr, size_t size)
+    {
+        size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
+        auto p = tc_realloc(ptr, size);
+        memLocalInfo::instance().sub(old_size);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        return p;
+    }
+
+    inline void *__wrap_memalign(size_t alignment, size_t size)
+    {
+        auto p = tc_memalign(alignment, size);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        return p;
+    }
+
+    static std::vector<void *> mmProbeOverrideFunc = {
+        (void *)&__wrap_malloc, (void *)&__wrap_free,   (void *)&__wrap__Znwm,   (void *)&__wrap__Znam,
+        (void *)&__wrap__ZdlPv, (void *)&__wrap__ZdaPv, (void *)&__wrap__ZdaPvm, (void *)&__wrap__ZdlPvm, 
+        (void *)&__wrap_calloc, (void *)&__wrap_realloc, (void *)&__wrap_memalign};
+};
+
+#else
+extern "C"
+{
     extern inline void *__libc_malloc(size_t);
     extern inline void __libc_free(void *);
 

@@ -42,7 +42,7 @@ int main()
     MEM_PROBE;
     usleep(500 * 1000);
 
-    printf("tid %lu jemalloc status %u\n", syscall(SYS_gettid), sysCheckTcmalloc());
+    printf("tid %lu tcmalloc status %u\n", syscall(SYS_gettid), sysCheckTcmalloc());
 
     add();
     usleep(500 * 1000);

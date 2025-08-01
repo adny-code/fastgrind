@@ -23,8 +23,6 @@
 #define SMAMPLE_INTERVAL_MS 100
 
 #define MEM_PROBE_STATUS 1
-// #define JE_MALLOC
-// #define TCMALLOC
 
 /**
  * @brief Memory allocation and deallocation information.
@@ -379,9 +377,7 @@ extern "C"
     inline void __wrap_free(void *p)
     {
         if (p)
-        {
             memLocalInfo::instance().sub(malloc_usable_size(p));
-        }
 
         je_free_default(p);
     }
@@ -406,9 +402,7 @@ extern "C"
     inline void __wrap__ZdlPv(void *p)
     {
         if (p)
-        {
             memLocalInfo::instance().sub(malloc_usable_size(p));
-        }
 
         je_free_default(p);
     }
@@ -417,9 +411,7 @@ extern "C"
     inline void __wrap__ZdaPv(void *p)
     {
         if (p)
-        {
             memLocalInfo::instance().sub(malloc_usable_size(p));
-        }
 
         je_free_default(p);
     }
@@ -428,9 +420,7 @@ extern "C"
     inline void __wrap__ZdaPvm(void *p, size_t sz)
     {
         if (p)
-        {
             memLocalInfo::instance().sub(malloc_usable_size(p));
-        }
 
         je_free_default(p);
     }
@@ -439,9 +429,7 @@ extern "C"
     inline void __wrap__ZdlPvm(void *p, size_t sz)
     {
         if (p)
-        {
             memLocalInfo::instance().sub(malloc_usable_size(p));
-        }
 
         je_free_default(p);
     }
@@ -454,6 +442,7 @@ extern "C"
 #elif defined(TCMALLOC)
 #include <gperftools/tcmalloc.h>
 
+thread_local bool __tcmalloc_in_probe__ = false;
 extern "C"
 {
     extern void *tc_malloc(size_t);
@@ -461,96 +450,156 @@ extern "C"
 
     inline void *__wrap_malloc(size_t sz)
     {
+        if (__tcmalloc_in_probe__)
+            return tc_malloc(sz);
+        
+        __tcmalloc_in_probe__ = true;
         auto p = tc_malloc(sz);
         memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         return p;
     }
 
     inline void __wrap_free(void *p)
     {
-        if (p)
+        if (__tcmalloc_in_probe__)
         {
-            memLocalInfo::instance().sub(malloc_usable_size(p));
+            tc_free(p);
+            return;
         }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         tc_free(p);
     }
 
     // override operator new
     inline void *__wrap__Znwm(size_t sz)
     {
+        if (__tcmalloc_in_probe__)
+            return tc_malloc(sz);
+        
+        __tcmalloc_in_probe__ = true;
         auto p = tc_malloc(sz);
         memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         return p;
     }
 
     // override operator new[]
     inline void *__wrap__Znam(size_t sz)
     {
+        if (__tcmalloc_in_probe__)
+            return tc_malloc(sz);
+
+        __tcmalloc_in_probe__ = true;
         auto p = tc_malloc(sz);
         memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         return p;
     }
 
     // override operator delete
     inline void __wrap__ZdlPv(void *p)
     {
-        if (p)
+        if (__tcmalloc_in_probe__)
         {
-            memLocalInfo::instance().sub(malloc_usable_size(p));
+            tc_free(p);
+            return;
         }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         tc_free(p);
     }
 
     // override operator delete[]
     inline void __wrap__ZdaPv(void *p)
     {
-        if (p)
+        if (__tcmalloc_in_probe__)
         {
-            memLocalInfo::instance().sub(malloc_usable_size(p));
+            tc_free(p);
+            return;
         }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         tc_free(p);
     }
 
     // override operator sized operator delete
     inline void __wrap__ZdaPvm(void *p, size_t sz)
     {
-        if (p)
+        if (__tcmalloc_in_probe__)
         {
-            memLocalInfo::instance().sub(malloc_usable_size(p));
+            tc_free(p);
+            return;
         }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         tc_free(p);
     }
 
     // override operator sized operator delete[]
     inline void __wrap__ZdlPvm(void *p, size_t sz)
     {
-        if (p)
+        if (__tcmalloc_in_probe__)
         {
-            memLocalInfo::instance().sub(malloc_usable_size(p));
+            tc_free(p);
+            return;
         }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         tc_free(p);
     }
 
     inline void *__wrap_calloc(size_t nmemb, size_t size)
     {
+        if (__tcmalloc_in_probe__)
+            return tc_calloc(nmemb, size);
+        
+        __tcmalloc_in_probe__ = true;
         auto p = tc_calloc(nmemb, size);
         memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         return p;
     }
 
     inline void *__wrap_realloc(void *ptr, size_t size)
     {
+        if (__tcmalloc_in_probe__)
+            return tc_realloc(ptr, size);
+        
+        __tcmalloc_in_probe__ = true;
         size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
         auto p = tc_realloc(ptr, size);
         memLocalInfo::instance().sub(old_size);
         memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         return p;
     }
 
     inline void *__wrap_memalign(size_t alignment, size_t size)
     {
+        if (__tcmalloc_in_probe__)
+            return tc_memalign(alignment, size);
+
+        __tcmalloc_in_probe__ = true;
         auto p = tc_memalign(alignment, size);
         memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
         return p;
     }
 

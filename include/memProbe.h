@@ -452,7 +452,7 @@ extern "C"
     {
         if (__tcmalloc_in_probe__)
             return tc_malloc(sz);
-        
+
         __tcmalloc_in_probe__ = true;
         auto p = tc_malloc(sz);
         memLocalInfo::instance().add(malloc_usable_size(p));
@@ -480,7 +480,7 @@ extern "C"
     {
         if (__tcmalloc_in_probe__)
             return tc_malloc(sz);
-        
+
         __tcmalloc_in_probe__ = true;
         auto p = tc_malloc(sz);
         memLocalInfo::instance().add(malloc_usable_size(p));
@@ -569,7 +569,7 @@ extern "C"
     {
         if (__tcmalloc_in_probe__)
             return tc_calloc(nmemb, size);
-        
+
         __tcmalloc_in_probe__ = true;
         auto p = tc_calloc(nmemb, size);
         memLocalInfo::instance().add(malloc_usable_size(p));
@@ -581,7 +581,7 @@ extern "C"
     {
         if (__tcmalloc_in_probe__)
             return tc_realloc(ptr, size);
-        
+
         __tcmalloc_in_probe__ = true;
         size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
         auto p = tc_realloc(ptr, size);
@@ -604,16 +604,16 @@ extern "C"
     }
 
     static std::vector<void *> mmProbeOverrideFunc = {
-        (void *)&__wrap_malloc, (void *)&__wrap_free,   (void *)&__wrap__Znwm,   (void *)&__wrap__Znam,
-        (void *)&__wrap__ZdlPv, (void *)&__wrap__ZdaPv, (void *)&__wrap__ZdaPvm, (void *)&__wrap__ZdlPvm, 
+        (void *)&__wrap_malloc, (void *)&__wrap_free,    (void *)&__wrap__Znwm,   (void *)&__wrap__Znam,
+        (void *)&__wrap__ZdlPv, (void *)&__wrap__ZdaPv,  (void *)&__wrap__ZdaPvm, (void *)&__wrap__ZdlPvm,
         (void *)&__wrap_calloc, (void *)&__wrap_realloc, (void *)&__wrap_memalign};
 };
 
 #else
 extern "C"
 {
-    extern inline void *__libc_malloc(size_t);
-    extern inline void __libc_free(void *);
+    extern void *__libc_malloc(size_t);
+    extern void __libc_free(void *);
 
     inline void *malloc(size_t sz)
     {
@@ -625,13 +625,47 @@ extern "C"
     inline void free(void *p)
     {
         if (p)
-        {
             memLocalInfo::instance().sub(malloc_usable_size(p));
-        }
 
         __libc_free(p);
     }
+
+    static std::vector<void *> mmProbeOverrideFunc = {(void *)&malloc, (void *)&free};
 };
+
+inline void *operator new(size_t size)
+{
+    auto p = malloc(size);
+    if (!p)
+        throw std::bad_alloc();
+    return p;
+}
+
+inline void *operator new[](size_t size)
+{
+    auto p = malloc(size);
+    if (!p)
+        throw std::bad_alloc();
+    return p;
+}
+
+inline void operator delete(void *p) noexcept
+{
+    free(p);
+}
+
+inline void operator delete[](void *p) noexcept
+{
+    free(p);
+}
+
+namespace __default_malloc_in_probe
+{
+static void *(*_force_new)(std::size_t) __attribute__((used)) = &operator new;
+static void *(*_force_new_array)(std::size_t) __attribute__((used)) = &operator new[];
+static void (*_force_delete)(void *) noexcept __attribute__((used)) = &operator delete;
+static void (*_force_delete_array)(void *) noexcept __attribute__((used)) = &operator delete[];
+} // namespace __default_malloc_in_probe
 
 #endif
 

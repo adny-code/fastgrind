@@ -698,8 +698,8 @@ extern "C"
 #else
 extern "C"
 {
-    extern inline void *__libc_malloc(size_t);
-    extern inline void __libc_free(void *);
+    extern void *__libc_malloc(size_t);
+    extern void __libc_free(void *);
 
     inline void *malloc(size_t sz)
     {
@@ -711,13 +711,47 @@ extern "C"
     inline void free(void *p)
     {
         if (p)
-        {
             memLocalInfo::instance().sub(malloc_usable_size(p));
-        }
 
         __libc_free(p);
     }
+
+    static std::vector<void *> mmProbeOverrideFunc = {(void *)&malloc, (void *)&free};
 };
+
+inline void *operator new(size_t size)
+{
+    auto p = malloc(size);
+    if (!p)
+        throw std::bad_alloc();
+    return p;
+}
+
+inline void *operator new[](size_t size)
+{
+    auto p = malloc(size);
+    if (!p)
+        throw std::bad_alloc();
+    return p;
+}
+
+inline void operator delete(void *p) noexcept
+{
+    free(p);
+}
+
+inline void operator delete[](void *p) noexcept
+{
+    free(p);
+}
+
+namespace __default_malloc_in_probe
+{
+static void *(*_force_new)(std::size_t) __attribute__((used)) = &operator new;
+static void *(*_force_new_array)(std::size_t) __attribute__((used)) = &operator new[];
+static void (*_force_delete)(void *) noexcept __attribute__((used)) = &operator delete;
+static void (*_force_delete_array)(void *) noexcept __attribute__((used)) = &operator delete[];
+} // namespace __default_malloc_in_probe
 
 #endif
 

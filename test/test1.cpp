@@ -1,5 +1,6 @@
 #include "memProbe.h"
 
+#include <gperftools/malloc_extension.h>
 #include <vector>
 
 void add()
@@ -25,16 +26,11 @@ void add2()
     }
 }
 
-extern "C"
-{
-    // weak symbol: resolved at runtime by the linker if we are using tcmalloc,
-    // nullptr otherwise
-    bool MallocExtension_Internal_GetNumericProperty(const char* property, size_t* value) __attribute__((weak));
-}
-
 bool sysCheckTcmalloc()
 {
-    return (MallocExtension_Internal_GetNumericProperty != nullptr);
+    size_t value = 0;
+    return MallocExtension::instance()->GetNumericProperty(
+               "tcmalloc.pageheap_free_bytes", &value);
 }
 
 int main()

@@ -10,6 +10,8 @@
 #include <thread>
 #include <unordered_map>
 
+#include <assert.h>
+#include <locale.h>
 #include <malloc.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -23,6 +25,16 @@
 #define SMAMPLE_INTERVAL_MS 100
 
 #define MEM_PROBE_STATUS 1
+
+template <typename... Args> static std::string memFormat(const char *fstr, Args... args)
+{
+    size_t size = 1 + snprintf(nullptr, 0, fstr, args...);
+    char *bytes = new char[size];
+    snprintf(bytes, size, fstr, args...);
+    std::string out(bytes);
+    delete[] bytes;
+    return out;
+}
 
 /**
  * @brief Memory allocation and deallocation information.
@@ -112,12 +124,78 @@ class memTimer
     std::atomic<size_t> _tick;
 };
 
+/*!@note data structure:
+ *
+ */
+class memNode
+{
+  public:
+    memNode(const char *name) : _name(name)
+    {
+    }
+
+    void add(const std::array<const char *, MAX_STACK_DEPTH> &callstack, const memFrame &frame, unsigned depth = 0)
+    {
+        _mallocBytes += frame.mallocBytes;
+        _freeBytes += frame.freeBytes;
+
+        auto &curFunc = callstack[depth];
+        if (curFunc)
+        {
+
+            if (_childs.find(curFunc) == _childs.end())
+            {
+                _childs.emplace(curFunc, memNode(curFunc));
+            }
+
+            _childs.at(curFunc).add(callstack, frame, depth + 1);
+        }
+    }
+
+    std::map<const char *, memNode> &childs()
+    {
+        return _childs;
+    }
+
+    std::string str(unsigned indent = 0) const
+    {
+        std::string s =
+            std::string(indent * 4, ' ') + memFormat("%s malloc %'d free %'d", _name, _mallocBytes, _freeBytes);
+
+        for (auto &[name, child] : _childs)
+        {
+            s += std::string("\n") + child.str(indent + 1);
+        }
+
+        return s;
+    }
+
+    void dump() const
+    {
+        printf("%s\n", str().c_str());
+    }
+
+  protected:
+    const char *_name;
+
+    //!@note key is func name
+    std::map<const char *, memNode> _childs;
+
+    size_t _mallocBytes = 0;
+    size_t _freeBytes = 0;
+};
+
 class memLocalInfo;
 class memGlobalInfo
 {
     friend class memLocalInfo;
 
   public:
+    memGlobalInfo()
+    {
+        setlocale(LC_ALL, "");
+    }
+
     ~memGlobalInfo()
     {
         dump();
@@ -138,19 +216,9 @@ class memGlobalInfo
         return _timer.time();
     }
 
-    template <typename... Args> static std::string format(const char *fstr, Args... args)
-    {
-        size_t size = 1 + snprintf(nullptr, 0, fstr, args...);
-        char *bytes = new char[size];
-        snprintf(bytes, size, fstr, args...);
-        std::string out(bytes);
-        delete[] bytes;
-        return out;
-    }
-
     void dump() const
     {
-        printf("Func Memory Info\n");
+        printf("[Func Memory Info]\n");
         unsigned count = 0;
         for (auto &[tid, threadsInfo] : _frames)
         {
@@ -168,12 +236,30 @@ class memGlobalInfo
         }
 
         printf("\n");
-        printf("Callstack Info\n");
+        printf("[Callstack Info]\n");
         count = 0;
         for (auto &[frameId, callstack] : _callstacks)
         {
             printf("%u: frame:%lu\n%s\n", count++, frameId, getCallstack(frameId).c_str());
         }
+
+        printf("\n");
+        printf("[Dump By Callstack]\n");
+        memNode info("this");
+        for (auto &[threadId, frames] : _frames)
+        {
+            for (auto &[frameId, tickFrames] : frames)
+            {
+                assert(_callstacks.find(frameId) != _callstacks.end());
+                const auto &callstack = _callstacks.at(frameId);
+                for (auto &[tick, frame] : tickFrames)
+                {
+                    info.add(callstack, frame);
+                }
+            }
+        }
+
+        info.dump();
 
         fflush(stdout);
     }
@@ -192,7 +278,7 @@ class memGlobalInfo
 
         for (unsigned i = 0; i < depth; ++i)
         {
-            r += format("%s%u: %s", (i ? "\n  " : "  "), i, callstack[depth - 1 - i]);
+            r += memFormat("%s%u: %s", (i ? "\n  " : "  "), i, callstack[depth - 1 - i]);
         }
         return r;
     }

@@ -160,7 +160,7 @@ class memNode
     std::string str(unsigned indent = 0) const
     {
         std::string s =
-            std::string(indent * 4, ' ') + memFormat("%s malloc %'d free %'d", _name, _mallocBytes, _freeBytes);
+            std::string(indent * 4, ' ') + memFormat("%s malloc %'ld free %'ld", _name, _mallocBytes, _freeBytes);
 
         for (auto &[name, child] : _childs)
         {

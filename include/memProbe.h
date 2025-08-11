@@ -452,6 +452,7 @@ extern "C"
 {
     extern void *je_malloc_default(size_t);
     extern void *je_free_default(void *);
+    extern void *__real_aligned_alloc(size_t alignment, size_t size);
 
     inline void *__wrap_malloc(size_t sz)
     {
@@ -557,31 +558,34 @@ extern "C"
         return p;
     }
 
-    inline void *__wrap_aligned_alloc(size_t alignment, size_t size)
-    {
-        auto p = je_malloc_default(size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        return p;
-    }
-
     inline int __wrap_posix_memalign(void **memptr, size_t alignment, size_t size)
     {
-        auto p = je_malloc_default(size);
+        auto p = __real_aligned_alloc(alignment, size);
         memLocalInfo::instance().add(malloc_usable_size(p));
         *memptr = p;
         return 0;
     }
 
+    inline void *__wrap_aligned_alloc(size_t alignment, size_t sz)
+    {
+
+        auto p = __real_aligned_alloc(alignment, sz);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        return p;
+    }
+
     static std::vector<void *> mmProbeOverrideFunc = {
-        (void *)&__wrap_malloc,  (void *)&__wrap_free,          (void *)&__wrap__Znwm,         (void *)&__wrap__Znam,
-        (void *)&__wrap__ZdlPv,  (void *)&__wrap__ZdaPv,        (void *)&__wrap__ZdaPvm,       (void *)&__wrap__ZdlPvm,
-        (void *)&__wrap_calloc,  (void *)&__wrap_realloc,       (void *)&__wrap_memalign,      (void *)&__wrap_valloc,
-        (void *)&__wrap_pvalloc, (void *)&__wrap_aligned_alloc, (void *)&__wrap_posix_memalign};
+        (void *)&__wrap_malloc,       (void *)&__wrap_free,          (void *)&__wrap__Znwm,
+        (void *)&__wrap__Znam,        (void *)&__wrap__ZdlPv,        (void *)&__wrap__ZdaPv,
+        (void *)&__wrap__ZdaPvm,      (void *)&__wrap__ZdlPvm,       (void *)&__wrap_calloc,
+        (void *)&__wrap_realloc,      (void *)&__wrap_memalign,      (void *)&__wrap_valloc,
+        (void *)&__wrap_pvalloc,      (void *)&__wrap_aligned_alloc, (void *)&__wrap_posix_memalign,
+        (void *)&__wrap_aligned_alloc};
 };
 
 #elif defined(TCMALLOC)
-#include <gperftools/tcmalloc.h>
 #include <cstring>
+#include <gperftools/tcmalloc.h>
 
 thread_local bool __tcmalloc_in_probe__ = false;
 extern "C"
@@ -779,13 +783,14 @@ extern "C"
 
     inline int __wrap_posix_memalign(void **memptr, size_t alignment, size_t size)
     {
-        if (__tcmalloc_in_probe__) 
+        if (__tcmalloc_in_probe__)
             return tc_posix_memalign(memptr, alignment, size);
-        
+
         __tcmalloc_in_probe__ = true;
-        void* ptr = nullptr;
+        void *ptr = nullptr;
         int err = tc_posix_memalign(&ptr, alignment, size);
-        if (err == 0) {
+        if (err == 0)
+        {
             size_t actual = malloc_usable_size(ptr);
             memLocalInfo::instance().add(actual);
             *memptr = ptr;
@@ -803,7 +808,7 @@ extern "C"
         __tcmalloc_in_probe__ = true;
         assert((alignment & (alignment - 1)) == 0);
         assert(size % alignment == 0);
-        
+
         auto p = tc_memalign(alignment, size);
         memLocalInfo::instance().add(malloc_usable_size(p));
         __tcmalloc_in_probe__ = false;
@@ -818,10 +823,13 @@ extern "C"
         __tcmalloc_in_probe__ = true;
         size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
         auto p = tc_realloc(ptr, size);
-        if (!p) {
+        if (!p)
+        {
             memLocalInfo::instance().sub(old_size);
             tc_free(ptr);
-        } else {
+        }
+        else
+        {
             memLocalInfo::instance().sub(old_size);
             memLocalInfo::instance().add(malloc_usable_size(p));
         }
@@ -839,7 +847,7 @@ extern "C"
         auto p = tc_realloc(ptr, nmemb * size);
         size_t new_size = malloc_usable_size(p);
         if (new_size > old_size)
-            memset((char*)p + old_size, 0, new_size - old_size);
+            memset((char *)p + old_size, 0, new_size - old_size);
 
         memLocalInfo::instance().sub(old_size);
         memLocalInfo::instance().add(new_size);
@@ -855,7 +863,8 @@ extern "C"
         __tcmalloc_in_probe__ = true;
         size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
         auto p = tc_memalign(alignment, size);
-        if (!p) {
+        if (!p)
+        {
             __tcmalloc_in_probe__ = false;
             return nullptr;
         }

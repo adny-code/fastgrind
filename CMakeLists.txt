@@ -13,6 +13,7 @@ include_directories(include)
 set(WRAP_FLAGS 
     -Wl,--wrap=malloc
     -Wl,--wrap=free
+    -Wl,--wrap=aligned_alloc
     -Wl,--wrap=_Znwm
     -Wl,--wrap=_Znam
     -Wl,--wrap=_ZdlPv

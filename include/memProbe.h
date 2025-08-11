@@ -6,6 +6,8 @@
 #include <functional>
 #include <map>
 #include <mutex>
+#include <stdio.h>
+#include <string.h>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -25,6 +27,8 @@
 #define SMAMPLE_INTERVAL_MS 100
 
 #define MEM_PROBE_STATUS 1
+
+constexpr const char *PATH_JSON_RESULT = "memProbe.data";
 
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args)
 {
@@ -130,6 +134,9 @@ class memTimer
 class memNode
 {
   public:
+    memNode()
+    {
+    }
     memNode(const char *name) : _name(name)
     {
     }
@@ -170,13 +177,26 @@ class memNode
         return s;
     }
 
+    std::string json() const
+    {
+        std::string s = "{";
+        s += memFormat("\"name\": \"%s\", \"malloc\": %lu, \"free\": %lu, \"children\": [", _name, _mallocBytes,
+                       _freeBytes);
+        for (auto it = _childs.begin(); it != _childs.end(); ++it)
+        {
+            s += memFormat("%s%s", it != _childs.begin() ? ", " : "", it->second.json().c_str());
+        }
+
+        return s += "]}";
+    }
+
     void dump() const
     {
         printf("%s\n", str().c_str());
     }
 
   protected:
-    const char *_name;
+    const char *_name = nullptr;
 
     //!@note key is func name
     std::map<const char *, memNode> _childs;
@@ -246,9 +266,9 @@ class memGlobalInfo
         printf("\n");
         printf("[Dump By Callstack]\n");
         memNode info("this");
-        for (auto &[threadId, frames] : _frames)
+        for (const auto &[threadId, frames] : _frames)
         {
-            for (auto &[frameId, tickFrames] : frames)
+            for (const auto &[frameId, tickFrames] : frames)
             {
                 assert(_callstacks.find(frameId) != _callstacks.end());
                 const auto &callstack = _callstacks.at(frameId);
@@ -261,7 +281,61 @@ class memGlobalInfo
 
         info.dump();
 
+        exportJson();
+
         fflush(stdout);
+    }
+
+    void exportJson() const
+    {
+        FILE *file = fopen(PATH_JSON_RESULT, "wb");
+        if (file == NULL)
+        {
+            return;
+        }
+
+        // key is tick. second map first is threadId
+        std::map<size_t, std::map<size_t, memNode>> datas;
+        for (const auto &[tid, pp] : _frames)
+        {
+            for (const auto &[frameId, ppp] : pp)
+            {
+                const auto &callstack = _callstacks.at(frameId);
+                for (const auto &[tick, frame] : ppp)
+                {
+                    datas[tick][tid].add(callstack, frame);
+                }
+            }
+        }
+
+        std::string s = "{";
+        for (auto it = datas.begin(); it != datas.end(); ++it)
+        {
+            const auto &tick = it->first;
+            s += memFormat("%s\"%lu\": {", it != datas.begin() ? ", " : "", tick);
+            for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+            {
+                const auto &tid = it2->first;
+                s += memFormat("%s\"%lu\": %s", it2 != it->second.begin() ? ", " : "", tid, it2->second.json().c_str());
+            }
+
+            s += "}";
+        }
+
+        s += "}";
+
+        // 写入字符串（包括结尾的 '\0' 可选）
+        size_t len = s.size();
+        size_t written = fwrite(s.c_str(), sizeof(char), len, file);
+        if (written != len)
+        {
+            perror("Failed to write file");
+            fclose(file);
+            return;
+        }
+
+        // 关闭文件
+        fclose(file);
     }
 
     std::string getCallstack(size_t frameId) const

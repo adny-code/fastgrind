@@ -664,33 +664,6 @@ extern "C"
 thread_local bool __tcmalloc_in_probe__ = false;
 extern "C"
 {
-    inline void *__wrap_malloc(size_t sz)
-    {
-        if (__tcmalloc_in_probe__)
-            return tc_malloc(sz);
-
-        __tcmalloc_in_probe__ = true;
-        auto p = tc_malloc(sz);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __tcmalloc_in_probe__ = false;
-        return p;
-    }
-
-    inline void __wrap_free(void *p)
-    {
-        if (__tcmalloc_in_probe__)
-        {
-            tc_free(p);
-            return;
-        }
-
-        __tcmalloc_in_probe__ = true;
-        if (p)
-            memLocalInfo::instance().sub(malloc_usable_size(p));
-        __tcmalloc_in_probe__ = false;
-        tc_free(p);
-    }
-
     // override operator new
     inline void *__wrap__Znwm(size_t sz)
     {
@@ -749,6 +722,28 @@ extern "C"
         tc_free(p);
     }
 
+    // override operator sized operator delete[]
+    inline void __wrap__ZdlPvm(void *p, size_t sz)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_free_sized(p, sz);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+        {
+            size_t realsz = malloc_usable_size(p);
+            if (realsz > sz)
+                memLocalInfo::instance().sub(sz);
+            else
+                memLocalInfo::instance().sub(realsz);
+        }
+        __tcmalloc_in_probe__ = false;
+        tc_free_sized(p, sz);
+    }
+
     // override operator sized operator delete
     inline void __wrap__ZdaPvm(void *p, size_t sz)
     {
@@ -771,12 +766,65 @@ extern "C"
         tc_free_sized(p, sz);
     }
 
-    // override operator sized operator delete[]
-    inline void __wrap__ZdlPvm(void *p, size_t sz)
+    inline void *__wrap__ZnwmSt11align_val_t(size_t size, std::align_val_t al)
+    {
+        if (__tcmalloc_in_probe__)
+            return tc_new_aligned(size, al);
+
+        __tcmalloc_in_probe__ = true;
+        auto p = tc_new_aligned(size, al);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        return p;
+    }
+
+    inline void *__wrap__ZnamSt11align_val_t(size_t size, std::align_val_t al)
+    {
+        if (__tcmalloc_in_probe__)
+            return tc_new_aligned(size, al);
+
+        __tcmalloc_in_probe__ = true;
+        auto p = tc_new_aligned(size, al);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        return p;
+    }
+
+    inline void __wrap__ZdlPvSt11align_val_t(void *p, std::align_val_t al)
     {
         if (__tcmalloc_in_probe__)
         {
-            tc_free_sized(p, sz);
+            tc_delete_aligned(p, al);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        tc_delete_aligned(p, al);
+    }
+
+    inline void __wrap__ZdaPvSt11align_val_t(void *p, std::align_val_t al)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_deletearray_aligned(p, al);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        tc_deletearray_aligned(p, al);
+    }
+
+    inline void __wrap__ZdlPvmSt11align_val_t(void *p, size_t sz, std::align_val_t al)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_deletearray_sized_aligned(p, sz, al);
             return;
         }
 
@@ -790,7 +838,40 @@ extern "C"
                 memLocalInfo::instance().sub(realsz);
         }
         __tcmalloc_in_probe__ = false;
-        tc_free_sized(p, sz);
+        tc_deletearray_sized_aligned(p, sz, al);
+    }
+
+    inline void __wrap__ZdaPvmSt11align_val_t(void *p, size_t sz, std::align_val_t al)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_delete_sized_aligned(p, sz, al);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+        {
+            size_t realsz = malloc_usable_size(p);
+            if (realsz > sz)
+                memLocalInfo::instance().sub(sz);
+            else
+                memLocalInfo::instance().sub(realsz);
+        }
+        __tcmalloc_in_probe__ = false;
+        tc_delete_sized_aligned(p, sz, al);
+    }
+
+    inline void *__wrap_malloc(size_t sz)
+    {
+        if (__tcmalloc_in_probe__)
+            return tc_malloc(sz);
+
+        __tcmalloc_in_probe__ = true;
+        auto p = tc_malloc(sz);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        return p;
     }
 
     inline void *__wrap_calloc(size_t nmemb, size_t size)
@@ -817,6 +898,21 @@ extern "C"
         memLocalInfo::instance().add(malloc_usable_size(p));
         __tcmalloc_in_probe__ = false;
         return p;
+    }
+
+    inline void __wrap_free(void *p)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_free(p);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        tc_free(p);
     }
 
     inline void *__wrap_memalign(size_t alignment, size_t size)
@@ -874,21 +970,6 @@ extern "C"
         return err;
     }
 
-    inline void *__wrap_aligned_alloc(size_t alignment, size_t size)
-    {
-        if (__tcmalloc_in_probe__)
-            return tc_memalign(alignment, size);
-
-        __tcmalloc_in_probe__ = true;
-        assert((alignment & (alignment - 1)) == 0);
-        assert(size % alignment == 0);
-
-        auto p = tc_memalign(alignment, size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __tcmalloc_in_probe__ = false;
-        return p;
-    }
-
     inline void *__wrap_reallocf(void *ptr, size_t size)
     {
         if (__tcmalloc_in_probe__)
@@ -929,6 +1010,33 @@ extern "C"
         return p;
     }
 
+    inline void *__wrap_aligned_alloc(size_t alignment, size_t size)
+    {
+        if (__tcmalloc_in_probe__)
+            return tc_memalign(alignment, size);
+
+        __tcmalloc_in_probe__ = true;
+        assert((alignment & (alignment - 1)) == 0);
+        assert(size % alignment == 0);
+
+        auto p = tc_memalign(alignment, size);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        return p;
+    }
+
+    inline void *__wrap_aligned_calloc(size_t alignment, size_t nmemb, size_t size)
+    {
+        if (__tcmalloc_in_probe__)
+            return tc_memalign(alignment, nmemb * size);
+
+        __tcmalloc_in_probe__ = true;
+        auto p = tc_memalign(alignment, nmemb * size);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        return p;
+    }
+
     inline void *__wrap_aligned_realloc(void *ptr, size_t size, size_t alignment)
     {
         if (__tcmalloc_in_probe__)
@@ -963,18 +1071,6 @@ extern "C"
         return p;
     }
 
-    inline void *__wrap_aligned_calloc(size_t alignment, size_t nmemb, size_t size)
-    {
-        if (__tcmalloc_in_probe__)
-            return tc_memalign(alignment, nmemb * size);
-
-        __tcmalloc_in_probe__ = true;
-        auto p = tc_memalign(alignment, nmemb * size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __tcmalloc_in_probe__ = false;
-        return p;
-    }
-
     inline void *__wrap_aligned_reallocf(void *ptr, size_t size, size_t alignment)
     {
         if (__tcmalloc_in_probe__)
@@ -1003,10 +1099,239 @@ extern "C"
         return p;
     }
 
-    static std::vector<void *> mmProbeOverrideFunc = {
-        (void *)&__wrap_malloc, (void *)&__wrap_free,    (void *)&__wrap__Znwm,   (void *)&__wrap__Znam,
-        (void *)&__wrap__ZdlPv, (void *)&__wrap__ZdaPv,  (void *)&__wrap__ZdaPvm, (void *)&__wrap__ZdlPvm,
-        (void *)&__wrap_calloc, (void *)&__wrap_realloc, (void *)&__wrap_memalign};
+    // nothrow
+    inline void *__wrap__ZnwmRKSt9nothrow_t(size_t sz, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+            return tc_malloc(sz);
+
+        __tcmalloc_in_probe__ = true;
+        auto p = tc_malloc(sz);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        return p;
+    }
+
+    inline void *__wrap__ZnamRKSt9nothrow_t(size_t sz, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+            return tc_malloc(sz);
+
+        __tcmalloc_in_probe__ = true;
+        auto p = tc_malloc(sz);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        return p;
+    }
+
+    inline void __wrap__ZdlPvRKSt9nothrow_t(void *p, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_free(p);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        tc_free(p);
+    }
+
+    inline void __wrap__ZdaPvRKSt9nothrow_t(void *p, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_free(p);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        tc_free(p);
+    }
+
+    inline void __wrap__ZdlPvmRKSt9nothrow_t(void *p, size_t sz, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_free_sized(p, sz);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+        {
+            size_t realsz = malloc_usable_size(p);
+            if (realsz > sz)
+                memLocalInfo::instance().sub(sz);
+            else
+                memLocalInfo::instance().sub(realsz);
+        }
+        __tcmalloc_in_probe__ = false;
+        tc_free_sized(p, sz);
+    }
+
+    inline void __wrap__ZdaPvmRKSt9nothrow_t(void *p, size_t sz, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_free_sized(p, sz);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+        {
+            size_t realsz = malloc_usable_size(p);
+            if (realsz > sz)
+                memLocalInfo::instance().sub(sz);
+            else
+                memLocalInfo::instance().sub(realsz);
+        }
+        __tcmalloc_in_probe__ = false;
+        tc_free_sized(p, sz);
+    }
+
+    inline void __wrap__ZdlPvSt11align_val_tRKSt9nothrow_t(void *p, std::align_val_t al, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_delete_aligned(p, al);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        tc_delete_aligned(p, al);
+    }
+
+    inline void __wrap__ZdaPvSt11align_val_tRKSt9nothrow_t(void *p, std::align_val_t al, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_deletearray_aligned(p, al);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        tc_deletearray_aligned(p, al);
+    }
+
+    inline void __wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_deletearray_sized_aligned(p, sz, al);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+        {
+            size_t realsz = malloc_usable_size(p);
+            if (realsz > sz)
+                memLocalInfo::instance().sub(sz);
+            else
+                memLocalInfo::instance().sub(realsz);
+        }
+        __tcmalloc_in_probe__ = false;
+        tc_deletearray_sized_aligned(p, sz, al);
+    }
+
+    inline void __wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+        {
+            tc_delete_sized_aligned(p, sz, al);
+            return;
+        }
+
+        __tcmalloc_in_probe__ = true;
+        if (p)
+        {
+            size_t realsz = malloc_usable_size(p);
+            if (realsz > sz)
+                memLocalInfo::instance().sub(sz);
+            else
+                memLocalInfo::instance().sub(realsz);
+        }
+        __tcmalloc_in_probe__ = false;
+        tc_delete_sized_aligned(p, sz, al);
+    }
+
+    inline void *__wrap__ZnwmSt11align_val_tRKSt9nothrow_t(size_t size, std::align_val_t al, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+            return tc_new_aligned(size, al);
+
+        __tcmalloc_in_probe__ = true;
+        auto p = tc_new_aligned(size, al);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        return p;
+    }
+
+    inline void *__wrap__ZnamSt11align_val_tRKSt9nothrow_t(size_t size, std::align_val_t al, const std::nothrow_t &)
+    {
+        if (__tcmalloc_in_probe__)
+            return tc_new_aligned(size, al);
+
+        __tcmalloc_in_probe__ = true;
+        auto p = tc_new_aligned(size, al);
+        memLocalInfo::instance().add(malloc_usable_size(p));
+        __tcmalloc_in_probe__ = false;
+        return p;
+    }
+
+    static std::vector<void *> mmProbeOverrideFunc = {(void *)&__wrap__Znwm,
+                                                      (void *)&__wrap__Znam,
+                                                      (void *)&__wrap__ZdlPv,
+                                                      (void *)&__wrap__ZdaPv,
+                                                      (void *)&__wrap__ZdlPvm,
+                                                      (void *)&__wrap__ZdaPvm,
+                                                      (void *)&__wrap__ZdlPvSt11align_val_t,
+                                                      (void *)&__wrap__ZdaPvSt11align_val_t,
+                                                      (void *)&__wrap__ZdlPvmSt11align_val_t,
+                                                      (void *)&__wrap__ZdaPvmSt11align_val_t,
+                                                      (void *)&__wrap__ZnwmSt11align_val_t,
+                                                      (void *)&__wrap__ZnamSt11align_val_t,
+                                                      (void *)&__wrap_malloc,
+                                                      (void *)&__wrap_calloc,
+                                                      (void *)&__wrap_realloc,
+                                                      (void *)&__wrap_free,
+                                                      (void *)&__wrap_memalign,
+                                                      (void *)&__wrap_valloc,
+                                                      (void *)&__wrap_pvalloc,
+                                                      (void *)&__wrap_posix_memalign,
+                                                      (void *)&__wrap_reallocf,
+                                                      (void *)&__wrap_recalloc,
+                                                      (void *)&__wrap_aligned_alloc,
+                                                      (void *)&__wrap_aligned_calloc,
+                                                      (void *)&__wrap_aligned_realloc,
+                                                      (void *)&__wrap_aligned_recalloc,
+                                                      (void *)&__wrap_aligned_reallocf,
+                                                      (void *)&__wrap_aligned_recallocf,
+                                                      (void *)&__wrap__ZnwmRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZnamRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZdlPvRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZdaPvRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZdlPvmRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZdaPvmRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZdlPvSt11align_val_tRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZdaPvSt11align_val_tRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZnwmSt11align_val_tRKSt9nothrow_t,
+                                                      (void *)&__wrap__ZnamSt11align_val_tRKSt9nothrow_t};
 };
 
 #else

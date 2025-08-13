@@ -21,15 +21,11 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZdaPvm
     -Wl,--wrap=_ZdlPvm)
 
-set(WRAP_FLAGS_DEFAULT
-    -Wl,--wrap=malloc
-    -Wl,--wrap=free)
-
 # test1 使用 tcmalloc
 add_executable(test1 test/test1.cpp)
 target_link_libraries(test1 pthread dl -Wl,-Bstatic -ltcmalloc -Wl,-Bdynamic -lgcc_s unwind)
 target_link_options(test1 PRIVATE ${WRAP_FLAGS})
-target_compile_definitions(test1 PRIVATE TCMALLOC)
+target_compile_definitions(test1 PRIVATE TC_MALLOC)
 target_compile_options(test1 PRIVATE -g -O0)
 
 # test2 使用 jemalloc
@@ -42,7 +38,7 @@ target_compile_options(test2 PRIVATE -g -O0)
 # test3 使用默认的 malloc/free
 add_executable(test3 test/test3.cpp)
 target_link_libraries(test3 pthread dl -Wl,-Bstatic -Wl,-Bdynamic -lgcc_s)
-target_link_options(test2 PRIVATE ${WRAP_FLAGS_DEFAULT})
+target_link_options(test2 PRIVATE ${WRAP_FLAGS})
 target_compile_options(test3 PRIVATE -g -O0)
 
 # 安装头文件和静态库

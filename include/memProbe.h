@@ -1294,33 +1294,34 @@ extern "C"
         return p;
     }
 
-    // sys call
+    // sys calls
     inline void *__wrap_sbrk(intptr_t increment)
     {
-        void *old_brk = __real_sbrk(0);
-        void *ret = __real_sbrk(increment);
+        void *ret = nullptr;
         return ret;
     }
 
     inline int __wrap_brk(void *addr)
     {
-        int rc = __real_brk(addr);
+        int rc = 0;
         return rc;
     }
 
     inline void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
     {
-        void *p = __real_mmap(addr, length, prot, flags, fd, offset);
-        if (p != MAP_FAILED)
-            memLocalInfo::instance().add(length);
+        void *p = nullptr;
         return p;
     }
 
     inline int __wrap_munmap(void *addr, size_t length)
     {
-        if (addr)
-            memLocalInfo::instance().sub(length);
-        return __real_munmap(addr, length);
+        return 0;
+    }
+
+    inline void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...)
+    {
+        void *new_address = nullptr;
+        return new_address;
     }
 
     static std::vector<void *> mmProbeOverrideFunc = {(void *)&__wrap__Znwm,
@@ -1366,7 +1367,8 @@ extern "C"
                                                       (void *)&__wrap_sbrk,
                                                       (void *)&__wrap_brk,
                                                       (void *)&__wrap_mmap,
-                                                      (void *)&__wrap_munmap};
+                                                      (void *)&__wrap_munmap,
+                                                      (void *)&__wrap_mremap};
 };
 
 #else

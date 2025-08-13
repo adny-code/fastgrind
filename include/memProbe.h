@@ -358,8 +358,6 @@ class memGlobalInfo
     }
 
   protected:
-    memTimer _timer;
-
     // key is threadId, second map key is frameId, second key is tick second is
     // frame info
     std::map<size_t, std::unordered_map<size_t, std::unordered_map<size_t, memFrame>>> _frames;
@@ -369,6 +367,9 @@ class memGlobalInfo
 
   private:
     static std::unique_ptr<memGlobalInfo> _instance;
+
+    // timer need to init after all other class members
+    memTimer _timer;
 };
 
 inline std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;

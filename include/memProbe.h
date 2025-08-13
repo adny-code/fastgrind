@@ -1226,7 +1226,8 @@ extern "C"
         tc_deletearray_aligned(p, al);
     }
 
-    inline void __wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al, const std::nothrow_t &)
+    inline void __wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al,
+                                                            const std::nothrow_t &)
     {
         if (__tcmalloc_in_probe__)
         {
@@ -1247,7 +1248,8 @@ extern "C"
         tc_deletearray_sized_aligned(p, sz, al);
     }
 
-    inline void __wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al, const std::nothrow_t &)
+    inline void __wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al,
+                                                            const std::nothrow_t &)
     {
         if (__tcmalloc_in_probe__)
         {
@@ -1292,6 +1294,35 @@ extern "C"
         return p;
     }
 
+    // sys call
+    inline void *__wrap_sbrk(intptr_t increment)
+    {
+        void *old_brk = __real_sbrk(0);
+        void *ret = __real_sbrk(increment);
+        return ret;
+    }
+
+    inline int __wrap_brk(void *addr)
+    {
+        int rc = __real_brk(addr);
+        return rc;
+    }
+
+    inline void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
+    {
+        void *p = __real_mmap(addr, length, prot, flags, fd, offset);
+        if (p != MAP_FAILED)
+            memLocalInfo::instance().add(length);
+        return p;
+    }
+
+    inline int __wrap_munmap(void *addr, size_t length)
+    {
+        if (addr)
+            memLocalInfo::instance().sub(length);
+        return __real_munmap(addr, length);
+    }
+
     static std::vector<void *> mmProbeOverrideFunc = {(void *)&__wrap__Znwm,
                                                       (void *)&__wrap__Znam,
                                                       (void *)&__wrap__ZdlPv,
@@ -1331,7 +1362,11 @@ extern "C"
                                                       (void *)&__wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t,
                                                       (void *)&__wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t,
                                                       (void *)&__wrap__ZnwmSt11align_val_tRKSt9nothrow_t,
-                                                      (void *)&__wrap__ZnamSt11align_val_tRKSt9nothrow_t};
+                                                      (void *)&__wrap__ZnamSt11align_val_tRKSt9nothrow_t,
+                                                      (void *)&__wrap_sbrk,
+                                                      (void *)&__wrap_brk,
+                                                      (void *)&__wrap_mmap,
+                                                      (void *)&__wrap_munmap};
 };
 
 #else

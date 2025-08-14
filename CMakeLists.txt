@@ -13,6 +13,8 @@ include_directories(include)
 set(WRAP_FLAGS 
     -Wl,--wrap=malloc
     -Wl,--wrap=free
+    -Wl,--wrap=calloc
+    -Wl,--wrap=realloc
     -Wl,--wrap=aligned_alloc
     -Wl,--wrap=_Znwm
     -Wl,--wrap=_Znam
@@ -38,7 +40,7 @@ target_compile_options(test2 PRIVATE -g -O0)
 # test3 使用默认的 malloc/free
 add_executable(test3 test/test3.cpp)
 target_link_libraries(test3 pthread dl -Wl,-Bstatic -Wl,-Bdynamic -lgcc_s)
-target_link_options(test2 PRIVATE ${WRAP_FLAGS})
+target_link_options(test3 PRIVATE ${WRAP_FLAGS})
 target_compile_options(test3 PRIVATE -g -O0)
 
 # 安装头文件和静态库

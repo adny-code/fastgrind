@@ -546,6 +546,11 @@ extern "C"
     extern void je_free_default(void *ptr);
 #else
     #include <malloc.h>
+    extern void *__real_malloc(size_t);
+    extern void *__real_calloc(size_t, size_t);
+    extern void *__real_realloc(void *, size_t);
+    extern void __real_free(void *);
+    extern void *__real_aligned_alloc(size_t, size_t);
 #endif
 
     static thread_local bool __mem_in_probe_ = false;
@@ -563,7 +568,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             void *p = je_malloc_default(sz);
 #else
-            void *p = std::malloc(sz);
+            void *p = __real_malloc(sz);
 #endif
             if (!p)
                 throw std::bad_alloc();
@@ -580,7 +585,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             p = je_malloc_default(sz);
 #else
-            p = std::malloc(sz);
+            p = __real_malloc(sz);
 #endif
             if (p)
                 break;
@@ -621,7 +626,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             void *p = je_malloc_default(sz);
 #else
-            void *p = std::malloc(sz);
+            void *p = __real_malloc(sz);
 #endif
             if (!p)
                 throw std::bad_alloc();
@@ -638,7 +643,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             p = je_malloc_default(sz);
 #else
-            p = std::malloc(sz);
+            p = __real_malloc(sz);
 #endif
             if (p)
                 break;
@@ -677,7 +682,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             je_free_default(p);
 #else
-            std::free(p);
+            __real_free(p);
 #endif
             return;
         }
@@ -692,7 +697,7 @@ extern "C"
 #elif defined(JE_MALLOC)
         je_free_default(p);
 #else
-        std::free(p);
+        __real_free(p);
 #endif
     }
 
@@ -706,7 +711,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             je_free_default(p);
 #else
-            std::free(p);
+            __real_free(p);
 #endif
             return;
         }
@@ -721,7 +726,7 @@ extern "C"
 #elif defined(JE_MALLOC)
         je_free_default(p);
 #else
-        std::free(p);
+        __real_free(p);
 #endif
     }
 
@@ -735,7 +740,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             je_sdallocx_default(p, sz, 0);
 #else
-            std::free(p);
+            __real_free(p);
 #endif
             return;
         }
@@ -750,7 +755,7 @@ extern "C"
 #elif defined(JE_MALLOC)
         je_sdallocx_default(p, sz, 0);
 #else
-        std::free(p);
+        __real_free(p);
 #endif
     }
 
@@ -764,7 +769,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             je_sdallocx_default(p, sz, 0);
 #else
-            std::free(p);
+            __real_free(p);
 #endif
             return;
         }
@@ -779,7 +784,7 @@ extern "C"
 #elif defined(JE_MALLOC)
         je_sdallocx_default(p, sz, 0);
 #else
-        std::free(p);
+        __real_free(p);
 #endif
     }
 
@@ -893,7 +898,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             return je_malloc_default(sz);
 #else
-            return std::malloc(sz);
+            return __real_malloc(sz);
 #endif
         }
 
@@ -907,7 +912,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             p = je_malloc_default(sz);
 #else
-            p = std::malloc(sz);
+            p = __real_malloc(sz);
 #endif
             if (p)
                 break;
@@ -951,7 +956,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             return calloc(nmemb, size);
 #else
-            return std::calloc(nmemb, size);
+            return __real_calloc(nmemb, size);
 #endif
         }
 
@@ -965,7 +970,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             p = calloc(nmemb, size);
 #else
-            p = std::calloc(nmemb, size);
+            p = __real_calloc(nmemb, size);
 #endif
             if (p)
                 break;
@@ -1005,7 +1010,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             return realloc(ptr, size);
 #else
-            return std::realloc(ptr, size);
+            return __real_realloc(ptr, size);
 #endif
         }
 
@@ -1018,7 +1023,7 @@ extern "C"
 #elif defined(JE_MALLOC)
         void *p = realloc(ptr, size);
 #else
-        void *p = std::realloc(ptr, size);
+        void *p = __real_realloc(ptr, size);
 #endif
 
         if (p)
@@ -1040,7 +1045,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             je_free_default(p);
 #else
-            std::free(p);
+            __real_free(p);
 #endif
             return;
         }
@@ -1055,7 +1060,7 @@ extern "C"
 #elif defined(JE_MALLOC)
         je_free_default(p);
 #else
-        std::free(p);
+        __real_free(p);
 #endif
     }
 
@@ -1176,10 +1181,7 @@ extern "C"
 #elif defined(JE_MALLOC)
             return aligned_alloc(alignment, size);
 #else
-            void *p = nullptr;
-            if (posix_memalign(&p, alignment, size) != 0)
-                return nullptr;
-            return p;
+            return __real_aligned_alloc(alignment, size);
 #endif
         }
 
@@ -1191,8 +1193,7 @@ extern "C"
 #elif defined(JE_MALLOC)
         p = aligned_alloc(alignment, size);
 #else
-        if (posix_memalign(&p, alignment, size) != 0)
-            p = nullptr;
+        p = __real_aligned_alloc(alignment, size);
 #endif
 
         if (p)

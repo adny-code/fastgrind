@@ -21,7 +21,8 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZdlPv
     -Wl,--wrap=_ZdaPv
     -Wl,--wrap=_ZdaPvm
-    -Wl,--wrap=_ZdlPvm)
+    -Wl,--wrap=_ZdlPvm
+    -Wl,--wrap=_ZnwmSt11align_val_t)
 
 # test1 使用 tcmalloc
 add_executable(test1 test/test1.cpp)

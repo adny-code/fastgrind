@@ -183,8 +183,8 @@ class memNode
     std::string json() const
     {
         std::string s = "{";
-        s += memFormat("\"name\": \"%s\", \"malloc\": %lu, \"free\": %lu, \"children\": [", _name, _mallocBytes,
-                       _freeBytes);
+        s += memFormat(
+            "\"name\": \"%s\", \"malloc\": %lu, \"free\": %lu, \"children\": [", _name, _mallocBytes, _freeBytes);
         for (auto it = _childs.begin(); it != _childs.end(); ++it)
         {
             s += memFormat("%s%s", it != _childs.begin() ? ", " : "", it->second.json().c_str());
@@ -253,7 +253,11 @@ class memGlobalInfo
                     frame0 += frame;
                 }
 
-                printf("%u: threadId:%lu alloc %lu free %lu\n%s\n", count++, tid, frame0.mallocBytes, frame0.freeBytes,
+                printf("%u: threadId:%lu alloc %lu free %lu\n%s\n",
+                       count++,
+                       tid,
+                       frame0.mallocBytes,
+                       frame0.freeBytes,
                        getCallstack(frameId).c_str());
             }
         }
@@ -559,6 +563,10 @@ extern "C"
     extern void *__real_realloc(void *, size_t);
     extern void __real_free(void *);
     extern void *__real_aligned_alloc(size_t, size_t);
+    extern void *__real_memalign(size_t, size_t);
+    extern void *__real_valloc(size_t);
+    extern void *__real_pvalloc(size_t);
+    extern int __real_posix_memalign(void **, size_t, size_t);
 #endif
 
     static thread_local bool __mem_in_probe_ = false;
@@ -1021,103 +1029,252 @@ extern "C"
         return p;
     }
 
-        /*
-        inline void *__wrap__ZnwmSt11align_val_t(size_t size, std::align_val_t al)
-        {
-            if (__mem_in_probe_)
-                return tc_new_aligned(size, al);
+    // override operator new(std::size_t, std::align_val_t).
+    inline void *__wrap__ZnwmSt11align_val_t(size_t size, std::align_val_t al)
+    {
+        if (size == 0)
+            size = 1;
+        size_t alignment = static_cast<size_t>(al);
 
-            __mem_in_probe_ = true;
-            auto p = tc_new_aligned(size, al);
-            memLocalInfo::instance().add(malloc_usable_size(p));
-            __mem_in_probe_ = false;
-            return p;
+        if (__mem_in_probe_)
+        {
+    #if defined(TC_MALLOC)
+            return tc_memalign(alignment, size);
+    #elif defined(JE_MALLOC)
+            return mallocx(size, MALLOCX_ALIGN(alignment));
+    #else
+            size_t sz = (size + alignment - 1) & ~(alignment - 1);
+            return __real_aligned_alloc(alignment, sz);
+    #endif
         }
 
-        inline void *__wrap__ZnamSt11align_val_t(size_t size, std::align_val_t al)
+        __mem_in_probe_ = true;
+
+        void *p = nullptr;
+        for (;;)
         {
-            if (__mem_in_probe_)
-                return tc_new_aligned(size, al);
-
-            __mem_in_probe_ = true;
-            auto p = tc_new_aligned(size, al);
-            memLocalInfo::instance().add(malloc_usable_size(p));
-            __mem_in_probe_ = false;
-            return p;
-        }
-
-        inline void __wrap__ZdlPvSt11align_val_t(void *p, std::align_val_t al)
-        {
-            if (__mem_in_probe_)
-            {
-                tc_delete_aligned(p, al);
-                return;
-            }
-
-            __mem_in_probe_ = true;
+    #if defined(TC_MALLOC)
+            p = tc_memalign(alignment, size);
+    #elif defined(JE_MALLOC)
+            p = mallocx(size, MALLOCX_ALIGN(alignment));
+    #else
+            size_t sz = (size + alignment - 1) & ~(alignment - 1);
+            p = __real_aligned_alloc(alignment, sz);
+    #endif
             if (p)
-                memLocalInfo::instance().sub(malloc_usable_size(p));
-            __mem_in_probe_ = false;
-            tc_delete_aligned(p, al);
+                break;
+
+            std::new_handler h = std::get_new_handler();
+            if (!h)
+            {
+                __mem_in_probe_ = false;
+                throw std::bad_alloc();
+            }
+            try
+            {
+                h();
+            }
+            catch (...)
+            {
+                __mem_in_probe_ = false;
+                throw;
+            }
         }
 
-        inline void __wrap__ZdaPvSt11align_val_t(void *p, std::align_val_t al)
+    #if defined(JE_MALLOC)
+        size_t real_sz = sallocx(p, 0);
+    #else
+        size_t real_sz = malloc_usable_size(p);
+    #endif
+        memLocalInfo::instance().add(real_sz);
+
+        __mem_in_probe_ = false;
+        return p;
+    }
+
+    // override operator new[](std::size_t size, std::align_val_t alignment).
+    inline void *__wrap__ZnamSt11align_val_t(size_t size, std::align_val_t al)
+    {
+        if (size == 0)
+            size = 1;
+        size_t alignment = static_cast<size_t>(al);
+
+        if (__mem_in_probe_)
         {
-            if (__mem_in_probe_)
-            {
-                tc_deletearray_aligned(p, al);
-                return;
-            }
-
-            __mem_in_probe_ = true;
-            if (p)
-                memLocalInfo::instance().sub(malloc_usable_size(p));
-            __mem_in_probe_ = false;
-            tc_deletearray_aligned(p, al);
+    #if defined(TC_MALLOC)
+            return tc_memalign(alignment, size);
+    #elif defined(JE_MALLOC)
+            size_t sz = (size + alignment - 1) & ~(alignment - 1);
+            return aligned_alloc(alignment, sz);
+    #else
+            size_t sz = (size + alignment - 1) & ~(alignment - 1);
+            return __real_aligned_alloc(alignment, sz);
+    #endif
         }
 
-        inline void __wrap__ZdlPvmSt11align_val_t(void *p, size_t sz, std::align_val_t al)
+        __mem_in_probe_ = true;
+
+        void *p = nullptr;
+        for (;;)
         {
-            if (__mem_in_probe_)
-            {
-                tc_deletearray_sized_aligned(p, sz, al);
-                return;
-            }
-
-            __mem_in_probe_ = true;
+    #if defined(TC_MALLOC)
+            p = tc_memalign(alignment, size);
+    #elif defined(JE_MALLOC)
+            size_t sz = (size + alignment - 1) & ~(alignment - 1);
+            p = aligned_alloc(alignment, sz);
+    #else
+            size_t sz = (size + alignment - 1) & ~(alignment - 1);
+            p = __real_aligned_alloc(alignment, sz);
+    #endif
             if (p)
+                break;
+
+            std::new_handler h = std::get_new_handler();
+            if (!h)
             {
-                size_t realsz = malloc_usable_size(p);
-                if (realsz > sz)
-                    memLocalInfo::instance().sub(sz);
-                else
-                    memLocalInfo::instance().sub(realsz);
+                __mem_in_probe_ = false;
+                throw std::bad_alloc();
             }
-            __mem_in_probe_ = false;
-            tc_deletearray_sized_aligned(p, sz, al);
+            try
+            {
+                h();
+            }
+            catch (...)
+            {
+                __mem_in_probe_ = false;
+                throw;
+            }
         }
 
-        inline void __wrap__ZdaPvmSt11align_val_t(void *p, size_t sz, std::align_val_t al)
+        memLocalInfo::instance().add(malloc_usable_size(p));
+
+        __mem_in_probe_ = false;
+        return p;
+    }
+
+    // override operator delete(void *p, std::align_val_t al)
+    inline void __wrap__ZdlPvSt11align_val_t(void *p, std::align_val_t al)
+    {
+        (void) al;
+
+        if (__mem_in_probe_)
         {
-            if (__mem_in_probe_)
-            {
-                tc_delete_sized_aligned(p, sz, al);
-                return;
-            }
-
-            __mem_in_probe_ = true;
-            if (p)
-            {
-                size_t realsz = malloc_usable_size(p);
-                if (realsz > sz)
-                    memLocalInfo::instance().sub(sz);
-                else
-                    memLocalInfo::instance().sub(realsz);
-            }
-            __mem_in_probe_ = false;
-            tc_delete_sized_aligned(p, sz, al);
+    #if defined(TC_MALLOC)
+            tc_free(p);
+    #elif defined(JE_MALLOC)
+            je_free_default(p);
+    #else
+            __real_free(p);
+    #endif
+            return;
         }
-        */
+
+        __mem_in_probe_ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __mem_in_probe_ = false;
+
+    #if defined(TC_MALLOC)
+        tc_free(p);
+    #elif defined(JE_MALLOC)
+        je_free_default(p);
+    #else
+        __real_free(p);
+    #endif
+    }
+
+    // override operator delete[](void *p, std::align_val_t al)
+    inline void __wrap__ZdaPvSt11align_val_t(void *p, std::align_val_t al)
+    {
+        (void) al;
+
+        if (__mem_in_probe_)
+        {
+    #if defined(TC_MALLOC)
+            tc_free(p);
+    #elif defined(JE_MALLOC)
+            je_free_default(p);
+    #else
+            __real_free(p);
+    #endif
+            return;
+        }
+
+        __mem_in_probe_ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __mem_in_probe_ = false;
+
+    #if defined(TC_MALLOC)
+        tc_free(p);
+    #elif defined(JE_MALLOC)
+        je_free_default(p);
+    #else
+        __real_free(p);
+    #endif
+    }
+
+    // override operator delete(void *p, size_t sz, std::align_val_t al)
+    inline void __wrap__ZdlPvmSt11align_val_t(void *p, size_t sz, std::align_val_t al)
+    {
+        (void) al;
+
+        if (__mem_in_probe_)
+        {
+    #if defined(TC_MALLOC)
+            tc_free_sized(p, sz);
+    #elif defined(JE_MALLOC)
+            je_sdallocx_default(p, sz, 0);
+    #else
+            __real_free(p);
+    #endif
+            return;
+        }
+
+        __mem_in_probe_ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __mem_in_probe_ = false;
+
+    #if defined(TC_MALLOC)
+        tc_free_sized(p, sz);
+    #elif defined(JE_MALLOC)
+        je_sdallocx_default(p, sz, 0);
+    #else
+        __real_free(p);
+    #endif
+    }
+
+    // override operator delete[](void *p, size_t sz, std::align_val_t al)
+    inline void __wrap__ZdaPvmSt11align_val_t(void *p, size_t sz, std::align_val_t al)
+    {
+        (void) al;
+
+        if (__mem_in_probe_)
+        {
+    #if defined(TC_MALLOC)
+            tc_free_sized(p, sz);
+    #elif defined(JE_MALLOC)
+            je_sdallocx_default(p, sz, 0);
+    #else
+            __real_free(p);
+    #endif
+            return;
+        }
+
+        __mem_in_probe_ = true;
+        if (p)
+            memLocalInfo::instance().sub(malloc_usable_size(p));
+        __mem_in_probe_ = false;
+
+    #if defined(TC_MALLOC)
+        tc_free_sized(p, sz);
+    #elif defined(JE_MALLOC)
+        je_sdallocx_default(p, sz, 0);
+    #else
+        __real_free(p);
+    #endif
+    }
 #endif
 
     /*
@@ -1519,22 +1676,29 @@ extern "C"
     */
 
     static std::vector<void *> mmProbeOverrideFunc = {
-        (void *)&__wrap__Znwm, (void *)&__wrap__Znam, (void *)&__wrap__ZdlPv, (void *)&__wrap__ZdaPv,
-        (void *)&__wrap__ZdlPvm, (void *)&__wrap__ZdaPvm,
-        //   (void *)&__wrap__ZdlPvSt11align_val_t,
-        //   (void *)&__wrap__ZdaPvSt11align_val_t,
-        //   (void *)&__wrap__ZdlPvmSt11align_val_t,
-        //   (void *)&__wrap__ZdaPvmSt11align_val_t,
-        //   (void *)&__wrap__ZnwmSt11align_val_t,
-        //   (void *)&__wrap__ZnamSt11align_val_t,
-        (void *)&__wrap_malloc, (void *)&__wrap_calloc, (void *)&__wrap_realloc, (void *)&__wrap_free,
+        (void *) &__wrap__Znwm,
+        (void *) &__wrap__Znam,
+        (void *) &__wrap__ZdlPv,
+        (void *) &__wrap__ZdaPv,
+        (void *) &__wrap__ZdlPvm,
+        (void *) &__wrap__ZdaPvm,
+        (void *) &__wrap_malloc,
+        (void *) &__wrap_calloc,
+        (void *) &__wrap_realloc,
+        (void *) &__wrap_free,
+        (void *) &__wrap_aligned_alloc,
+        (void *) &__wrap__ZdlPvSt11align_val_t,
+        (void *) &__wrap__ZdaPvSt11align_val_t,
+        (void *) &__wrap__ZdlPvmSt11align_val_t,
+        (void *) &__wrap__ZdaPvmSt11align_val_t,
+        (void *) &__wrap__ZnwmSt11align_val_t,
+        (void *) &__wrap__ZnamSt11align_val_t,
         //   (void *)&__wrap_memalign,
         //   (void *)&__wrap_valloc,
         //   (void *)&__wrap_pvalloc,
         //   (void *)&__wrap_posix_memalign,
         //   (void *)&__wrap_reallocf,
         //   (void *)&__wrap_recalloc,
-        (void *)&__wrap_aligned_alloc,
         //   (void *)&__wrap_aligned_calloc,
         //   (void *)&__wrap_aligned_realloc,
         //   (void *)&__wrap_aligned_recalloc,

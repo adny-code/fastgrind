@@ -11,18 +11,23 @@ set(CMAKE_INSTALL_PREFIX /usr/local)
 include_directories(include)
 
 set(WRAP_FLAGS 
-    -Wl,--wrap=malloc
-    -Wl,--wrap=free
-    -Wl,--wrap=calloc
-    -Wl,--wrap=realloc
-    -Wl,--wrap=aligned_alloc
     -Wl,--wrap=_Znwm
     -Wl,--wrap=_Znam
     -Wl,--wrap=_ZdlPv
     -Wl,--wrap=_ZdaPv
     -Wl,--wrap=_ZdaPvm
     -Wl,--wrap=_ZdlPvm
-    -Wl,--wrap=_ZnwmSt11align_val_t)
+    -Wl,--wrap=malloc
+    -Wl,--wrap=calloc
+    -Wl,--wrap=realloc
+    -Wl,--wrap=free
+    -Wl,--wrap=aligned_alloc
+    -Wl,--wrap=_ZdlPvSt11align_val_t
+    -Wl,--wrap=_ZdaPvSt11align_val_t
+    -Wl,--wrap=_ZdlPvmSt11align_val_t
+    -Wl,--wrap=_ZdaPvmSt11align_val_t
+    -Wl,--wrap=_ZnwmSt11align_val_t
+    -Wl,--wrap=_ZnamSt11align_val_t)
 
 # test1 使用 tcmalloc
 add_executable(test1 test/test1.cpp)

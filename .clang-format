@@ -26,7 +26,7 @@ AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: MultiLine
 AttributeMacros:
   - __capability
-BinPackArguments: true
+BinPackArguments: false
 BinPackParameters: true
 BraceWrapping:
   AfterCaseLabel:  false
@@ -140,7 +140,7 @@ ShortNamespaceLines: 1
 SortIncludes:    CaseSensitive
 SortJavaStaticImport: Before
 SortUsingDeclarations: true
-SpaceAfterCStyleCast: false
+SpaceAfterCStyleCast: true
 SpaceAfterLogicalNot: false
 SpaceAfterTemplateKeyword: true
 SpaceBeforeAssignmentOperators: true

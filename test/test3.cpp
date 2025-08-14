@@ -4,7 +4,7 @@
 
 void add()
 {
-    MEM_PROBE;
+    memProbe::MEM_PROBE;
     auto a = new int;
     delete a;
     return;
@@ -12,7 +12,7 @@ void add()
 
 void add2()
 {
-    MEM_PROBE;
+    memProbe::MEM_PROBE;
     std::vector<int *> pp;
     for (unsigned i = 0; i < 10000; ++i)
     {
@@ -27,7 +27,7 @@ void add2()
 
 int main()
 {
-    MEM_PROBE;
+    memProbe::MEM_PROBE;
     usleep(500 * 1000);
     printf("default malloc \n");
 

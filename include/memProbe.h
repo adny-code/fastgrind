@@ -23,12 +23,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define MAX_STACK_DEPTH     64
-#define SMAMPLE_INTERVAL_MS 100
+namespace memProbe
+{
 
-#define MEM_PROBE_STATUS 1
+#define __MEM_MAX_STACK_DEPTH     64
+#define __MEM_SMAMPLE_INTERVAL_MS 100
+#define __MEM_PROBE_STATUS        1
 
-constexpr const char *PATH_JSON_RESULT = "memProbe.data";
+constexpr const char *__MEM_PATH_JSON_RESULT = "memProbe.data";
 
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args)
 {
@@ -117,8 +119,8 @@ class memTimer
     {
         while (!_exit)
         {
-            usleep(1000 * SMAMPLE_INTERVAL_MS);
-            _tick += SMAMPLE_INTERVAL_MS;
+            usleep(1000 * __MEM_SMAMPLE_INTERVAL_MS);
+            _tick += __MEM_SMAMPLE_INTERVAL_MS;
         };
     }
 
@@ -141,7 +143,8 @@ class memNode
     {
     }
 
-    void add(const std::array<const char *, MAX_STACK_DEPTH> &callstack, const memFrame &frame, unsigned depth = 0)
+    void add(const std::array<const char *, __MEM_MAX_STACK_DEPTH> &callstack, const memFrame &frame,
+             unsigned depth = 0)
     {
         _mallocBytes += frame.mallocBytes;
         _freeBytes += frame.freeBytes;
@@ -288,7 +291,7 @@ class memGlobalInfo
 
     void exportJson() const
     {
-        FILE *file = fopen(PATH_JSON_RESULT, "wb");
+        FILE *file = fopen(__MEM_PATH_JSON_RESULT, "wb");
         if (file == NULL)
         {
             return;
@@ -362,7 +365,7 @@ class memGlobalInfo
     // frame info
     std::map<size_t, std::unordered_map<size_t, std::unordered_map<size_t, memFrame>>> _frames;
 
-    std::map<size_t, std::array<const char *, MAX_STACK_DEPTH>> _callstacks;
+    std::map<size_t, std::array<const char *, __MEM_MAX_STACK_DEPTH>> _callstacks;
     std::mutex _lk;
 
   private:
@@ -402,7 +405,7 @@ class memStack
     {
         return size_t(top()) + _stackId;
     }
-    const std::array<const char *, MAX_STACK_DEPTH> &stack() const
+    const std::array<const char *, __MEM_MAX_STACK_DEPTH> &stack() const
     {
         return _stack;
     }
@@ -414,7 +417,7 @@ class memStack
     }
 
   protected:
-    std::array<const char *, MAX_STACK_DEPTH> _stack;
+    std::array<const char *, __MEM_MAX_STACK_DEPTH> _stack;
     size_t _offset = 0;
     size_t _stackId = 0;
 };
@@ -499,7 +502,7 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
   protected:
     // key is frameId, second map key is tick
     std::unordered_map<size_t, std::unordered_map<size_t, memFrame>> _frames;
-    std::unordered_map<size_t, std::array<const char *, MAX_STACK_DEPTH>> _callstacks;
+    std::unordered_map<size_t, std::array<const char *, __MEM_MAX_STACK_DEPTH>> _callstacks;
     int _nested = 0;
 };
 
@@ -508,29 +511,41 @@ class memProbe
   public:
     memProbe(const char *name)
     {
-        if (MEM_PROBE_STATUS)
+        if (__MEM_PROBE_STATUS)
             memStack::instance().push(name);
     }
     ~memProbe()
     {
-        if (MEM_PROBE_STATUS)
+        if (__MEM_PROBE_STATUS)
             memStack::instance().pop();
     }
 };
 
 #define MEM_PROBE memProbe __probe__(__PRETTY_FUNCTION__);
 
+#if __cplusplus >= 202002L
+    #define __CPP_STD_20 1
+#elif __cplusplus >= 201703L
+    #define __CPP_STD_17 1
+#elif __cplusplus >= 201402L
+    #define __CPP_STD_14 1
+#elif __cplusplus >= 201103L
+    #define __CPP_STD_11 1
+#else
+    #define __CPP_STD_98 1
+#endif
+
 extern "C"
 {
 #if defined(TC_MALLOC)
-#include <gperftools/tcmalloc.h>
+    #include <gperftools/tcmalloc.h>
 #elif defined(JE_MALLOC)
-#include <jemalloc/jemalloc.h>
-extern void *je_sdallocx_default(void *ptr, size_t size, int flags);
-extern void *je_malloc_default(size_t size);
-extern void je_free_default(void *ptr);
+    #include <jemalloc/jemalloc.h>
+    extern void *je_sdallocx_default(void *ptr, size_t size, int flags);
+    extern void *je_malloc_default(size_t size);
+    extern void je_free_default(void *ptr);
 #else
-#include <malloc.h>
+    #include <malloc.h>
 #endif
 
     static thread_local bool __mem_in_probe_ = false;
@@ -1006,8 +1021,11 @@ extern void je_free_default(void *ptr);
         void *p = std::realloc(ptr, size);
 #endif
 
-        memLocalInfo::instance().sub(old_size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
+        if (p)
+        {
+            memLocalInfo::instance().sub(old_size);
+            memLocalInfo::instance().add(malloc_usable_size(p));
+        }
 
         __mem_in_probe_ = false;
         return p;
@@ -1526,5 +1544,6 @@ extern void je_free_default(void *ptr);
         //   (void *)&__wrap_mremap
     };
 };
+} // namespace memProbe
 
 #endif

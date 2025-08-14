@@ -815,12 +815,15 @@ extern "C"
         if (__mem_in_probe_)
         {
     #if defined(TC_MALLOC)
-            return tc_malloc(sz);
+            void *p = tc_malloc(sz);
     #elif defined(JE_MALLOC)
-            return je_malloc_default(sz);
+            void *p = je_malloc_default(sz);
     #else
-            return __real_malloc(sz);
+            void *p = __real_malloc(sz);
     #endif
+            if (!p)
+                throw std::bad_alloc();
+            return p;
         }
 
         __mem_in_probe_ = true;
@@ -873,12 +876,15 @@ extern "C"
         if (__mem_in_probe_)
         {
     #if defined(TC_MALLOC)
-            return tc_calloc(nmemb, size);
+            void *p = tc_calloc(nmemb, size);
     #elif defined(JE_MALLOC)
-            return calloc(nmemb, size);
+            void *p = calloc(nmemb, size);
     #else
-            return __real_calloc(nmemb, size);
+            void *p = __real_calloc(nmemb, size);
     #endif
+            if (!p)
+                throw std::bad_alloc();
+            return p;
         }
 
         __mem_in_probe_ = true;
@@ -927,12 +933,15 @@ extern "C"
         if (__mem_in_probe_)
         {
     #if defined(TC_MALLOC)
-            return tc_realloc(ptr, size);
+            void *p = tc_realloc(ptr, size);
     #elif defined(JE_MALLOC)
-            return realloc(ptr, size);
+            void *p = realloc(ptr, size);
     #else
-            return __real_realloc(ptr, size);
+            void *p = __real_realloc(ptr, size);
     #endif
+            if (!p)
+                throw std::bad_alloc();
+            return p;
         }
 
         __mem_in_probe_ = true;
@@ -1039,13 +1048,16 @@ extern "C"
         if (__mem_in_probe_)
         {
     #if defined(TC_MALLOC)
-            return tc_memalign(alignment, size);
+            void *p = tc_memalign(alignment, size);
     #elif defined(JE_MALLOC)
-            return mallocx(size, MALLOCX_ALIGN(alignment));
+            void *p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
-            return __real_aligned_alloc(alignment, sz);
+            void *p = __real_aligned_alloc(alignment, sz);
     #endif
+            if (!p)
+                throw std::bad_alloc();
+            return p;
         }
 
         __mem_in_probe_ = true;
@@ -1102,14 +1114,16 @@ extern "C"
         if (__mem_in_probe_)
         {
     #if defined(TC_MALLOC)
-            return tc_memalign(alignment, size);
+            void *p = tc_memalign(alignment, size);
     #elif defined(JE_MALLOC)
-            size_t sz = (size + alignment - 1) & ~(alignment - 1);
-            return aligned_alloc(alignment, sz);
+            void *p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
-            return __real_aligned_alloc(alignment, sz);
+            void *p = __real_aligned_alloc(alignment, sz);
     #endif
+            if (!p)
+                throw std::bad_alloc();
+            return p;
         }
 
         __mem_in_probe_ = true;
@@ -1120,8 +1134,7 @@ extern "C"
     #if defined(TC_MALLOC)
             p = tc_memalign(alignment, size);
     #elif defined(JE_MALLOC)
-            size_t sz = (size + alignment - 1) & ~(alignment - 1);
-            p = aligned_alloc(alignment, sz);
+            p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
             p = __real_aligned_alloc(alignment, sz);
@@ -1146,7 +1159,12 @@ extern "C"
             }
         }
 
-        memLocalInfo::instance().add(malloc_usable_size(p));
+    #if defined(JE_MALLOC)
+        size_t real_sz = sallocx(p, 0);
+    #else
+        size_t real_sz = malloc_usable_size(p);
+    #endif
+        memLocalInfo::instance().add(real_sz);
 
         __mem_in_probe_ = false;
         return p;
@@ -1162,7 +1180,7 @@ extern "C"
     #if defined(TC_MALLOC)
             tc_free(p);
     #elif defined(JE_MALLOC)
-            je_free_default(p);
+            dallocx(p, 0);
     #else
             __real_free(p);
     #endif
@@ -1171,13 +1189,20 @@ extern "C"
 
         __mem_in_probe_ = true;
         if (p)
-            memLocalInfo::instance().sub(malloc_usable_size(p));
+        {
+    #if defined(JE_MALLOC)
+            size_t real_sz = sallocx(p, 0);
+    #else
+            size_t real_sz = malloc_usable_size(p);
+    #endif
+            memLocalInfo::instance().sub(real_sz);
+        }
         __mem_in_probe_ = false;
 
     #if defined(TC_MALLOC)
         tc_free(p);
     #elif defined(JE_MALLOC)
-        je_free_default(p);
+        dallocx(p, 0);
     #else
         __real_free(p);
     #endif
@@ -1193,7 +1218,7 @@ extern "C"
     #if defined(TC_MALLOC)
             tc_free(p);
     #elif defined(JE_MALLOC)
-            je_free_default(p);
+            dallocx(p, 0);
     #else
             __real_free(p);
     #endif
@@ -1202,13 +1227,20 @@ extern "C"
 
         __mem_in_probe_ = true;
         if (p)
-            memLocalInfo::instance().sub(malloc_usable_size(p));
+        {
+    #if defined(JE_MALLOC)
+            size_t real_sz = sallocx(p, 0);
+    #else
+            size_t real_sz = malloc_usable_size(p);
+    #endif
+            memLocalInfo::instance().sub(real_sz);
+        }
         __mem_in_probe_ = false;
 
     #if defined(TC_MALLOC)
         tc_free(p);
     #elif defined(JE_MALLOC)
-        je_free_default(p);
+        dallocx(p, 0);
     #else
         __real_free(p);
     #endif
@@ -1233,7 +1265,14 @@ extern "C"
 
         __mem_in_probe_ = true;
         if (p)
-            memLocalInfo::instance().sub(malloc_usable_size(p));
+        {
+    #if defined(JE_MALLOC)
+            size_t real_sz = sallocx(p, 0);
+    #else
+            size_t real_sz = malloc_usable_size(p);
+    #endif
+            memLocalInfo::instance().sub(real_sz);
+        }
         __mem_in_probe_ = false;
 
     #if defined(TC_MALLOC)
@@ -1264,7 +1303,14 @@ extern "C"
 
         __mem_in_probe_ = true;
         if (p)
-            memLocalInfo::instance().sub(malloc_usable_size(p));
+        {
+    #if defined(JE_MALLOC)
+            size_t real_sz = sallocx(p, 0);
+    #else
+            size_t real_sz = malloc_usable_size(p);
+    #endif
+            memLocalInfo::instance().sub(real_sz);
+        }
         __mem_in_probe_ = false;
 
     #if defined(TC_MALLOC)

@@ -50,7 +50,7 @@ namespace __MERECORDER__
 #define __MEM_SMAMPLE_INTERVAL_MS 100
 #define __MEM_PROBE_STATUS        1
 
-constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.data";
+constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.json";
 
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args)
 {

@@ -23,7 +23,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-namespace memProbe
+namespace __MERECORDER__
 {
 
 #if __cplusplus >= 202002L
@@ -50,7 +50,7 @@ namespace memProbe
 #define __MEM_SMAMPLE_INTERVAL_MS 100
 #define __MEM_PROBE_STATUS        1
 
-constexpr const char *__MEM_PATH_JSON_RESULT = "memProbe.data";
+constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.data";
 
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args)
 {

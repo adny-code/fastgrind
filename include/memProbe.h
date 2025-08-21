@@ -13,11 +13,11 @@
 #include <unordered_map>
 
 #include <assert.h>
+#include <cstdlib>
 #include <locale.h>
 #include <malloc.h>
 #include <pthread.h>
 #include <stdlib.h>
-#include <cstdlib>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -1065,6 +1065,75 @@ extern "C"
         __real_free(p);
     #endif
     }
+
+    // glibc function, glibc 2.12 abort this function
+    inline void *__wrap_valloc(size_t size)
+    {
+        if (__mem_in_probe_)
+        {
+    #if defined(TC_MALLOC)
+            return tc_valloc(size);
+    #elif defined(JE_MALLOC)
+            return valloc(size);
+    #else
+            return __real_valloc(size);
+    #endif
+        }
+
+        __mem_in_probe_ = true;
+
+        void *p =
+    #if defined(TC_MALLOC)
+            tc_valloc(size);
+    #elif defined(JE_MALLOC)
+            valloc(size);
+    #else
+            __real_valloc(size);
+    #endif
+
+        if (p)
+        {
+            memLocalInfo::instance().add(malloc_usable_size(p));
+        }
+
+        __mem_in_probe_ = false;
+        return p;
+    }
+
+    // glibc function, glibc 2.12 abort this function
+    inline void *__wrap_pvalloc(size_t size)
+    {
+        if (__mem_in_probe_)
+        {
+    #if defined(TC_MALLOC)
+            return tc_pvalloc(size);
+    #elif defined(JE_MALLOC)
+            return pvalloc(size);
+    #else
+            return __real_pvalloc(size);
+    #endif
+        }
+
+        __mem_in_probe_ = true;
+
+        void *p =
+    #if defined(TC_MALLOC)
+            tc_pvalloc(size);
+    #elif defined(JE_MALLOC)
+            pvalloc(size);
+    #else
+            __real_pvalloc(size);
+    #endif
+
+        if (p)
+        {
+            memLocalInfo::instance().add(malloc_usable_size(p));
+        }
+
+        __mem_in_probe_ = false;
+        return p;
+    }
+
 #endif
 
 #if defined(__CPP_STD_14)
@@ -1813,30 +1882,6 @@ extern "C"
         return p;
     }
 
-    inline void *__wrap_valloc(size_t size)
-    {
-        if (__mem_in_probe_)
-            return tc_valloc(size);
-
-        __mem_in_probe_ = true;
-        auto p = tc_valloc(size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __mem_in_probe_ = false;
-        return p;
-    }
-
-    inline void *__wrap_pvalloc(size_t size)
-    {
-        if (__mem_in_probe_)
-            return tc_pvalloc(size);
-
-        __mem_in_probe_ = true;
-        auto p = tc_pvalloc(size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __mem_in_probe_ = false;
-        return p;
-    }
-
     inline int __wrap_posix_memalign(void **memptr, size_t alignment, size_t size)
     {
         if (__mem_in_probe_)
@@ -1943,6 +1988,9 @@ extern "C"
         (void *) &__wrap__ZnamRKSt9nothrow_t,
         (void *) &__wrap__ZdlPvRKSt9nothrow_t,
         (void *) &__wrap__ZdaPvRKSt9nothrow_t,
+        // glibc functions
+        (void *) &__wrap_valloc,
+        (void *) &__wrap_pvalloc,
 #endif
 #if defined(__CPP_STD_14)
         (void *) &__wrap__ZdlPvm,
@@ -1966,8 +2014,6 @@ extern "C"
         (void *) &__wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t,
 #endif
         //   (void *)&__wrap_memalign,
-        //   (void *)&__wrap_valloc,
-        //   (void *)&__wrap_pvalloc,
         //   (void *)&__wrap_posix_memalign,
         //   (void *)&__wrap_reallocf,
         //   (void *)&__wrap_recalloc,

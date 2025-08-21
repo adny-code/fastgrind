@@ -25,6 +25,8 @@ set(
     -Wl,--wrap=_ZnamRKSt9nothrow_t
     -Wl,--wrap=_ZdlPvRKSt9nothrow_t
     -Wl,--wrap=_ZdaPvRKSt9nothrow_t
+    -Wl,--wrap=valloc
+    -Wl,--wrap=pvalloc
     # C++14
     -Wl,--wrap=_ZdaPvm
     -Wl,--wrap=_ZdlPvm

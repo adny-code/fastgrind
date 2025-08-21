@@ -558,6 +558,7 @@ extern "C"
     extern void je_free_default(void *ptr);
 #else
     #include <malloc.h>
+    #include <stdlib.h>
     extern void *__real_malloc(size_t);
     extern void *__real_calloc(size_t, size_t);
     extern void *__real_realloc(void *, size_t);
@@ -1134,6 +1135,79 @@ extern "C"
         return p;
     }
 
+    // glibc function
+    inline void *__wrap_memalign(size_t alignment, size_t size)
+    {
+        if (__mem_in_probe_)
+        {
+    #if defined(TC_MALLOC)
+            return tc_memalign(alignment, size);
+    #elif defined(JE_MALLOC)
+            return memalign(alignment, size);
+    #else
+            return __real_memalign(alignment, size);
+    #endif
+        }
+
+        __mem_in_probe_ = true;
+
+        void *p =
+    #if defined(TC_MALLOC)
+            tc_memalign(alignment, size);
+    #elif defined(JE_MALLOC)
+            memalign(alignment, size);
+    #else
+            __real_memalign(alignment, size);
+    #endif
+
+        if (p)
+        {
+            size_t real_sz = malloc_usable_size(p);
+            memLocalInfo::instance().add(real_sz);
+        }
+
+        __mem_in_probe_ = false;
+        return p;
+    }
+
+    // glibc function
+    inline int __wrap_posix_memalign(void **memptr, size_t alignment, size_t size)
+    {
+        if (__mem_in_probe_)
+        {
+    #if defined(TC_MALLOC)
+            return tc_posix_memalign(memptr, alignment, size);
+    #elif defined(JE_MALLOC)
+            return posix_memalign(memptr, alignment, size);
+    #else
+            return __real_posix_memalign(memptr, alignment, size);
+    #endif
+        }
+
+        __mem_in_probe_ = true;
+
+        int ret =
+    #if defined(TC_MALLOC)
+            tc_posix_memalign(memptr, alignment, size);
+    #elif defined(JE_MALLOC)
+            posix_memalign(memptr, alignment, size);
+    #else
+            __real_posix_memalign(memptr, alignment, size);
+    #endif
+
+        if (ret == 0 && memptr && *memptr)
+        {
+    #if defined(JE_MALLOC)
+            size_t real_sz = sallocx(*memptr, 0);
+    #else
+            size_t real_sz = malloc_usable_size(*memptr);
+    #endif
+            memLocalInfo::instance().add(real_sz);
+        }
+
+        __mem_in_probe_ = false;
+        return ret;
+    }
 #endif
 
 #if defined(__CPP_STD_14)
@@ -1870,79 +1944,6 @@ extern "C"
 #endif
 
     /*
-    inline void *__wrap_memalign(size_t alignment, size_t size)
-    {
-        if (__mem_in_probe_)
-            return tc_memalign(alignment, size);
-
-        __mem_in_probe_ = true;
-        auto p = tc_memalign(alignment, size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __mem_in_probe_ = false;
-        return p;
-    }
-
-    inline int __wrap_posix_memalign(void **memptr, size_t alignment, size_t size)
-    {
-        if (__mem_in_probe_)
-            return tc_posix_memalign(memptr, alignment, size);
-
-        __mem_in_probe_ = true;
-        void *ptr = nullptr;
-        int err = tc_posix_memalign(&ptr, alignment, size);
-        if (err == 0)
-        {
-            size_t actual = malloc_usable_size(ptr);
-            memLocalInfo::instance().add(actual);
-            *memptr = ptr;
-        }
-        __mem_in_probe_ = false;
-
-        return err;
-    }
-
-    inline void *__wrap_reallocf(void *ptr, size_t size)
-    {
-        if (__mem_in_probe_)
-            return tc_realloc(ptr, size);
-
-        __mem_in_probe_ = true;
-        size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
-        auto p = tc_realloc(ptr, size);
-        if (!p)
-        {
-            memLocalInfo::instance().sub(old_size);
-            tc_free(ptr);
-        }
-        else
-        {
-            memLocalInfo::instance().sub(old_size);
-            memLocalInfo::instance().add(malloc_usable_size(p));
-        }
-        __mem_in_probe_ = false;
-        return p;
-    }
-
-    inline void *__wrap_recalloc(void *ptr, size_t nmemb, size_t size)
-    {
-        if (__mem_in_probe_)
-            return tc_realloc(ptr, nmemb * size);
-
-        __mem_in_probe_ = true;
-        size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
-        auto p = tc_realloc(ptr, nmemb * size);
-        size_t new_size = malloc_usable_size(p);
-        if (new_size > old_size)
-            memset((char *)p + old_size, 0, new_size - old_size);
-
-        memLocalInfo::instance().sub(old_size);
-        memLocalInfo::instance().add(new_size);
-        __mem_in_probe_ = false;
-        return p;
-    }
-    */
-
-    /*
     // sys calls
     inline void *__wrap_sbrk(intptr_t increment)
     {
@@ -1991,6 +1992,8 @@ extern "C"
         // glibc functions
         (void *) &__wrap_valloc,
         (void *) &__wrap_pvalloc,
+        (void *) &__wrap_memalign,
+        (void *) &__wrap_posix_memalign,
 #endif
 #if defined(__CPP_STD_14)
         (void *) &__wrap__ZdlPvm,
@@ -2013,10 +2016,6 @@ extern "C"
         (void *) &__wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t,
         (void *) &__wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t,
 #endif
-        //   (void *)&__wrap_memalign,
-        //   (void *)&__wrap_posix_memalign,
-        //   (void *)&__wrap_reallocf,
-        //   (void *)&__wrap_recalloc,
         //   (void *)&__wrap_sbrk,
         //   (void *)&__wrap_brk,
         //   (void *)&__wrap_mmap,

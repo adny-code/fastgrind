@@ -16,8 +16,8 @@
 #include <locale.h>
 #include <malloc.h>
 #include <pthread.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <cstdlib>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -1898,80 +1898,6 @@ extern "C"
     */
 
     /*
-    inline void *__wrap_aligned_calloc(size_t alignment, size_t nmemb, size_t size)
-    {
-        if (__mem_in_probe_)
-            return tc_memalign(alignment, nmemb * size);
-
-        __mem_in_probe_ = true;
-        auto p = tc_memalign(alignment, nmemb * size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __mem_in_probe_ = false;
-        return p;
-    }
-
-    inline void *__wrap_aligned_realloc(void *ptr, size_t size, size_t alignment)
-    {
-        if (__mem_in_probe_)
-            return tc_memalign(alignment, size);
-
-        __mem_in_probe_ = true;
-        size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
-        auto p = tc_memalign(alignment, size);
-        if (!p)
-        {
-            __mem_in_probe_ = false;
-            return nullptr;
-        }
-        tc_free(ptr);
-        memLocalInfo::instance().sub(old_size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __mem_in_probe_ = false;
-        return p;
-    }
-
-    inline void *__wrap_aligned_recalloc(void *ptr, size_t nmemb, size_t size, size_t alignment)
-    {
-        if (__mem_in_probe_)
-            return tc_memalign(alignment, nmemb * size);
-
-        __mem_in_probe_ = true;
-        size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
-        auto p = tc_memalign(alignment, nmemb * size);
-        memLocalInfo::instance().sub(old_size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __mem_in_probe_ = false;
-        return p;
-    }
-
-    inline void *__wrap_aligned_reallocf(void *ptr, size_t size, size_t alignment)
-    {
-        if (__mem_in_probe_)
-            return tc_memalign(alignment, size);
-
-        __mem_in_probe_ = true;
-        size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
-        auto p = tc_memalign(alignment, size);
-        memLocalInfo::instance().sub(old_size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __mem_in_probe_ = false;
-        return p;
-    }
-
-    inline void *__wrap_aligned_recallocf(void *ptr, size_t nmemb, size_t size, size_t alignment)
-    {
-        if (__mem_in_probe_)
-            return tc_memalign(alignment, nmemb * size);
-
-        __mem_in_probe_ = true;
-        size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
-        auto p = tc_memalign(alignment, nmemb * size);
-        memLocalInfo::instance().sub(old_size);
-        memLocalInfo::instance().add(malloc_usable_size(p));
-        __mem_in_probe_ = false;
-        return p;
-    }
-
     // sys calls
     inline void *__wrap_sbrk(intptr_t increment)
     {
@@ -2045,11 +1971,6 @@ extern "C"
         //   (void *)&__wrap_posix_memalign,
         //   (void *)&__wrap_reallocf,
         //   (void *)&__wrap_recalloc,
-        //   (void *)&__wrap_aligned_calloc,
-        //   (void *)&__wrap_aligned_realloc,
-        //   (void *)&__wrap_aligned_recalloc,
-        //   (void *)&__wrap_aligned_reallocf,
-        //   (void *)&__wrap_aligned_recallocf,
         //   (void *)&__wrap_sbrk,
         //   (void *)&__wrap_brk,
         //   (void *)&__wrap_mmap,

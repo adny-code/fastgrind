@@ -11,6 +11,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 #include <assert.h>
 #include <cstdlib>
@@ -192,9 +193,9 @@ class memNode
         std::string s =
             std::string(indent * 4, ' ') + memFormat("%s malloc %'ld free %'ld", _name, _mallocBytes, _freeBytes);
 
-        for (auto &[name, child] : _childs)
+        for (auto it = _childs.begin(); it != _childs.end(); ++it)
         {
-            s += std::string("\n") + child.str(indent + 1);
+            s += std::string("\n") + it->second.str(indent + 1);
         }
 
         return s;
@@ -248,7 +249,7 @@ class memGlobalInfo
     {
         if (!_instance)
         {
-            _instance = std::make_unique<memGlobalInfo>();
+            _instance = std::unique_ptr<memGlobalInfo>(new memGlobalInfo);
         }
 
         return *_instance.get();
@@ -263,14 +264,18 @@ class memGlobalInfo
     {
         printf("[Func Memory Info]\n");
         unsigned count = 0;
-        for (auto &[tid, threadsInfo] : _frames)
+        for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {
-            for (auto &[frameId, tickInfo] : threadsInfo)
+            const auto& tid = it->first;
+            const auto& threadsInfo = it->second;
+            for (auto it2 = threadsInfo.begin(); it2 != threadsInfo.end(); ++it2)
             {
+                const auto& frameId = it2->first;
+                const auto& tickInfo = it2->second;
                 memFrame frame0(0, 0, tickInfo.begin()->second.funcId, tickInfo.begin()->second.frameId);
-                for (auto &[tick, frame] : tickInfo)
+                for (auto it3 = tickInfo.begin(); it3 != tickInfo.end(); ++it3)
                 {
-                    frame0 += frame;
+                    frame0 += it3->second;
                 }
 
                 printf("%u: threadId:%lu alloc %lu free %lu\n%s\n",
@@ -285,23 +290,26 @@ class memGlobalInfo
         printf("\n");
         printf("[Callstack Info]\n");
         count = 0;
-        for (auto &[frameId, callstack] : _callstacks)
+        for (auto it = _callstacks.begin(); it !=_callstacks.end(); ++it)
         {
-            printf("%u: frame:%lu\n%s\n", count++, frameId, getCallstack(frameId).c_str());
+            printf("%u: frame:%lu\n%s\n", count++, it->first, getCallstack( it->first).c_str());
         }
 
         printf("\n");
         printf("[Dump By Callstack]\n");
         memNode info("this");
-        for (const auto &[threadId, frames] : _frames)
+        for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {
-            for (const auto &[frameId, tickFrames] : frames)
+            const auto& frames = it->second;
+            for (auto it2 = frames.begin(); it2 != frames.end(); ++it2)
             {
+                const auto& frameId = it2->first;
+                const auto& tickFrames = it2->second;
                 assert(_callstacks.find(frameId) != _callstacks.end());
                 const auto &callstack = _callstacks.at(frameId);
-                for (auto &[tick, frame] : tickFrames)
+                for (auto it3 = tickFrames.begin(); it3 != tickFrames.end(); ++it3)
                 {
-                    info.add(callstack, frame);
+                    info.add(callstack, it3->second);
                 }
             }
         }
@@ -323,14 +331,17 @@ class memGlobalInfo
 
         // key is tick. second map first is threadId
         std::map<size_t, std::map<size_t, memNode>> datas;
-        for (const auto &[tid, pp] : _frames)
+        for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {
-            for (const auto &[frameId, ppp] : pp)
+            const auto& tid = it->first;
+            for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
             {
+                const auto& frameId = it2->first;
                 const auto &callstack = _callstacks.at(frameId);
-                for (const auto &[tick, frame] : ppp)
+                for (auto it3 = it2->second.begin(); it3 != it2->second.end(); ++it3)
                 {
-                    datas[tick][tid].add(callstack, frame);
+                    const auto& tick = it3->first;
+                    datas[tick][tid].add(callstack, it3->second);
                 }
             }
         }
@@ -471,10 +482,11 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
     void merge()
     {
         std::lock_guard<std::mutex> lg(memGlobalInfo::instance()._lk);
-        memGlobalInfo::instance()._frames[tid].merge(_frames);
 
-        for (auto &[k, v] : _callstacks)
-            memGlobalInfo::instance()._callstacks[k] = v;
+        memGlobalInfo::instance()._frames[tid] = _frames;
+
+        for (auto it = _callstacks.begin(); it != _callstacks.end(); ++it)
+            memGlobalInfo::instance()._callstacks[it->first] = it->second;
 
         reset();
     }

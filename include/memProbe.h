@@ -28,22 +28,27 @@ namespace __MERECORDER__
 {
 
 #if __cplusplus >= 202002L
+    // #pragma message("C++20")
     #define __CPP_STD_20 1
 #endif
 
 #if __cplusplus >= 201703L
+    // #pragma message("C++17")
     #define __CPP_STD_17 1
 #endif
 
 #if __cplusplus >= 201402L
+    // #pragma message("C++14")
     #define __CPP_STD_14 1
 #endif
 
 #if __cplusplus >= 201103L
+    // #pragma message("C++11")
     #define __CPP_STD_11 1
 #endif
 
 #if __cplusplus >= 199711L
+    // #pragma message("C++98")
     #define __CPP_STD_98 1
 #endif
 
@@ -266,12 +271,12 @@ class memGlobalInfo
         unsigned count = 0;
         for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {
-            const auto& tid = it->first;
-            const auto& threadsInfo = it->second;
+            const auto &tid = it->first;
+            const auto &threadsInfo = it->second;
             for (auto it2 = threadsInfo.begin(); it2 != threadsInfo.end(); ++it2)
             {
-                const auto& frameId = it2->first;
-                const auto& tickInfo = it2->second;
+                const auto &frameId = it2->first;
+                const auto &tickInfo = it2->second;
                 memFrame frame0(0, 0, tickInfo.begin()->second.funcId, tickInfo.begin()->second.frameId);
                 for (auto it3 = tickInfo.begin(); it3 != tickInfo.end(); ++it3)
                 {
@@ -290,9 +295,9 @@ class memGlobalInfo
         printf("\n");
         printf("[Callstack Info]\n");
         count = 0;
-        for (auto it = _callstacks.begin(); it !=_callstacks.end(); ++it)
+        for (auto it = _callstacks.begin(); it != _callstacks.end(); ++it)
         {
-            printf("%u: frame:%lu\n%s\n", count++, it->first, getCallstack( it->first).c_str());
+            printf("%u: frame:%lu\n%s\n", count++, it->first, getCallstack(it->first).c_str());
         }
 
         printf("\n");
@@ -300,11 +305,11 @@ class memGlobalInfo
         memNode info("this");
         for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {
-            const auto& frames = it->second;
+            const auto &frames = it->second;
             for (auto it2 = frames.begin(); it2 != frames.end(); ++it2)
             {
-                const auto& frameId = it2->first;
-                const auto& tickFrames = it2->second;
+                const auto &frameId = it2->first;
+                const auto &tickFrames = it2->second;
                 assert(_callstacks.find(frameId) != _callstacks.end());
                 const auto &callstack = _callstacks.at(frameId);
                 for (auto it3 = tickFrames.begin(); it3 != tickFrames.end(); ++it3)
@@ -333,14 +338,14 @@ class memGlobalInfo
         std::map<size_t, std::map<size_t, memNode>> datas;
         for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {
-            const auto& tid = it->first;
+            const auto &tid = it->first;
             for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
             {
-                const auto& frameId = it2->first;
+                const auto &frameId = it2->first;
                 const auto &callstack = _callstacks.at(frameId);
                 for (auto it3 = it2->second.begin(); it3 != it2->second.end(); ++it3)
                 {
-                    const auto& tick = it3->first;
+                    const auto &tick = it3->first;
                     datas[tick][tid].add(callstack, it3->second);
                 }
             }
@@ -410,7 +415,11 @@ class memGlobalInfo
     memTimer _timer;
 };
 
+#if defined(__CPP_STD_17)
 inline std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
+#else
+std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
+#endif
 
 class memStack
 {
@@ -1220,9 +1229,9 @@ extern "C"
         __mem_in_probe_ = false;
         return ret;
     }
-#endif
+    // #endif
 
-#if defined(__CPP_STD_14)
+    // #if defined(__CPP_STD_14)
     // override operator delete(void*, std::size_t)
     inline void __wrap__ZdlPvm(void *p, size_t sz)
     {
@@ -2006,8 +2015,8 @@ extern "C"
         (void *) &__wrap_pvalloc,
         (void *) &__wrap_memalign,
         (void *) &__wrap_posix_memalign,
-#endif
-#if defined(__CPP_STD_14)
+        // #endif
+        // #if defined(__CPP_STD_14)
         (void *) &__wrap__ZdlPvm,
         (void *) &__wrap__ZdaPvm,
 #endif

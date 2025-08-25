@@ -29,6 +29,7 @@ set(
     -Wl,--wrap=pvalloc
     -Wl,--wrap=memalign
     -Wl,--wrap=posix_memalign
+    -Wl,--wrap=reallocarray
     # C++14
     -Wl,--wrap=_ZdaPvm
     -Wl,--wrap=_ZdlPvm

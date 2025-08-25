@@ -1229,6 +1229,65 @@ extern "C"
         __mem_in_probe_ = false;
         return ret;
     }
+    
+    // glibc function
+    inline void *__wrap_reallocarray(void *ptr, size_t nmemb, size_t size)
+    {
+        if (nmemb == 0 || size == 0)
+        {
+            nmemb = 1;
+            size = 1;
+        }
+
+        size_t total = 0;
+#if defined(__GNUC__)
+        if (__builtin_mul_overflow(nmemb, size, &total))
+        {
+            errno = ENOMEM;
+            return NULL;
+        }
+#else
+        if (size != 0 && nmemb > static_cast<size_t>(-1) / size)
+        {
+            errno = ENOMEM;
+            return NULL;
+        }
+        total = nmemb * size;
+#endif
+
+        if (__mem_in_probe_)
+        {
+#if defined(TC_MALLOC)
+            return tc_realloc(ptr, total);
+#elif defined(JE_MALLOC)
+            return realloc(ptr, total);
+#else
+            return __real_realloc(ptr, total);
+#endif
+        }
+
+        __mem_in_probe_ = true;
+
+        size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
+
+        void *p =
+#if defined(TC_MALLOC)
+            tc_realloc(ptr, total);
+#elif defined(JE_MALLOC)
+            realloc(ptr, total);
+#else
+            __real_realloc(ptr, total);
+#endif
+
+        if (p)
+        {
+            memLocalInfo::instance().sub(old_size);
+            memLocalInfo::instance().add(malloc_usable_size(p));
+        }
+
+        __mem_in_probe_ = false;
+        return p;
+    }
     // #endif
 
     // #if defined(__CPP_STD_14)
@@ -2015,6 +2074,7 @@ extern "C"
         (void *) &__wrap_pvalloc,
         (void *) &__wrap_memalign,
         (void *) &__wrap_posix_memalign,
+        (void *) &__wrap_reallocarray,
         // #endif
         // #if defined(__CPP_STD_14)
         (void *) &__wrap__ZdlPvm,

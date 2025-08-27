@@ -571,13 +571,16 @@ class memProbe
 extern "C"
 {
 #if defined(TC_MALLOC)
+    #define TC_MALLOC 1
     #include <gperftools/tcmalloc.h>
 #elif defined(JE_MALLOC)
+    #define JE_MALLOC 1
     #include <jemalloc/jemalloc.h>
     extern void *je_sdallocx_default(void *ptr, size_t size, int flags);
     extern void *je_malloc_default(size_t size);
     extern void je_free_default(void *ptr);
 #else
+    #define DEFAULT_MALLOC 1
     #include <malloc.h>
     #include <stdlib.h>
     extern void *__real_malloc(size_t);
@@ -589,6 +592,11 @@ extern "C"
     extern void *__real_valloc(size_t);
     extern void *__real_pvalloc(size_t);
     extern int __real_posix_memalign(void **, size_t, size_t);
+    extern void *__real_sbrk(intptr_t);
+    extern int __real_brk(void *);
+    extern void *__real_mmap(void *, size_t, int, int, int, off_t);
+    extern int __real_munmap(void *, size_t);
+    extern void *__real_mremap(void *, size_t, size_t, int, ...);
 #endif
 
     static thread_local bool __mem_in_probe_ = false;
@@ -1088,6 +1096,130 @@ extern "C"
     #endif
     }
 
+    #if defined(DEFAULT_MALLOC)
+    // sys call
+    inline void *__wrap_sbrk(intptr_t increment)
+    {
+        if (__mem_in_probe_)
+            return __real_sbrk(increment);
+
+        __mem_in_probe_ = true;
+
+        void *ret = __real_sbrk(increment);
+        if (ret != (void *) -1)
+        {
+            if (increment > 0)
+                memLocalInfo::instance().add(static_cast<size_t>(increment));
+            else if (increment < 0)
+                memLocalInfo::instance().sub(static_cast<size_t>(-increment));
+        }
+
+        __mem_in_probe_ = false;
+        return ret;
+    }
+
+    // sys call
+    inline int __wrap_brk(void *addr)
+    {
+        if (__mem_in_probe_)
+            return __real_brk(addr);
+
+        __mem_in_probe_ = true;
+
+        void *old_brk = __real_sbrk(0);
+        int ret = __real_brk(addr);
+        if (ret == 0)
+        {
+            void *new_brk = __real_sbrk(0);
+            intptr_t diff = static_cast<char *>(new_brk) - static_cast<char *>(old_brk);
+            if (diff > 0)
+                memLocalInfo::instance().add(static_cast<size_t>(diff));
+            else if (diff < 0)
+                memLocalInfo::instance().sub(static_cast<size_t>(-diff));
+        }
+
+        __mem_in_probe_ = false;
+        return ret;
+    }
+
+    // sys call
+    inline void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
+    {
+        if (__mem_in_probe_)
+            return __real_mmap(addr, length, prot, flags, fd, offset);
+
+        __mem_in_probe_ = true;
+
+        void *p = __real_mmap(addr, length, prot, flags, fd, offset);
+        if (p != (void *) -1)
+            memLocalInfo::instance().add(length);
+
+        __mem_in_probe_ = false;
+        return p;
+    }
+
+    // sys call
+    inline int __wrap_munmap(void *addr, size_t length)
+    {
+        if (__mem_in_probe_)
+            return __real_munmap(addr, length);
+
+        __mem_in_probe_ = true;
+
+        int ret = __real_munmap(addr, length);
+        if (ret == 0)
+            memLocalInfo::instance().sub(length);
+
+        __mem_in_probe_ = false;
+        return ret;
+    }
+
+    // sys call
+    inline void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...)
+    {
+        void *new_addr_opt = nullptr;
+    #ifdef MREMAP_FIXED
+        if (flags & MREMAP_FIXED)
+        {
+            va_list ap;
+            va_start(ap, flags);
+            new_addr_opt = va_arg(ap, void *);
+            va_end(ap);
+        }
+    #endif
+
+        if (__mem_in_probe_)
+        {
+    #ifdef MREMAP_FIXED
+            if (flags & MREMAP_FIXED)
+                return __real_mremap(old_address, old_size, new_size, flags, new_addr_opt);
+    #endif
+            return __real_mremap(old_address, old_size, new_size, flags);
+        }
+
+        __mem_in_probe_ = true;
+
+        void *ret =
+    #ifdef MREMAP_FIXED
+            (flags & MREMAP_FIXED) ? __real_mremap(old_address, old_size, new_size, flags, new_addr_opt)
+                                   : __real_mremap(old_address, old_size, new_size, flags);
+    #else
+            __real_mremap(old_address, old_size, new_size, flags);
+    #endif
+
+        if (ret != (void *) -1)
+        {
+            if (new_size > old_size)
+                memLocalInfo::instance().add(new_size - old_size);
+            else if (new_size < old_size)
+                memLocalInfo::instance().sub(old_size - new_size);
+        }
+
+        __mem_in_probe_ = false;
+        return ret;
+    }
+    #endif
+
     // glibc function, glibc 2.12 abort this function
     inline void *__wrap_valloc(size_t size)
     {
@@ -1229,7 +1361,7 @@ extern "C"
         __mem_in_probe_ = false;
         return ret;
     }
-    
+
     // glibc function
     inline void *__wrap_reallocarray(void *ptr, size_t nmemb, size_t size)
     {
@@ -1240,30 +1372,30 @@ extern "C"
         }
 
         size_t total = 0;
-#if defined(__GNUC__)
+    #if defined(__GNUC__)
         if (__builtin_mul_overflow(nmemb, size, &total))
         {
             errno = ENOMEM;
             return NULL;
         }
-#else
+    #else
         if (size != 0 && nmemb > static_cast<size_t>(-1) / size)
         {
             errno = ENOMEM;
             return NULL;
         }
         total = nmemb * size;
-#endif
+    #endif
 
         if (__mem_in_probe_)
         {
-#if defined(TC_MALLOC)
+    #if defined(TC_MALLOC)
             return tc_realloc(ptr, total);
-#elif defined(JE_MALLOC)
+    #elif defined(JE_MALLOC)
             return realloc(ptr, total);
-#else
+    #else
             return __real_realloc(ptr, total);
-#endif
+    #endif
         }
 
         __mem_in_probe_ = true;
@@ -1271,13 +1403,13 @@ extern "C"
         size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
 
         void *p =
-#if defined(TC_MALLOC)
+    #if defined(TC_MALLOC)
             tc_realloc(ptr, total);
-#elif defined(JE_MALLOC)
+    #elif defined(JE_MALLOC)
             realloc(ptr, total);
-#else
+    #else
             __real_realloc(ptr, total);
-#endif
+    #endif
 
         if (p)
         {
@@ -2023,38 +2155,6 @@ extern "C"
 
 #endif
 
-    /*
-    // sys calls
-    inline void *__wrap_sbrk(intptr_t increment)
-    {
-        void *ret = nullptr;
-        return ret;
-    }
-
-    inline int __wrap_brk(void *addr)
-    {
-        int rc = 0;
-        return rc;
-    }
-
-    inline void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
-    {
-        void *p = nullptr;
-        return p;
-    }
-
-    inline int __wrap_munmap(void *addr, size_t length)
-    {
-        return 0;
-    }
-
-    inline void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...)
-    {
-        void *new_address = nullptr;
-        return new_address;
-    }
-    */
-
     static std::vector<void *> mmProbeOverrideFunc = {
 #if defined(__CPP_STD_98)
         (void *) &__wrap_malloc,
@@ -2069,6 +2169,14 @@ extern "C"
         (void *) &__wrap__ZnamRKSt9nothrow_t,
         (void *) &__wrap__ZdlPvRKSt9nothrow_t,
         (void *) &__wrap__ZdaPvRKSt9nothrow_t,
+    #if defined(DEFAULT_MALLOC)
+        // sys call
+        (void *) &__wrap_sbrk,
+        (void *) &__wrap_brk,
+        (void *) &__wrap_mmap,
+        (void *) &__wrap_munmap,
+        (void *) &__wrap_mremap,
+    #endif
         // glibc functions
         (void *) &__wrap_valloc,
         (void *) &__wrap_pvalloc,
@@ -2097,11 +2205,6 @@ extern "C"
         (void *) &__wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t,
         (void *) &__wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t,
 #endif
-        //   (void *)&__wrap_sbrk,
-        //   (void *)&__wrap_brk,
-        //   (void *)&__wrap_mmap,
-        //   (void *)&__wrap_munmap,
-        //   (void *)&__wrap_mremap
     };
 };
 } // namespace __MERECORDER__

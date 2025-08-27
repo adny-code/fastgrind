@@ -1,27 +1,18 @@
 #ifndef MEM_PROBE_H
 #define MEM_PROBE_H
 
-#include <array>
 #include <atomic>
 #include <functional>
 #include <map>
 #include <mutex>
-#include <stdio.h>
-#include <string.h>
 #include <string>
 #include <thread>
 #include <unordered_map>
 #include <vector>
 
 #include <assert.h>
-#include <cstdlib>
-#include <locale.h>
 #include <malloc.h>
-#include <pthread.h>
-#include <stdlib.h>
-#include <sys/stat.h>
 #include <sys/syscall.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 namespace __MERECORDER__
@@ -640,8 +631,6 @@ extern "C"
 #else
     #define DEFAULT_MALLOC 1
     // #define __USE_SYS_WRAP 1
-    #include <malloc.h>
-    #include <stdlib.h>
     extern void *__real_malloc(size_t);
     extern void *__real_calloc(size_t, size_t);
     extern void *__real_realloc(void *, size_t);

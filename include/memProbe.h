@@ -1,3 +1,36 @@
+/**
+ * @file memProbe.h
+ * @brief Lightweight in-process memory allocation probe and callstack aggregator.
+ *
+ * This header provides a set of instrumentation utilities that intercept dynamic
+ * memory allocation/deallocation (malloc/new family, and optionally low level
+ * syscalls) to build per-thread, per-time-slice statistics. Captured data is
+ * organized by synthetic frames (derived from the active function call stack)
+ * and can be exported as a hierarchical JSON tree suitable for visualization.
+ *
+ * Usage pattern:
+ *   1. Include this header in one translation unit (typically a .cpp).
+ *   2. Link with --wrap symbols (GNU ld) or provide alternative malloc impls as
+ *      expected (tcmalloc/jemalloc) so the __wrap_* hooks are used.
+ *   3. Annotate functions of interest with MEM_PROBE macro (or rely on global
+ *      interception) to push/pop symbolic stack entries.
+ *   4. At process end (static destruction) memGlobalInfo automatically dumps
+ *      human readable and JSON formatted results (merecorder.json).
+ *
+ * Thread safety: Per-thread accumulation is stored in thread local structures
+ * and periodically merged into a global, mutex-protected container on thread
+ * teardown (TLS dtor) or on demand. Allocation hooks avoid recursion using a
+ * thread local guard flag.
+ *
+ * Limitations:
+ *  - Only up to __MEM_MAX_STACK_DEPTH frames are recorded per probe stack.
+ *  - Export happens at destruction of memGlobalInfo singleton; call dump()
+ *    earlier if needed.
+ *  - JSON file overwrites previous content.
+ *
+ * @copyright
+ * Distributed under the MIT License. See LICENSE for details.
+ */
 #ifndef MEM_PROBE_H
 #define MEM_PROBE_H
 
@@ -43,12 +76,29 @@ namespace __MERECORDER__
     #define __CPP_STD_98 1
 #endif
 
+/** @def __MEM_MAX_STACK_DEPTH
+ *  @brief Maximum depth of the logical probe call stack that will be captured.
+ */
 #define __MEM_MAX_STACK_DEPTH     64
+/** @def __MEM_SMAMPLE_INTERVAL_MS
+ *  @brief Sampling granularity (milliseconds) for the internal timer tick.
+ */
 #define __MEM_SMAMPLE_INTERVAL_MS 100
+/** @def __MEM_PROBE_STATUS
+ *  @brief Global enable switch (set to 0 at compile time to disable probing at runtime with minimal overhead).
+ */
 #define __MEM_PROBE_STATUS        1
 
+/** @brief Output filename for exported JSON statistics. */
 constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.json";
 
+/**
+ * @brief Convenience formatting helper returning std::string.
+ * @tparam Args Variadic printf-style argument pack.
+ * @param fstr printf-compatible format string (must be valid for provided arguments).
+ * @return Formatted string (heap temporary inside is freed before return).
+ * @note This avoids std::stringstream for predictable formatting including locale aware grouping (caller may set locale).
+ */
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args)
 {
     size_t size = 1 + snprintf(nullptr, 0, fstr, args...);
@@ -66,6 +116,15 @@ template <typename... Args> static std::string memFormat(const char *fstr, Args.
  * @param freeBytes: Total bytes freed in this frame.
  * @param funcId: Identifier for the function where this frame was created.
  * @param frameId: Identifier for the frame, used to track the call stack.
+ */
+/**
+ * @struct memFrame
+ * @brief Aggregated allocation statistics for a (frameId, tick) pair.
+ *
+ * A memFrame collects the total allocated and freed bytes observed while the
+ * logical frame (identified by its synthetic frameId derived from the call
+ * stack) was active during a specific timer tick. Multiple memFrame objects
+ * are combined to form per-thread and per-call-tree statistics.
  */
 struct memFrame
 {
@@ -85,6 +144,11 @@ struct memFrame
     {
     }
 
+    /**
+     * @brief Accumulate another frame's counters into this one.
+     * @param other Source counters to add. funcId / frameId are copied only if currently unset.
+     * @return *this
+     */
     memFrame &operator+=(const memFrame &other)
     {
         mallocBytes += other.mallocBytes;
@@ -103,18 +167,29 @@ struct memFrame
     size_t frameId;
 };
 
+/**
+ * @class memTimer
+ * @brief Simple background monotonic tick generator.
+ *
+ * Spawns a thread that sleeps for __MEM_SMAMPLE_INTERVAL_MS each loop and
+ * increments an atomic tick counter. Used to discretize time for memory
+ * sampling windows without relying on system signals.
+ */
 class memTimer
 {
   public:
+    /** @brief Start timer thread immediately upon construction. */
     memTimer() : _tick(0)
     {
         _thread = new std::thread(std::bind(&memTimer::fakeTimer, this));
     }
+    /** @brief Stops timer thread on destruction. */
     ~memTimer()
     {
         stop();
     };
 
+    /** @brief Explicitly stop the timer worker thread (idempotent). */
     void stop()
     {
         _exit = true;
@@ -126,12 +201,14 @@ class memTimer
         }
     }
 
+    /** @return Elapsed time in milliseconds in discrete ticks. */
     size_t time() const
     {
         return _tick;
     }
 
   protected:
+    /** @brief Worker loop incrementing the tick counter until shutdown. */
     void fakeTimer()
     {
         while (!_exit)
@@ -150,16 +227,31 @@ class memTimer
 /*!@note data structure:
  *
  */
+/**
+ * @class memNode
+ * @brief Node in a hierarchical call tree accumulating memory statistics.
+ *
+ * Each node corresponds to a single function symbol (name pointer is used as key)
+ * and contains aggregated malloc / free byte counts plus child nodes for deeper
+ * call stack levels.
+ */
 class memNode
 {
   public:
     memNode()
     {
     }
+    /** @brief Construct named node. */
     memNode(const char *name) : _name(name)
     {
     }
 
+    /**
+     * @brief Insert a memFrame into the tree along the provided call stack.
+     * @param callstack Null-terminated array of function name pointers.
+     * @param frame Frame data to merge.
+     * @param depth Current depth while recursing (internal use).
+     */
     void add(const std::array<const char *, __MEM_MAX_STACK_DEPTH> &callstack, const memFrame &frame,
              unsigned depth = 0)
     {
@@ -179,11 +271,16 @@ class memNode
         }
     }
 
+    /** @return Mutable reference to child node map keyed by function name pointer. */
     std::map<const char *, memNode> &childs()
     {
         return _childs;
     }
 
+    /**
+     * @brief Produce a human-readable multi-line string of the subtree.
+     * @param indent Current indentation level (spaces are 4 * indent).
+     */
     std::string str(unsigned indent = 0) const
     {
         std::string s =
@@ -197,6 +294,7 @@ class memNode
         return s;
     }
 
+    /** @brief Serialize subtree to compact JSON (no pretty formatting). */
     std::string json() const
     {
         std::string s = "{";
@@ -210,6 +308,7 @@ class memNode
         return s += "]}";
     }
 
+    /** @brief Print the formatted tree to stdout. */
     void dump() const
     {
         printf("%s\n", str().c_str());
@@ -218,7 +317,7 @@ class memNode
   protected:
     const char *_name = nullptr;
 
-    //!@note key is func name
+    //! @note Child map key is raw function name pointer (assumed stable during process lifetime).
     std::map<const char *, memNode> _childs;
 
     size_t _mallocBytes = 0;
@@ -226,6 +325,15 @@ class memNode
 };
 
 class memLocalInfo;
+/**
+ * @class memGlobalInfo
+ * @brief Singleton aggregating memory statistics across all threads.
+ *
+ * Maintains thread->frameId->tick->memFrame structures and a mapping from
+ * frameId to captured call stacks (array of function name pointers). Responsible
+ * for dumping textual and JSON reports. Thread-local data merges into this
+ * structure under mutex protection.
+ */
 class memGlobalInfo
 {
     friend class memLocalInfo;
@@ -241,6 +349,7 @@ class memGlobalInfo
         dump();
     }
 
+    /** @brief Access singleton instance (lazy constructed). */
     static memGlobalInfo &instance()
     {
         if (!_instance)
@@ -251,11 +360,16 @@ class memGlobalInfo
         return *_instance.get();
     }
 
+    /** @return Current global timer tick (ms). */
     size_t time() const
     {
         return _timer.time();
     }
 
+    /**
+     * @brief Dump aggregated statistics and call tree to stdout and export JSON.
+     * @note Safe to call multiple times; JSON file is overwritten.
+     */
     void dump() const
     {
         printf("[Func Memory Info]\n");
@@ -317,6 +431,7 @@ class memGlobalInfo
         fflush(stdout);
     }
 
+    /** @brief Export hierarchical statistics to JSON file (pretty-printed). */
     void exportJson() const
     {
         FILE *file = fopen(__MEM_PATH_JSON_RESULT, "wb");
@@ -432,6 +547,11 @@ class memGlobalInfo
         fclose(file);
     }
 
+    /**
+     * @brief Reconstruct printable call stack for a frameId (top frame first).
+     * @param frameId Synthetic frame identifier.
+     * @return Multi-line string (empty if unknown id).
+     */
     std::string getCallstack(size_t frameId) const
     {
         if (_callstacks.find(frameId) == _callstacks.end())
@@ -472,14 +592,25 @@ inline std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
 std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
 #endif
 
+/**
+ * @class memStack
+ * @brief Thread-local logical call stack used to synthesize frame identifiers.
+ *
+ * The stack is explicitly manipulated via memProbe RAII objects (MEM_PROBE macro)
+ * rather than relying on platform unwinding. Each push/pop updates a rolling id
+ * so that the same textual sequence of function names maps to a deterministic
+ * frameId across time slices.
+ */
 class memStack
 {
   public:
+    /** @brief Push function name onto stack and update frame id hash. */
     void push(const char *v)
     {
         _stack[_offset++] = v;
         _stackId += size_t(v);
     }
+    /** @brief Pop top of stack (must not be empty). */
     const char *pop()
     {
         auto v = _stack[--_offset];
@@ -487,24 +618,29 @@ class memStack
         return v;
     }
 
+    /** @return Current stack depth. */
     unsigned depth() const
     {
         return _offset;
     }
+    /** @return Top function name (undefined if empty). */
     const char *top() const
     {
         return _stack[_offset - 1];
     }
 
+    /** @return Synthetic frame id composed from top symbol pointer plus cumulative hash. */
     size_t frameId() const
     {
         return size_t(top()) + _stackId;
     }
+    /** @return Reference to underlying fixed-size stack array. */
     const std::array<const char *, __MEM_MAX_STACK_DEPTH> &stack() const
     {
         return _stack;
     }
 
+    /** @brief Access thread-local singleton instance. */
     static memStack &instance()
     {
         thread_local memStack __memStack__;
@@ -519,6 +655,14 @@ class memStack
 
 static thread_local size_t tid = syscall(SYS_gettid);
 
+/**
+ * @class memLocalInfo
+ * @brief Per-thread pending statistics prior to merge into global state.
+ *
+ * Accumulates memFrame objects keyed by frameId and timer tick, along with a
+ * copy of each unique call stack encountered. On thread exit (destructor) or
+ * explicit merge(), content is transferred to memGlobalInfo.
+ */
 class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordered_map<size_t /*tick*/, memFrame>>
 {
   public:
@@ -527,18 +671,21 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
         merge();
     }
 
+    /** @brief Access thread-local singleton. */
     static memLocalInfo &instance()
     {
         thread_local memLocalInfo __memThreadInfo__;
         return __memThreadInfo__;
     }
 
+    /** @brief Clear local accumulated frames and call stacks. */
     void reset()
     {
         _frames.clear();
         _callstacks.clear();
     }
 
+    /** @brief Merge local thread data into global aggregator then reset. */
     void merge()
     {
         std::lock_guard<std::mutex> lg(memGlobalInfo::instance()._lk);
@@ -551,6 +698,7 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
         reset();
     }
 
+    /** @brief Record an allocation of sz bytes (real usable size). */
     void add(size_t sz)
     {
         if (_nested || memStack::instance().depth() == 0)
@@ -562,6 +710,7 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
         --_nested;
     }
 
+    /** @brief Record a deallocation of sz bytes (real usable size). */
     void sub(size_t sz)
     {
         if (_nested || memStack::instance().depth() == 0)
@@ -574,6 +723,7 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
     }
 
   protected:
+    /** @brief Retrieve (or create) the memFrame for (frameId,time) and ensure call stack snapshot stored. */
     memFrame &getFrame(size_t funcId, size_t frameId, size_t time)
     {
         if (_callstacks.find(frameId) == _callstacks.end())
@@ -602,6 +752,14 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
     int _nested = 0;
 };
 
+/**
+ * @class memProbe
+ * @brief RAII helper pushing current function onto logical stack.
+ *
+ * Construct an instance at function scope to automatically attribute all
+ * allocations to that function until destruction (end of scope). Macro
+ * MEM_PROBE wraps construction with __PRETTY_FUNCTION__ providing decorated name.
+ */
 class memProbe
 {
   public:
@@ -617,6 +775,11 @@ class memProbe
     }
 };
 
+/**
+ * @def MEM_PROBE
+ * @brief Annotate a scope to participate in logical memory call stack.
+ * @details Expands to creation of a memProbe with the current pretty function symbol.
+ */
 #define MEM_PROBE memProbe __probe__(__PRETTY_FUNCTION__);
 
 extern "C"
@@ -2203,6 +2366,10 @@ extern "C"
 
 #endif
 
+    /**
+     * @brief Collection of function pointers to all wrapper hooks provided.
+     * @details Useful for tools wanting to verify symbol interposition or to iterate over wrappers.
+     */
     static std::vector<void *> mmProbeOverrideFunc = {
 #if defined(__CPP_STD_98)
         (void *) &__wrap_malloc,

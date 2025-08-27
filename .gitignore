@@ -43,3 +43,9 @@
 build/
 
 .vscode/
+
+docs/
+*.js
+*.html
+*.png
+*.md5

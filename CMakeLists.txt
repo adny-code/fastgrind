@@ -25,52 +25,11 @@ set(
     -Wl,--wrap=_ZnamRKSt9nothrow_t
     -Wl,--wrap=_ZdlPvRKSt9nothrow_t
     -Wl,--wrap=_ZdaPvRKSt9nothrow_t
-    -Wl,--wrap=valloc
-    -Wl,--wrap=pvalloc
-    -Wl,--wrap=memalign
-    -Wl,--wrap=posix_memalign
-    -Wl,--wrap=reallocarray
-    # C++14
-    -Wl,--wrap=_ZdaPvm
-    -Wl,--wrap=_ZdlPvm
-    # c++17
-    -Wl,--wrap=aligned_alloc
-    -Wl,--wrap=_ZnwmSt11align_val_t
-    -Wl,--wrap=_ZnamSt11align_val_t
-    -Wl,--wrap=_ZdlPvSt11align_val_t
-    -Wl,--wrap=_ZdaPvSt11align_val_t
-    -Wl,--wrap=_ZdlPvmSt11align_val_t
-    -Wl,--wrap=_ZdaPvmSt11align_val_t
-    -Wl,--wrap=_ZdlPvmRKSt9nothrow_t
-    -Wl,--wrap=_ZdaPvmRKSt9nothrow_t
-    -Wl,--wrap=_ZnwmSt11align_val_tRKSt9nothrow_t
-    -Wl,--wrap=_ZnamSt11align_val_tRKSt9nothrow_t
-    -Wl,--wrap=_ZdlPvSt11align_val_tRKSt9nothrow_t
-    -Wl,--wrap=_ZdaPvSt11align_val_tRKSt9nothrow_t
-    -Wl,--wrap=_ZdlPvmSt11align_val_tRKSt9nothrow_t
-    -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
-    )
-
-set(
-    DEFAULT_WRAP_FLAGS 
-    # C++98
-    -Wl,--wrap=malloc
-    -Wl,--wrap=calloc
-    -Wl,--wrap=realloc
-    -Wl,--wrap=free
-    -Wl,--wrap=_Znwm
-    -Wl,--wrap=_Znam
-    -Wl,--wrap=_ZdlPv
-    -Wl,--wrap=_ZdaPv
-    -Wl,--wrap=_ZnwmRKSt9nothrow_t
-    -Wl,--wrap=_ZnamRKSt9nothrow_t
-    -Wl,--wrap=_ZdlPvRKSt9nothrow_t
-    -Wl,--wrap=_ZdaPvRKSt9nothrow_t
-    -Wl,--wrap=sbrk
-    -Wl,--wrap=brk
-    -Wl,--wrap=mmap
-    -Wl,--wrap=munmap
-    -Wl,--wrap=mremap
+    # -Wl,--wrap=sbrk
+    # -Wl,--wrap=brk
+    # -Wl,--wrap=mmap
+    # -Wl,--wrap=munmap
+    # -Wl,--wrap=mremap
     -Wl,--wrap=valloc
     -Wl,--wrap=pvalloc
     -Wl,--wrap=memalign
@@ -114,7 +73,7 @@ target_compile_options(test2 PRIVATE -g -O0)
 # test3 使用默认的 malloc/free
 add_executable(test3 test/test3.cpp)
 target_link_libraries(test3 pthread dl -Wl,-Bstatic -Wl,-Bdynamic -lgcc_s)
-target_link_options(test3 PRIVATE ${DEFAULT_WRAP_FLAGS})
+target_link_options(test3 PRIVATE ${WRAP_FLAGS})
 target_compile_options(test3 PRIVATE -g -O0)
 
 # 安装头文件和静态库

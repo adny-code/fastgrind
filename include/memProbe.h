@@ -571,16 +571,15 @@ class memProbe
 extern "C"
 {
 #if defined(TC_MALLOC)
-    #define TC_MALLOC 1
     #include <gperftools/tcmalloc.h>
 #elif defined(JE_MALLOC)
-    #define JE_MALLOC 1
     #include <jemalloc/jemalloc.h>
     extern void *je_sdallocx_default(void *ptr, size_t size, int flags);
     extern void *je_malloc_default(size_t size);
     extern void je_free_default(void *ptr);
 #else
     #define DEFAULT_MALLOC 1
+    // #define __USE_SYS_WRAP 1
     #include <malloc.h>
     #include <stdlib.h>
     extern void *__real_malloc(size_t);
@@ -1096,7 +1095,7 @@ extern "C"
     #endif
     }
 
-    #if defined(DEFAULT_MALLOC)
+    #if defined(DEFAULT_MALLOC) && defined(__USE_SYS_WRAP)
     // sys call
     inline void *__wrap_sbrk(intptr_t increment)
     {
@@ -2169,7 +2168,7 @@ extern "C"
         (void *) &__wrap__ZnamRKSt9nothrow_t,
         (void *) &__wrap__ZdlPvRKSt9nothrow_t,
         (void *) &__wrap__ZdaPvRKSt9nothrow_t,
-    #if defined(DEFAULT_MALLOC)
+    #if defined(DEFAULT_MALLOC) && defined(__USE_SYS_WRAP)
         // sys call
         (void *) &__wrap_sbrk,
         (void *) &__wrap_brk,

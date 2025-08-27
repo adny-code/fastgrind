@@ -329,12 +329,9 @@ class memGlobalInfo
     void exportJson() const
     {
         FILE *file = fopen(__MEM_PATH_JSON_RESULT, "wb");
-        if (file == NULL)
-        {
+        if (!file)
             return;
-        }
 
-        // key is tick. second map first is threadId
         std::map<size_t, std::map<size_t, memNode>> datas;
         for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {
@@ -351,33 +348,96 @@ class memGlobalInfo
             }
         }
 
-        std::string s = "{";
+        std::string compact = "{";
         for (auto it = datas.begin(); it != datas.end(); ++it)
         {
             const auto &tick = it->first;
-            s += memFormat("%s\"%lu\": {", it != datas.begin() ? ", " : "", tick);
+            compact += memFormat("%s\"%lu\": {", it != datas.begin() ? ", " : "", tick);
             for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
             {
                 const auto &tid = it2->first;
-                s += memFormat("%s\"%lu\": %s", it2 != it->second.begin() ? ", " : "", tid, it2->second.json().c_str());
+                compact +=
+                    memFormat("%s\"%lu\": %s", it2 != it->second.begin() ? ", " : "", tid, it2->second.json().c_str());
             }
-
-            s += "}";
+            compact += "}";
         }
+        compact += "}";
 
-        s += "}";
+        std::string pretty;
+        pretty.reserve(compact.size() * 2);
+        int indent = 0;
+        bool inString = false;
+        char prev = 0;
 
-        // 写入字符串（包括结尾的 '\0' 可选）
-        size_t len = s.size();
-        size_t written = fwrite(s.c_str(), sizeof(char), len, file);
-        if (written != len)
+        auto appendIndent = [&]() { pretty.append(indent, ' '); };
+
+        for (size_t i = 0; i < compact.size(); ++i)
         {
-            perror("Failed to write file");
-            fclose(file);
-            return;
+            char c = compact[i];
+
+            if (c == '"' && prev != '\\')
+                inString = !inString;
+
+            if (!inString)
+            {
+                switch (c)
+                {
+                case '{':
+                case '[':
+                    if (i + 1 < compact.size() &&
+                        ((c == '{' && compact[i + 1] == '}') || (c == '[' && compact[i + 1] == ']')))
+                    {
+                        pretty += c;
+                        pretty += compact[++i];
+                    }
+                    else
+                    {
+                        pretty += c;
+                        pretty += '\n';
+                        indent += 4;
+                        appendIndent();
+                    }
+                    break;
+                case '}':
+                case ']':
+                    pretty += '\n';
+                    indent -= 4;
+                    if (indent < 0)
+                        indent = 0;
+                    appendIndent();
+                    pretty += c;
+                    break;
+                case ',':
+                    pretty += c;
+                    pretty += '\n';
+                    appendIndent();
+                    while (i + 1 < compact.size() && compact[i + 1] == ' ')
+                        ++i;
+                    break;
+                case ':':
+                    pretty += ": ";
+                    while (i + 1 < compact.size() && compact[i + 1] == ' ')
+                        ++i;
+                    break;
+                default:
+                    if (c == ' ' && !pretty.empty() && pretty.back() == '\n')
+                    {
+                    }
+                    else
+                    {
+                        pretty += c;
+                    }
+                    break;
+                }
+            }
+            else
+            {
+                pretty += c;
+            }
+            prev = c;
         }
 
-        // 关闭文件
+        fwrite(pretty.c_str(), 1, pretty.size(), file);
         fclose(file);
     }
 
@@ -1177,7 +1237,7 @@ extern "C"
     inline void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...)
     {
         void *new_addr_opt = nullptr;
-    #ifdef MREMAP_FIXED
+        #ifdef MREMAP_FIXED
         if (flags & MREMAP_FIXED)
         {
             va_list ap;
@@ -1185,26 +1245,26 @@ extern "C"
             new_addr_opt = va_arg(ap, void *);
             va_end(ap);
         }
-    #endif
+        #endif
 
         if (__mem_in_probe_)
         {
-    #ifdef MREMAP_FIXED
+        #ifdef MREMAP_FIXED
             if (flags & MREMAP_FIXED)
                 return __real_mremap(old_address, old_size, new_size, flags, new_addr_opt);
-    #endif
+        #endif
             return __real_mremap(old_address, old_size, new_size, flags);
         }
 
         __mem_in_probe_ = true;
 
         void *ret =
-    #ifdef MREMAP_FIXED
+        #ifdef MREMAP_FIXED
             (flags & MREMAP_FIXED) ? __real_mremap(old_address, old_size, new_size, flags, new_addr_opt)
                                    : __real_mremap(old_address, old_size, new_size, flags);
-    #else
+        #else
             __real_mremap(old_address, old_size, new_size, flags);
-    #endif
+        #endif
 
         if (ret != (void *) -1)
         {

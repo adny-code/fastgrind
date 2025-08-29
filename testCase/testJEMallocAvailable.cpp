@@ -27,8 +27,6 @@ void add2()
 
 extern "C"
 {
-    // weak symbol: resolved at runtime by the linker if we are using jemalloc,
-    // nullptr otherwise
     int mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp, size_t newlen) __attribute__((weak));
 }
 

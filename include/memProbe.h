@@ -23,13 +23,15 @@
  * thread local guard flag.
  *
  * Limitations:
- *  - Only up to __MEM_MAX_STACK_DEPTH frames are recorded per probe stack.
+ *  - When a block of memory is allocated and released in different function stack
+ *    frames, it will be recorded truthfully, resulting in the memory allocated and
+ *    released in those function stack frames being mismatched.
  *  - Export happens at destruction of memGlobalInfo singleton; call dump()
  *    earlier if needed.
- *  - JSON file overwrites previous content.
+ *  - Export JSON file overwrites previous content.
  *
  * @copyright
- * Distributed under the MIT License. See LICENSE for details.
+ * See LICENSE for details.
  */
 #ifndef MEM_PROBE_H
 #define MEM_PROBE_H
@@ -80,10 +82,12 @@ namespace __MERECORDER__
  *  @brief Maximum depth of the logical probe call stack that will be captured.
  */
 #define __MEM_MAX_STACK_DEPTH     64
-/** @def __MEM_SMAMPLE_INTERVAL_MS
+
+/** @def __MEM_SAMPLE_INTERVAL_MS
  *  @brief Sampling granularity (milliseconds) for the internal timer tick.
  */
-#define __MEM_SMAMPLE_INTERVAL_MS 100
+#define __MEM_SAMPLE_INTERVAL_MS 100
+
 /** @def __MEM_PROBE_STATUS
  *  @brief Global enable switch (set to 0 at compile time to disable probing at runtime with minimal overhead).
  */
@@ -92,13 +96,6 @@ namespace __MERECORDER__
 /** @brief Output filename for exported JSON statistics. */
 constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.json";
 
-/**
- * @brief Convenience formatting helper returning std::string.
- * @tparam Args Variadic printf-style argument pack.
- * @param fstr printf-compatible format string (must be valid for provided arguments).
- * @return Formatted string (heap temporary inside is freed before return).
- * @note This avoids std::stringstream for predictable formatting including locale aware grouping (caller may set locale).
- */
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args)
 {
     size_t size = 1 + snprintf(nullptr, 0, fstr, args...);
@@ -110,21 +107,12 @@ template <typename... Args> static std::string memFormat(const char *fstr, Args.
 }
 
 /**
- * @brief Memory allocation and deallocation information.
- * @details: MemFrame holds one thread's and one tick's information.
- * @param mallocBytes: Total bytes allocated in this frame.
- * @param freeBytes: Total bytes freed in this frame.
- * @param funcId: Identifier for the function where this frame was created.
- * @param frameId: Identifier for the frame, used to track the call stack.
- */
-/**
  * @struct memFrame
- * @brief Aggregated allocation statistics for a (frameId, tick) pair.
+ * @brief Aggregated allocation statistics for a (threadId, frameId, tick) tuple.
  *
  * A memFrame collects the total allocated and freed bytes observed while the
  * logical frame (identified by its synthetic frameId derived from the call
- * stack) was active during a specific timer tick. Multiple memFrame objects
- * are combined to form per-thread and per-call-tree statistics.
+ * stack) was active during a specific timer tick.
  */
 struct memFrame
 {
@@ -146,7 +134,7 @@ struct memFrame
 
     /**
      * @brief Accumulate another frame's counters into this one.
-     * @param other Source counters to add. funcId / frameId are copied only if currently unset.
+     * @param other Source counters to add.
      * @return *this
      */
     memFrame &operator+=(const memFrame &other)
@@ -171,7 +159,7 @@ struct memFrame
  * @class memTimer
  * @brief Simple background monotonic tick generator.
  *
- * Spawns a thread that sleeps for __MEM_SMAMPLE_INTERVAL_MS each loop and
+ * Spawns a thread that sleeps for __MEM_SAMPLE_INTERVAL_MS each loop and
  * increments an atomic tick counter. Used to discretize time for memory
  * sampling windows without relying on system signals.
  */
@@ -213,8 +201,8 @@ class memTimer
     {
         while (!_exit)
         {
-            usleep(1000 * __MEM_SMAMPLE_INTERVAL_MS);
-            _tick += __MEM_SMAMPLE_INTERVAL_MS;
+            usleep(1000 * __MEM_SAMPLE_INTERVAL_MS);
+            _tick += __MEM_SAMPLE_INTERVAL_MS;
         };
     }
 
@@ -224,9 +212,6 @@ class memTimer
     std::atomic<size_t> _tick;
 };
 
-/*!@note data structure:
- *
- */
 /**
  * @class memNode
  * @brief Node in a hierarchical call tree accumulating memory statistics.
@@ -572,8 +557,8 @@ class memGlobalInfo
     }
 
   protected:
-    // key is threadId, second map key is frameId, second key is tick second is
-    // frame info
+    // first map key is threadId, second map key is frameId, third map key is tick.
+    // value is memFrame.
     std::map<size_t, std::unordered_map<size_t, std::unordered_map<size_t, memFrame>>> _frames;
 
     std::map<size_t, std::array<const char *, __MEM_MAX_STACK_DEPTH>> _callstacks;
@@ -582,7 +567,7 @@ class memGlobalInfo
   private:
     static std::unique_ptr<memGlobalInfo> _instance;
 
-    // timer need to init after all other class members
+    // timer need to init after all other class members.
     memTimer _timer;
 };
 

@@ -63,14 +63,14 @@ target_compile_options(testGLibcAvailable PRIVATE -g -O0)
 add_executable(testJEMallocAvailable testCase/testJEMallocAvailable.cpp)
 target_link_libraries(testJEMallocAvailable pthread dl -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic -lgcc_s)
 target_link_options(testJEMallocAvailable PRIVATE ${WRAP_FLAGS})
-target_compile_definitions(testJEMallocAvailable PRIVATE JE_MALLOC)
+target_compile_definitions(testJEMallocAvailable PRIVATE MERECORDER_JE_MALLOC)
 target_compile_options(testJEMallocAvailable PRIVATE -g -O0)
 
 # testTCMallocAvailable
 add_executable(testTCMallocAvailable testCase/testTCMallocAvailable.cpp)
 target_link_libraries(testTCMallocAvailable pthread dl -Wl,-Bstatic -ltcmalloc -Wl,-Bdynamic -lgcc_s -lunwind)
 target_link_options(testTCMallocAvailable PRIVATE ${WRAP_FLAGS})
-target_compile_definitions(testTCMallocAvailable PRIVATE TC_MALLOC)
+target_compile_definitions(testTCMallocAvailable PRIVATE MERECORDER_TC_MALLOC)
 target_compile_options(testTCMallocAvailable PRIVATE -g -O0)
 
 install(DIRECTORY include/ DESTINATION include)

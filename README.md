@@ -1,4 +1,4 @@
-# mmPool - Memory Pool & Profiling Tool
+# memRecorder
 
 ## Overview
 A lightweight memory pool built on jemalloc with memory allocation tracking and call stack analysis capabilities.

@@ -775,6 +775,114 @@ class memProbe
 
 extern "C"
 {
+#if defined(MERECORDER_FINSTRUMENT)
+    #include <cxxabi.h>
+    #include <dlfcn.h>
+    #include <string.h>
+
+    static MEM_NO_INSTRUMENT bool __mem_should_instrument(void *fn)
+    {
+        static void *keep_addrs[4096];
+        static void *skip_addrs[4096];
+        static unsigned keep_cnt = 0, skip_cnt = 0;
+
+        for (unsigned i = 0; i < keep_cnt; ++i)
+            if (keep_addrs[i] == fn)
+                return true;
+        for (unsigned i = 0; i < skip_cnt; ++i)
+            if (skip_addrs[i] == fn)
+                return false;
+
+        Dl_info info;
+        if (!dladdr(fn, &info))
+        {
+            if (keep_cnt < 4096)
+                keep_addrs[keep_cnt++] = fn;
+            return true; // Unknown – keep.
+        }
+
+        auto mark_skip = [&](void *p) {
+            if (skip_cnt < 4096)
+                skip_addrs[skip_cnt++] = p;
+        };
+        auto mark_keep = [&](void *p) {
+            if (keep_cnt < 4096)
+                keep_addrs[keep_cnt++] = p;
+        };
+
+        // Library name based quick filter (shared libs).
+        if (info.dli_fname)
+        {
+            const char *fname = info.dli_fname;
+            if (strstr(fname, "/libstdc++") || strstr(fname, "/libc++.so") || strstr(fname, "/libc++abi.so"))
+            {
+                mark_skip(fn);
+                return false;
+            }
+        }
+
+        // Demangle and namespace check for inline/template functions emitted in our object.
+        const char *mangled = info.dli_sname;
+        if (mangled)
+        {
+            int status = 0;
+            char *dem = abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
+            const char *name = (status == 0 && dem) ? dem : mangled;
+            bool is_std = false;
+            if (name)
+            {
+                // Treat all std:: / __gnu_cxx:: / std::__ as standard library.
+                if (strncmp(name, "std::", 5) == 0 || strncmp(name, "__gnu_cxx::", 11) == 0)
+                    is_std = true;
+                else if (strncmp(name, "(anonymous namespace)::std::", 28) == 0)
+                    is_std = true;
+                else if (strncmp(name, "std::__", 7) == 0)
+                    is_std = true;
+            }
+            if (dem)
+                free(dem);
+            if (is_std)
+            {
+                mark_skip(fn);
+                return false;
+            }
+        }
+
+        mark_keep(fn);
+        return true;
+    }
+
+    MEM_NO_INSTRUMENT void __cyg_profile_func_enter(void *this_fn, void *call_site)
+    {
+        (void) call_site;
+        static thread_local bool __mem_in_enter = false;
+        if (__mem_in_enter)
+            return;
+        __mem_in_enter = true;
+
+        if (__mem_should_instrument(this_fn))
+        {
+            memStack::instance().push((const char *)this_fn);
+        }
+
+        __mem_in_enter = false;
+    }
+
+    MEM_NO_INSTRUMENT void __cyg_profile_func_exit(void *this_fn, void *call_site)
+    {
+        (void) call_site;
+        (void) this_fn;
+        static thread_local bool __mem_in_exit = false;
+        if (__mem_in_exit)
+            return;
+        __mem_in_exit = true;
+        if (memStack::instance().depth() > 0)
+            memStack::instance().pop();
+        __mem_in_exit = false;
+    }
+#endif // MERECORDER_FINSTRUMENT
+
+
 #if defined(MERECORDER_TC_MALLOC)
     #include <gperftools/tcmalloc.h>
 #elif defined(MERECORDER_JE_MALLOC)

@@ -4,7 +4,6 @@
 
 void add()
 {
-    __MERECORDER__::MEM_PROBE;
     auto a = new int;
     delete a;
     return;
@@ -12,7 +11,6 @@ void add()
 
 void add2()
 {
-    __MERECORDER__::MEM_PROBE;
     std::vector<int *> pp;
     for (unsigned i = 0; i < 10000; ++i)
     {
@@ -37,7 +35,6 @@ bool sysCheckJemalloc()
 
 int main()
 {
-    __MERECORDER__::MEM_PROBE;
     usleep(500 * 1000);
 
     printf("tid %lu jemalloc status %u\n", syscall(SYS_gettid), sysCheckJemalloc());

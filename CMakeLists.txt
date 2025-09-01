@@ -7,8 +7,7 @@ set(CMAKE_INSTALL_PREFIX /usr/local)
 
 include_directories(include)
 
-set(
-    WRAP_FLAGS 
+set(WRAP_FLAGS 
     # C++98
     -Wl,--wrap=malloc
     -Wl,--wrap=calloc
@@ -53,6 +52,42 @@ set(
     -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
     )
 
+set(INSTRUMENT_EXCLUDE_FILES
+    # Must be excluded
+    /usr/include/c++/
+    /usr/include/x86_64-linux-gnu/c++/
+    /usr/lib/gcc/
+    /usr/include/x86_64-linux-gnu/
+    /usr/include/linux/
+    /usr/include/asm
+    /usr/include/asm-generic
+    /usr/include/sys/
+    /usr/include/bits/
+    /usr/include/gnu/
+    /usr/include/glib-2.0/
+    /usr/lib/x86_64-linux-gnu/glib-2.0/include/
+    /usr/include/c++/v1
+    /usr/lib/clang/
+    /usr/local/include/
+    # Third-Party, should be excluded
+    /usr/include/boost/
+    /usr/include/eigen3/
+    /usr/include/openssl/
+    /usr/include/libunwind/
+    /usr/include/jemalloc/
+    /usr/include/gperftools/
+    /usr/include/google/
+    /usr/include/valgrind/
+    /usr/include/cuda/
+    /usr/local/cuda/include/
+    /opt/local/include/
+    ${CMAKE_SOURCE_DIR}/third_party/
+    ${CMAKE_SOURCE_DIR}/extern/
+    ${CMAKE_SOURCE_DIR}/vendor/
+)
+
+list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
+
 # testGLibcAvailable
 add_executable(testGLibcAvailable testCase/testGLibcAvailable.cpp)
 target_link_libraries(testGLibcAvailable pthread dl -Wl,-Bstatic -Wl,-Bdynamic -lgcc_s -Wl,--export-dynamic)
@@ -64,53 +99,8 @@ add_executable(testJEMallocAvailable testCase/testJEMallocAvailable.cpp)
 target_link_libraries(testJEMallocAvailable pthread dl -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic -lgcc_s -Wl,--export-dynamic)
 target_link_options(testJEMallocAvailable PRIVATE ${WRAP_FLAGS})
 target_compile_definitions(testJEMallocAvailable PRIVATE MERECORDER_JE_MALLOC MERECORDER_FINSTRUMENT)
-target_compile_options(testJEMallocAvailable PRIVATE -g -O0)
-set(INSTRUMENT_EXCLUDE_FILES
-    /usr/include/c++
-    bits/
-    ext/
-    gnu/
-    gcc/
-    new
-    type_traits
-    utility
-    tuple
-    vector
-    string
-    memory
-    atomic
-    thread
-    mutex
-    condition_variable
-    shared_mutex
-    chrono
-    exception
-    system_error
-    functional
-    algorithm
-    iterator
-    random
-    limits
-    iosfwd
-    iostream
-    ostream
-    istream
-    sstream
-    fstream
-    array
-    map
-    unordered_map
-    unordered_set
-    set
-    deque
-    list
-)
-list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
-set_source_files_properties(
-    testCase/testJEMallocAvailable.cpp
-    PROPERTIES
-    COMPILE_FLAGS "-finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED}"
-)
+target_compile_options(testJEMallocAvailable PRIVATE -g -O0 -finstrument-functions 
+                        -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})
 
 # testTCMallocAvailable
 add_executable(testTCMallocAvailable testCase/testTCMallocAvailable.cpp)

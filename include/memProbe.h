@@ -139,6 +139,10 @@ struct memFrame
     {
     }
 
+    MEM_NO_INSTRUMENT ~memFrame()
+    {
+    }
+
     /**
      * @brief Accumulate another frame's counters into this one.
      * @param other Source counters to add.
@@ -178,6 +182,7 @@ class memTimer
     {
         _thread = new std::thread(std::bind(&memTimer::fakeTimer, this));
     }
+
     /** @brief Stops timer thread on destruction. */
     MEM_NO_INSTRUMENT ~memTimer()
     {
@@ -233,11 +238,15 @@ class memNode
     MEM_NO_INSTRUMENT memNode()
     {
     }
+
     /** @brief Construct named node. */
     MEM_NO_INSTRUMENT memNode(const char *name) : _name(name)
     {
     }
 
+    MEM_NO_INSTRUMENT ~memNode()
+    {
+    }
     /**
      * @brief Insert a memFrame into the tree along the provided call stack.
      * @param callstack Null-terminated array of function name pointers.
@@ -602,6 +611,10 @@ class memStack
         _stackId = 0;
     }
 
+    MEM_NO_INSTRUMENT ~memStack()
+    {
+    }
+
     /** @brief Push function name onto stack and update frame id hash. */
     MEM_NO_INSTRUMENT void push(const char *v)
     {
@@ -667,6 +680,10 @@ static thread_local size_t tid = syscall(SYS_gettid);
 class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordered_map<size_t /*tick*/, memFrame>>
 {
   public:
+    MEM_NO_INSTRUMENT memLocalInfo() : std::unordered_map<size_t, std::unordered_map<size_t, memFrame>>()
+    {
+    }
+
     MEM_NO_INSTRUMENT ~memLocalInfo()
     {
         merge();

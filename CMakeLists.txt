@@ -66,7 +66,6 @@ target_link_options(testJEMallocAvailable PRIVATE ${WRAP_FLAGS})
 target_compile_definitions(testJEMallocAvailable PRIVATE MERECORDER_JE_MALLOC MERECORDER_FINSTRUMENT)
 target_compile_options(testJEMallocAvailable PRIVATE -g -O0)
 set(INSTRUMENT_EXCLUDE_FILES
-    memProbe.h
     /usr/include/c++
     bits/
     ext/

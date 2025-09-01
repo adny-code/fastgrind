@@ -98,7 +98,7 @@ target_compile_options(testGLibcAvailable PRIVATE -g -O0)
 add_executable(testJEMallocAvailable testCase/testJEMallocAvailable.cpp)
 target_link_libraries(testJEMallocAvailable pthread dl -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic -lgcc_s -Wl,--export-dynamic)
 target_link_options(testJEMallocAvailable PRIVATE ${WRAP_FLAGS})
-target_compile_definitions(testJEMallocAvailable PRIVATE MERECORDER_JE_MALLOC MERECORDER_FINSTRUMENT)
+target_compile_definitions(testJEMallocAvailable PRIVATE MERECORDER_JE_MALLOC MERECORDER_INSTRUMENT)
 target_compile_options(testJEMallocAvailable PRIVATE -g -O0 -finstrument-functions 
                         -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})
 

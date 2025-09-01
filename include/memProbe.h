@@ -96,7 +96,7 @@ namespace __MERECORDER__
 /** @brief Output filename for exported JSON statistics. */
 constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.json";
 
-#if defined(MERECORDER_FINSTRUMENT)
+#if defined(MERECORDER_INSTRUMENT)
     #define MEM_NO_INSTRUMENT __attribute__((no_instrument_function))
 #else
     #define MEM_NO_INSTRUMENT
@@ -347,6 +347,9 @@ class memGlobalInfo
 
     MEM_NO_INSTRUMENT ~memGlobalInfo()
     {
+#if defined(MERECORDER_INSTRUMENT)
+        callStackTrans();
+#endif
         dump();
     }
 
@@ -570,6 +573,11 @@ class memGlobalInfo
             r += memFormat("%s%u: %s", (i ? "\n  " : "  "), i, callstack[depth - 1 - i]);
         }
         return r;
+    }
+
+  protected:
+    MEM_NO_INSTRUMENT void callStackTrans()
+    {
     }
 
   protected:
@@ -802,7 +810,7 @@ class memProbe
 
 extern "C"
 {
-#if defined(MERECORDER_FINSTRUMENT)
+#if defined(MERECORDER_INSTRUMENT)
     #include <cxxabi.h>
     #include <dlfcn.h>
     #include <string.h>
@@ -815,27 +823,6 @@ extern "C"
             return;
         __mem_in_enter = true;
 
-        // Dl_info info{};
-        // if (dladdr(this_fn, &info) && info.dli_sname)
-        // {
-        //     const char *to_free = nullptr;
-        //     const char *name = info.dli_sname;
-        //     int status = 0;
-        //     size_t len = 0;
-        //     char *dem = abi::__cxa_demangle(name, nullptr, &len, &status);
-        //     if (status == 0 && dem)
-        //     {
-        //         to_free = dem;
-        //         name = dem;
-        //     }
-        //     fprintf(stderr, "ENTER %p %s (caller=%p)\n", this_fn, name, call_site);
-        //     if (to_free)
-        //         free((void *) to_free);
-        // }
-        // else
-        // {
-        //     fprintf(stderr, "ENTER %p (unknown) caller=%p\n", this_fn, call_site);
-        // }
         memStack::instance().push((const char *) this_fn);
 
         __mem_in_enter = false;
@@ -850,31 +837,11 @@ extern "C"
             return;
         __mem_in_exit = true;
 
-        // Dl_info info{};
-        // if (dladdr(this_fn, &info) && info.dli_sname)
-        // {
-        //     int status = 0;
-        //     size_t len = 0;
-        //     char *dem = abi::__cxa_demangle(info.dli_sname, nullptr, &len, &status);
-        //     if (status == 0 && dem)
-        //     {
-        //         fprintf(stderr, "EXIT  %p %s (caller=%p)\n", this_fn, dem, call_site);
-        //         free(dem);
-        //     }
-        //     else
-        //     {
-        //         fprintf(stderr, "EXIT  %p %s (caller=%p)\n", this_fn, info.dli_sname, call_site);
-        //     }
-        // }
-        // else
-        // {
-        //     fprintf(stderr, "EXIT  %p (unknown) caller=%p\n", this_fn, call_site);
-        // }
         memStack::instance().pop();
-        
+
         __mem_in_exit = false;
     }
-#endif // MERECORDER_FINSTRUMENT
+#endif // MERECORDER_INSTRUMENT
 
 #if defined(MERECORDER_TC_MALLOC)
     #include <gperftools/tcmalloc.h>

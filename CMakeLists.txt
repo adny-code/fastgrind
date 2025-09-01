@@ -64,7 +64,54 @@ add_executable(testJEMallocAvailable testCase/testJEMallocAvailable.cpp)
 target_link_libraries(testJEMallocAvailable pthread dl -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic -lgcc_s -Wl,--export-dynamic)
 target_link_options(testJEMallocAvailable PRIVATE ${WRAP_FLAGS})
 target_compile_definitions(testJEMallocAvailable PRIVATE MERECORDER_JE_MALLOC MERECORDER_FINSTRUMENT)
-target_compile_options(testJEMallocAvailable PRIVATE -g -O0 -finstrument-functions)
+target_compile_options(testJEMallocAvailable PRIVATE -g -O0)
+set(INSTRUMENT_EXCLUDE_FILES
+    memProbe.h
+    /usr/include/c++
+    bits/
+    ext/
+    gnu/
+    gcc/
+    new
+    type_traits
+    utility
+    tuple
+    vector
+    string
+    memory
+    atomic
+    thread
+    mutex
+    condition_variable
+    shared_mutex
+    chrono
+    exception
+    system_error
+    functional
+    algorithm
+    iterator
+    random
+    limits
+    iosfwd
+    iostream
+    ostream
+    istream
+    sstream
+    fstream
+    array
+    map
+    unordered_map
+    unordered_set
+    set
+    deque
+    list
+)
+list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
+set_source_files_properties(
+    testCase/testJEMallocAvailable.cpp
+    PROPERTIES
+    COMPILE_FLAGS "-finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED}"
+)
 
 # testTCMallocAvailable
 add_executable(testTCMallocAvailable testCase/testTCMallocAvailable.cpp)

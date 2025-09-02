@@ -96,11 +96,7 @@ namespace __MERECORDER__
 /** @brief Output filename for exported JSON statistics. */
 constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.json";
 
-#if defined(MERECORDER_INSTRUMENT)
-    #define MEM_NO_INSTRUMENT __attribute__((no_instrument_function))
-#else
-    #define MEM_NO_INSTRUMENT
-#endif
+#define MEM_NO_INSTRUMENT __attribute__((no_instrument_function))
 
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args) MEM_NO_INSTRUMENT;
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args)
@@ -141,6 +137,40 @@ struct memFrame
 
     MEM_NO_INSTRUMENT ~memFrame()
     {
+    }
+
+    MEM_NO_INSTRUMENT memFrame(const memFrame &o)
+        : mallocBytes(o.mallocBytes), freeBytes(o.freeBytes), funcId(o.funcId), frameId(o.frameId)
+    {
+    }
+
+    MEM_NO_INSTRUMENT memFrame(memFrame &&o) noexcept
+        : mallocBytes(o.mallocBytes), freeBytes(o.freeBytes), funcId(o.funcId), frameId(o.frameId)
+    {
+    }
+
+    MEM_NO_INSTRUMENT memFrame &operator=(const memFrame &o)
+    {
+        if (this != &o)
+        {
+            mallocBytes = o.mallocBytes;
+            freeBytes = o.freeBytes;
+            funcId = o.funcId;
+            frameId = o.frameId;
+        }
+        return *this;
+    }
+
+    MEM_NO_INSTRUMENT memFrame &operator=(memFrame &&o) noexcept
+    {
+        if (this != &o)
+        {
+            mallocBytes = o.mallocBytes;
+            freeBytes = o.freeBytes;
+            funcId = o.funcId;
+            frameId = o.frameId;
+        }
+        return *this;
     }
 
     /**
@@ -247,6 +277,41 @@ class memNode
     MEM_NO_INSTRUMENT ~memNode()
     {
     }
+
+    MEM_NO_INSTRUMENT memNode(const memNode &o)
+        : _name(o._name), _childs(o._childs), _mallocBytes(o._mallocBytes), _freeBytes(o._freeBytes)
+    {
+    }
+
+    MEM_NO_INSTRUMENT memNode(memNode &&o) noexcept
+        : _name(o._name), _childs(std::move(o._childs)), _mallocBytes(o._mallocBytes), _freeBytes(o._freeBytes)
+    {
+    }
+
+    MEM_NO_INSTRUMENT memNode &operator=(const memNode &o)
+    {
+        if (this != &o)
+        {
+            _name = o._name;
+            _childs = o._childs;
+            _mallocBytes = o._mallocBytes;
+            _freeBytes = o._freeBytes;
+        }
+        return *this;
+    }
+
+    MEM_NO_INSTRUMENT memNode &operator=(memNode &&o) noexcept
+    {
+        if (this != &o)
+        {
+            _name = o._name;
+            _childs = std::move(o._childs);
+            _mallocBytes = o._mallocBytes;
+            _freeBytes = o._freeBytes;
+        }
+        return *this;
+    }
+
     /**
      * @brief Insert a memFrame into the tree along the provided call stack.
      * @param callstack Null-terminated array of function name pointers.
@@ -479,7 +544,7 @@ class memGlobalInfo
         bool inString = false;
         char prev = 0;
 
-        auto appendIndent = [&]() { pretty.append(indent, ' '); };
+        auto appendIndent = [&]() MEM_NO_INSTRUMENT { pretty.append(indent, ' '); };
 
         for (size_t i = 0; i < compact.size(); ++i)
         {
@@ -823,7 +888,16 @@ extern "C"
             return;
         __mem_in_enter = true;
 
-        memStack::instance().push((const char *) this_fn);
+        Dl_info info;
+        if (dladdr(this_fn, &info))
+        {
+            printf("Entered function: %s\n", info.dli_sname);
+        }
+        else
+        {
+            printf("Entered unknown function at %p\n", this_fn);
+        }
+        memStack::instance().push((const char *) info.dli_sname);
 
         __mem_in_enter = false;
     }
@@ -2390,7 +2464,7 @@ extern "C"
      * @brief Collection of function pointers to all wrapper hooks provided.
      * @details Useful for tools wanting to verify symbol interposition or to iterate over wrappers.
      */
-    static std::vector<void *> mmProbeOverrideFunc = {
+    static const void *mmProbeOverrideFunc[] = {
 #if defined(__CPP_STD_98)
         (void *) &__wrap_malloc,
         (void *) &__wrap_calloc,

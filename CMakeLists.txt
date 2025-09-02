@@ -70,6 +70,7 @@ set(INSTRUMENT_EXCLUDE_FILES
     /usr/lib/clang/
     /usr/local/include/
     # Third-Party, should be excluded
+    memProbe.h
     /usr/include/boost/
     /usr/include/eigen3/
     /usr/include/openssl/
@@ -107,6 +108,6 @@ add_executable(testTCMallocAvailable testCase/testTCMallocAvailable.cpp)
 target_link_libraries(testTCMallocAvailable pthread dl -Wl,-Bstatic -ltcmalloc -Wl,-Bdynamic -lgcc_s -lunwind -Wl,--export-dynamic)
 target_link_options(testTCMallocAvailable PRIVATE ${WRAP_FLAGS})
 target_compile_definitions(testTCMallocAvailable PRIVATE MERECORDER_TC_MALLOC)
-target_compile_options(testTCMallocAvailable PRIVATE -g -O0 -finstrument-functions)
+target_compile_options(testTCMallocAvailable PRIVATE -g -O0)
 
 install(DIRECTORY include/ DESTINATION include)

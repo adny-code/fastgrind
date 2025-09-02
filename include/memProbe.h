@@ -714,9 +714,9 @@ class memGlobalInfo
 };
 
 #if defined(__CPP_STD_17)
-inline std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
+__attribute__((weak)) inline std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
 #else
-std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
+__attribute__((weak)) std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
 #endif
 
 /**
@@ -929,7 +929,7 @@ class memProbe
 extern "C"
 {
 #if defined(MERECORDER_INSTRUMENT)
-    MEM_NO_INSTRUMENT void __cyg_profile_func_enter(void *this_fn, void *call_site)
+    MEM_NO_INSTRUMENT __attribute__((weak)) void __cyg_profile_func_enter(void *this_fn, void *call_site)
     {
         (void) call_site;
         static thread_local bool __mem_in_enter = false;
@@ -954,7 +954,7 @@ extern "C"
         __mem_in_enter = false;
     }
 
-    MEM_NO_INSTRUMENT void __cyg_profile_func_exit(void *this_fn, void *call_site)
+    MEM_NO_INSTRUMENT __attribute__((weak)) void __cyg_profile_func_exit(void *this_fn, void *call_site)
     {
         (void) call_site;
         (void) this_fn;

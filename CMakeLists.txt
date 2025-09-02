@@ -1,14 +1,27 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(CMAKE_CXX_STANDARD 11)
 project(mmPool VERSION 1.0 LANGUAGES CXX)
 
-set(CMAKE_INSTALL_PREFIX /usr/local)
+# -----------------------------------------------------------------------------
+# Global configuration
+# -----------------------------------------------------------------------------
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-include_directories(include)
+# Install into /usr/local by default (CMake's default; keep explicit for clarity)
+set(CMAKE_INSTALL_PREFIX "/usr/local" CACHE PATH "Install prefix")
 
-set(WRAP_FLAGS 
-    # C++98
+include(GNUInstallDirs)
+
+# Public include directory for all targets in this project
+add_library(merecorder_includes INTERFACE)
+target_include_directories(merecorder_includes INTERFACE ${CMAKE_SOURCE_DIR}/include)
+
+# -----------------------------------------------------------------------------
+# Linker wrap flags (centralized)
+# -----------------------------------------------------------------------------
+set(WRAP_FLAGS
     -Wl,--wrap=malloc
     -Wl,--wrap=calloc
     -Wl,--wrap=realloc
@@ -31,10 +44,8 @@ set(WRAP_FLAGS
     -Wl,--wrap=memalign
     -Wl,--wrap=posix_memalign
     -Wl,--wrap=reallocarray
-    # C++14
     -Wl,--wrap=_ZdaPvm
     -Wl,--wrap=_ZdlPvm
-    # c++17
     -Wl,--wrap=aligned_alloc
     -Wl,--wrap=_ZnwmSt11align_val_t
     -Wl,--wrap=_ZnamSt11align_val_t
@@ -50,8 +61,14 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZdaPvSt11align_val_tRKSt9nothrow_t
     -Wl,--wrap=_ZdlPvmSt11align_val_tRKSt9nothrow_t
     -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
-    )
+)
 
+add_library(merecorder_wrap INTERFACE)
+target_link_options(merecorder_wrap INTERFACE ${WRAP_FLAGS})
+
+# -----------------------------------------------------------------------------
+# Instrumentation exclusion list & helper interface
+# -----------------------------------------------------------------------------
 set(INSTRUMENT_EXCLUDE_FILES
     # Must be excluded
     /usr/include/c++/
@@ -86,9 +103,31 @@ set(INSTRUMENT_EXCLUDE_FILES
     ${CMAKE_SOURCE_DIR}/extern/
     ${CMAKE_SOURCE_DIR}/vendor/
 )
-
 list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
 
-add_subdirectory(testCase/glibc_je_tc_availabe)
+# Define instrumentation compile options variable (shared usage)
+set(MERECORDER_BASE_DEBUG_OPTS -g -O0)
+set(MERECORDER_INSTRUMENT_OPTS ${MERECORDER_BASE_DEBUG_OPTS})
+if(INSTRUMENT_EXCLUDE_FILES_JOINED)
+    list(APPEND MERECORDER_INSTRUMENT_OPTS -finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})
+endif()
 
-install(DIRECTORY include/ DESTINATION include)
+add_library(merecorder_instrument INTERFACE)
+target_compile_definitions(merecorder_instrument INTERFACE MERECORDER_INSTRUMENT)
+target_compile_options(merecorder_instrument INTERFACE ${MERECORDER_INSTRUMENT_OPTS})
+
+# Convenience function to apply plain debug options (without instrumentation)
+function(merecorder_apply_debug_options target)
+    target_compile_options(${target} PRIVATE ${MERECORDER_BASE_DEBUG_OPTS})
+endfunction()
+
+# -----------------------------------------------------------------------------
+# Subdirectories
+# -----------------------------------------------------------------------------
+add_subdirectory(testCase/glibc_je_tc_availabe)
+add_subdirectory(testCase/multi_pkg_compile)
+
+# -----------------------------------------------------------------------------
+# Install headers
+# -----------------------------------------------------------------------------
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

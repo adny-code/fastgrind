@@ -93,10 +93,41 @@ namespace __MERECORDER__
  */
 #define __MEM_PROBE_STATUS 1
 
+// #define __MEM_DEBUG_INFO 1
+
 /** @brief Output filename for exported JSON statistics. */
 constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.json";
 
 #define MEM_NO_INSTRUMENT __attribute__((no_instrument_function))
+
+#if defined(MERECORDER_INSTRUMENT)
+    #include <cxxabi.h>
+    #include <dlfcn.h>
+    #include <string.h>
+
+MEM_NO_INSTRUMENT static const char *demangleFunc(const char *mangled)
+{
+    if (!mangled)
+        return mangled;
+    static std::mutex lk;
+    static std::unordered_map<const char *, const char *> cache;
+    {
+        std::lock_guard<std::mutex> g(lk);
+        auto it = cache.find(mangled);
+        if (it != cache.end())
+            return it->second;
+    }
+    int status = 0;
+    char *tmp = abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
+    const char *ret = (status == 0 && tmp) ? strdup(tmp) : mangled;
+    free(tmp);
+    {
+        std::lock_guard<std::mutex> g(lk);
+        cache[mangled] = ret;
+    }
+    return ret;
+}
+#endif
 
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args) MEM_NO_INSTRUMENT;
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args)
@@ -412,9 +443,7 @@ class memGlobalInfo
 
     MEM_NO_INSTRUMENT ~memGlobalInfo()
     {
-#if defined(MERECORDER_INSTRUMENT)
         callStackTrans();
-#endif
         dump();
     }
 
@@ -643,6 +672,30 @@ class memGlobalInfo
   protected:
     MEM_NO_INSTRUMENT void callStackTrans()
     {
+#if defined(MERECORDER_INSTRUMENT)
+        for (auto &kv : _callstacks)
+        {
+            auto &arr = kv.second;
+            for (size_t i = 0; i < __MEM_MAX_STACK_DEPTH; ++i)
+            {
+                const char *entry = arr[i];
+                if (!entry)
+                    break;
+
+                Dl_info info;
+                if (dladdr((void *) entry, &info) && info.dli_sname && info.dli_saddr == (void *) entry)
+                {
+                    const char *pretty = demangleFunc(info.dli_sname);
+                    arr[i] = pretty;
+                }
+                else
+                {
+                    std::string fallback = memFormat("<unresolved@%p>", entry);
+                    arr[i] = strdup(fallback.c_str());
+                }
+            }
+        }
+#endif
     }
 
   protected:
@@ -876,10 +929,6 @@ class memProbe
 extern "C"
 {
 #if defined(MERECORDER_INSTRUMENT)
-    #include <cxxabi.h>
-    #include <dlfcn.h>
-    #include <string.h>
-
     MEM_NO_INSTRUMENT void __cyg_profile_func_enter(void *this_fn, void *call_site)
     {
         (void) call_site;
@@ -888,16 +937,19 @@ extern "C"
             return;
         __mem_in_enter = true;
 
+    #if defined(__MEM_DEBUG_INFO)
         Dl_info info;
-        if (dladdr(this_fn, &info))
+        if (dladdr(this_fn, &info) && info.dli_sname)
         {
-            printf("Entered function: %s\n", info.dli_sname);
+            const char *pretty = demangleFunc(info.dli_sname);
+            printf("Entered function: %s\n", pretty);
         }
         else
         {
             printf("Entered unknown function at %p\n", this_fn);
         }
-        memStack::instance().push((const char *) info.dli_sname);
+    #endif // __MEM_DEBUG_INFO
+        memStack::instance().push((const char *) this_fn);
 
         __mem_in_enter = false;
     }
@@ -911,6 +963,18 @@ extern "C"
             return;
         __mem_in_exit = true;
 
+    #if defined(__MEM_DEBUG_INFO)
+        Dl_info info;
+        if (dladdr(this_fn, &info) && info.dli_sname)
+        {
+            const char *pretty = demangleFunc(info.dli_sname);
+            printf("Exited function: %s\n", pretty);
+        }
+        else
+        {
+            printf("Exited unknown function at %p\n", this_fn);
+        }
+    #endif // __MEM_DEBUG_INFO
         memStack::instance().pop();
 
         __mem_in_exit = false;

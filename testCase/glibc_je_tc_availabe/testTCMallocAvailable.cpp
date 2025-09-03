@@ -29,19 +29,18 @@ void add2()
 bool sysCheckTcmalloc()
 {
     size_t value = 0;
-    return MallocExtension::instance()->GetNumericProperty(
-               "tcmalloc.pageheap_free_bytes", &value);
+    return MallocExtension::instance()->GetNumericProperty("tcmalloc.pageheap_free_bytes", &value);
 }
 
 int main()
 {
     __MERECORDER__::MEM_PROBE;
-    usleep(500 * 1000);
+    usleep(2500 * 1000);
 
     printf("tid %lu tcmalloc status %u\n", syscall(SYS_gettid), sysCheckTcmalloc());
 
     add();
-    usleep(500 * 1000);
+    usleep(2500 * 1000);
 
 #if 1
     std::vector<std::thread *> threads;

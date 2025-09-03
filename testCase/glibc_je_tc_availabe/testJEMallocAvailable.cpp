@@ -35,12 +35,12 @@ bool sysCheckJemalloc()
 
 int main()
 {
-    usleep(500 * 1000);
+    usleep(2500 * 1000);
 
     printf("tid %lu jemalloc status %u\n", syscall(SYS_gettid), sysCheckJemalloc());
 
     add();
-    usleep(500 * 1000);
+    usleep(2500 * 1000);
 
 #if 1
     std::vector<std::thread *> threads;

@@ -86,7 +86,7 @@ namespace __MERECORDER__
 /** @def __MEM_SAMPLE_INTERVAL_MS
  *  @brief Sampling granularity (milliseconds) for the internal timer tick.
  */
-#define __MEM_SAMPLE_INTERVAL_MS 100
+#define __MEM_SAMPLE_INTERVAL_MS 500
 
 /** @def __MEM_PROBE_STATUS
  *  @brief Global enable switch (set to 0 at compile time to disable probing at runtime with minimal overhead).
@@ -553,10 +553,26 @@ class memGlobalInfo
         }
 
         std::string compact = "{";
+        bool firstOutput = true;
+        size_t lastTick = 0;
         for (auto it = datas.begin(); it != datas.end(); ++it)
         {
-            const auto &tick = it->first;
-            compact += memFormat("%s\"%lu\": {", it != datas.begin() ? ", " : "", tick);
+            const size_t tick = it->first;
+
+            if (!firstOutput)
+            {
+                while (tick > lastTick && (tick - lastTick) > __MEM_SAMPLE_INTERVAL_MS)
+                {
+                    size_t fillerTick = lastTick + __MEM_SAMPLE_INTERVAL_MS;
+                    if (fillerTick >= tick)
+                        break;
+                    compact += memFormat("%s\"%lu\": {}", firstOutput ? "" : ", ", fillerTick);
+                    firstOutput = false;
+                    lastTick = fillerTick;
+                }
+            }
+
+            compact += memFormat("%s\"%lu\": {", firstOutput ? "" : ", ", tick);
             for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
             {
                 const auto &tid = it2->first;
@@ -564,6 +580,9 @@ class memGlobalInfo
                     memFormat("%s\"%lu\": %s", it2 != it->second.begin() ? ", " : "", tid, it2->second.json().c_str());
             }
             compact += "}";
+            if (firstOutput)
+                firstOutput = false;
+            lastTick = tick;
         }
         compact += "}";
 

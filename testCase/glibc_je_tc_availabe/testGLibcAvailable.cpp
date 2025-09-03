@@ -28,11 +28,11 @@ void add2()
 int main()
 {
     __MERECORDER__::MEM_PROBE;
-    usleep(500 * 1000);
+    usleep(2500 * 1000);
     printf("default malloc \n");
 
     add();
-    usleep(500 * 1000);
+    usleep(2500 * 1000);
 
 #if 1
     std::vector<std::thread *> threads;

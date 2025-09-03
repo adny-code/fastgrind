@@ -1,40 +1,54 @@
 #!/usr/bin/env python3
-"""Build structure Dict[int, Dict[str, List[str]]] from merecorder.json and
-generate an interactive HTML page.
+"""MERecorder post-processing tool.
 
-Simplified CLI usage:
+Purpose
+-------
+1. Parse a profiling output JSON file (``merecorder.json`` by default).
+2. Build an aggregated structure: ``Dict[int, Dict[str, List[str]]]`` where
+	 each key is a thread id and each nested key is a function name discovered
+	 anywhere in that thread across all time slices. The value is a static list
+	 placeholder ``["malloc", "free"]`` representing the available metrics.
+	 (The script does NOT currently sum or aggregate numeric values.)
+3. Generate an interactive HTML page (Plotly) that lets a user select
+	 threads, functions, and metrics then plots per-tick sums of the selected
+	 metric for nodes whose name matches the chosen function(s).
+
+CLI Usage
+---------
 		python merecorder.py [path/to/merecorder.json]
 
-If the argument is omitted the tool looks for ``merecorder.json`` in the
-current working directory.
+If the argument is omitted, the script looks for ``merecorder.json`` in the
+current working directory. The resulting HTML filename is derived by replacing
+``.json`` with ``.html`` (or appending ``.html`` if no ``.json`` extension is
+present). The HTML file is written next to the input file.
 
-Always performs two actions:
-1. Prints aggregated structure (JSON) to stdout.
-2. Generates an HTML file (name auto-derived: replace .json with .html or append .html).
-
-Input JSON layout example:
+Input JSON Layout (simplified)
+------------------------------
 {
-	"0": {              # time slice (ignored here for aggregation key purposes)
-		"1835879": {      # thread id (string form)
+	"0": {                 # tick / time slice
+		"1835879": {         # thread id (string form)
 			"name": "(null)",
 			"malloc": 8,
 			"free": 8,
-			"children": [ ... recursive same objects ... ]
+			"children": [ ... recursive nodes ... ]
 		}
 	},
 	"500": { ... }
 }
 
-We aggregate across all time slices: for each thread id collect every function
-name encountered and store a placeholder list ["malloc", "free"]. (No numeric
-summing is performed here.) Return type: Dict[int, Dict[str, List[str]]]
+Aggregation Semantics
+---------------------
+All ticks are scanned. For every thread id we collect the *set* of unique
+function names found in that thread's tree(s). We do not perform numeric
+aggregation here; the HTML plotting phase walks the raw tree each time you
+click "Plot" and sums values for the selected metric(s) and function name(s)
+per tick.
 """
 
 from __future__ import annotations
 
 import json
 import sys
-import argparse  # Removed as it is not used in the current implementation
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -63,7 +77,9 @@ def build_structure(path: str | Path) -> AggType:
 
 
 def _build_structure_from_loaded(data: Any) -> AggType:
-	"""Same逻辑 as build_structure,但输入已是解析后的dict。"""
+	"""Internal helper: same logic as ``build_structure`` but the input is
+	already a parsed Python object (dict). Returns the aggregated mapping.
+	"""
 	if not isinstance(data, dict):
 		return {}
 	result: AggType = {}
@@ -130,7 +146,7 @@ def generate_html(data, output: str, agg_struct: AggType | None = None):
 	       </style>
 	</head>
 	<body>
-	       <h2>MERecorder Memory Timeline</h2>
+	       <h2>MERecorder Memory Timeline (Show Thread::Functions allocation & deallocation by ticks)</h2>
 	       <div class=\"selectors\">
 		       <div>
 			       <label>Threads (multi-select)</label>
@@ -201,14 +217,14 @@ def generate_html(data, output: str, agg_struct: AggType | None = None):
 			       return Array.from(sel.selectedOptions).map(o=>o.value);
 		       }}
 
-		       // 动态刷新Functions多选框
+		       // Dynamically refresh the Functions multi-select when thread selection changes
 		       function updateFuncOptions() {{
 			       const tSel = document.getElementById('threadSel');
 			       const fSel = document.getElementById('funcSel');
 			       const selectedThreads = getSelectedValues(tSel);
 			       let funcSet = new Set();
 			       if(selectedThreads.length === 0) {{
-				       // 全部thread时显示所有函数
+				       // No thread filter selected: show every function from all threads
 				       Object.values(aggStruct).forEach(threadDict => {{
 					       Object.keys(threadDict).forEach(fn => funcSet.add(fn));
 				       }});
@@ -220,7 +236,7 @@ def generate_html(data, output: str, agg_struct: AggType | None = None):
 					       }}
 				       }});
 			       }}
-			       // 保持原有选择
+			       // Keep original options
 			       const prevSelected = getSelectedValues(fSel);
 			       fSel.innerHTML = '';
 			       Array.from(funcSet).sort().forEach(fn => {{
@@ -274,8 +290,8 @@ def main(argv: List[str]):
 
 	data = load_json(json_path)
 	struct = _build_structure_from_loaded(data)
-	json.dump(struct, sys.stdout, ensure_ascii=False, indent=4)
-	print()
+	# json.dump(struct, sys.stdout, ensure_ascii=False, indent=4)
+	# print()
 
 	if json_path.lower().endswith('.json'):
 		html_path = json_path[:-5] + '.html'

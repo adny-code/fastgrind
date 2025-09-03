@@ -529,6 +529,7 @@ class memGlobalInfo
         fflush(stdout);
     }
 
+  protected:
     /** @brief Export hierarchical statistics to JSON file (pretty-printed). */
     MEM_NO_INSTRUMENT void exportJson() const
     {
@@ -688,7 +689,6 @@ class memGlobalInfo
         return r;
     }
 
-  protected:
     MEM_NO_INSTRUMENT void callStackTrans()
     {
 #if defined(MERECORDER_INSTRUMENT)

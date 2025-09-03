@@ -1,13 +1,15 @@
 #pragma once
-#include <string>
+
 #include <map>
-#include "memProbe.h"
+#include <string>
 
 class PackageB;
 
-class PackageC {
-public:
+class PackageC
+{
+  public:
     std::string finalize(PackageB &b, const std::string &msg);
-private:
-    std::map<int,std::string> cache_;
+
+  private:
+    std::map<int, std::string> cache_;
 };

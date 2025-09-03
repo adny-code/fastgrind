@@ -1,15 +1,17 @@
 #pragma once
+
+#include <cstdlib>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include <cstdlib>
-#include "memProbe.h"
 
-class PackageA {
-public:
+class PackageA
+{
+  public:
     PackageA();
     ~PackageA();
     std::string process(const std::string &in);
-private:
+
+  private:
     std::vector<int> buffer_;
 };

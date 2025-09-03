@@ -1,15 +1,17 @@
 #pragma once
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
-#include "memProbe.h"
 
-class PackageA; // forward
+class PackageA;
 
-class PackageB {
-public:
+class PackageB
+{
+  public:
     PackageB();
     std::string combine(PackageA &a, const std::string &msg);
-private:
+
+  private:
     std::unique_ptr<int[]> data_;
 };

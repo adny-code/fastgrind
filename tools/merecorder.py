@@ -268,8 +268,8 @@ def generate_html(data, output: str, agg_struct: AggType | None = None):
 			       const traces = collect(threads, funcs, metrics);
 			       const layout = {{
 				       title: 'Memory vs Tick',
-				       xaxis: {{ title: 'Tick' }},
-				       yaxis: {{ title: 'Memory Size' }},
+				       xaxis: {{ title: 'Tick (ms)' }},
+				       yaxis: {{ title: 'Memory Size (bytes)' }},
 				       legend: {{ orientation: 'h', y: -0.2 }},
 				       hovermode: 'closest'
 			       }};
@@ -466,8 +466,8 @@ def plot_with_matplotlib(
                             continue
                         y_vals.append(sum_metric(thread_root, {fn}, metric))
                     ax.plot(ticks, y_vals, marker="o", label=f"T{tid}::{fn}::{metric}")
-        ax.set_xlabel("Tick")
-        ax.set_ylabel("Memory Size")
+        ax.set_xlabel("Tick (ms)")
+        ax.set_ylabel("Memory Size (bytes)")
         ax.set_title("Memory vs Tick")
         ax.legend(
             loc="upper center", bbox_to_anchor=(0.5, 1.15), ncol=3, fontsize="small"

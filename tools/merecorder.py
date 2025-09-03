@@ -346,7 +346,9 @@ def plot_with_matplotlib(
 
     # GUI setup.
     root = tk.Tk()
-    root.title("MERecorder Memory Plot (Show Thread::Functions allocation & deallocation by ticks)")
+    root.title(
+        "MERecorder Memory Plot (Show Thread::Functions allocation & deallocation by ticks)"
+    )
 
     # Containers.
     top_frame = ttk.Frame(root)
@@ -363,7 +365,9 @@ def plot_with_matplotlib(
         frame = ttk.Frame(parent)
         lbl = ttk.Label(frame, text=title)
         lbl.pack(anchor="w")
-        lb = tk.Listbox(frame, selectmode=tk.EXTENDED, exportselection=False, height=6, width=35)
+        lb = tk.Listbox(
+            frame, selectmode=tk.EXTENDED, exportselection=False, height=6, width=35
+        )
         lb.pack(fill=tk.BOTH, expand=True)
         sb = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=lb.yview)
         lb.configure(yscrollcommand=sb.set)
@@ -479,6 +483,31 @@ def plot_with_matplotlib(
     plot_btn.configure(command=do_plot)
 
     refresh_functions()
+
+    _closed_flag = {"done": False}
+
+    def _on_close():
+        if _closed_flag["done"]:
+            return
+        _closed_flag["done"] = True
+        try:
+            plt.close("all")
+        except Exception:
+            pass
+
+        try:
+            if root.winfo_exists():
+                root.quit()
+                root.destroy()
+        except Exception:
+            pass
+
+    root.protocol("WM_DELETE_WINDOW", _on_close)
+    root.bind("<Escape>", lambda _e: _on_close())
+    try:
+        fig.canvas.mpl_connect("close_event", lambda _evt: _on_close())
+    except Exception:
+        pass
 
     root.mainloop()
 

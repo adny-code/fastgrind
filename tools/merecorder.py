@@ -52,6 +52,10 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Any
 
+# Optional imports for the matplotlib interactive plot function. We import them lazily
+# inside the plotting function to avoid forcing users to have a GUI/matplotlib when
+# only generating HTML.
+
 AggType = Dict[int, Dict[str, List[str]]]
 
 
@@ -278,6 +282,202 @@ def generate_html(data, output: str, agg_struct: AggType | None = None):
     return output
 
 
+def plot_with_matplotlib(data: Any, agg_struct: AggType | None = None):  # pragma: no cover
+	"""Interactive matplotlib based plot replicating the logic of ``generate_html``.
+
+	This function opens a window containing:
+	  1. Three multi-select list boxes (Thread IDs, Function Names, Metrics).
+	  2. A dynamic Function Names list that refreshes whenever thread selection changes.
+	  3. A Plot button disabled until all three selections are non-empty.
+	  4. The x-axis is tick; y-axis is the sum of the selected metric for nodes whose
+		 name equals any selected function name per thread, per tick (summing multiple
+		 selected functions and threads produces multiple traces, one per combination).
+
+	Notes
+	-----
+	* Implemented with the TkAgg backend (falls back if unavailable) using Tkinter
+	  widgets for the lists and button.
+	* This is intentionally self-contained and does not require the HTML/Plotly stack.
+	* Designed for exploratory local usage; not intended for headless environments.
+	* All comments are in English as requested.
+	"""
+	if agg_struct is None:
+		agg_struct = _build_structure_from_loaded(data)
+
+	# Lazy imports so script can run in environments without GUI libs if user only wants HTML.
+	import importlib
+	import matplotlib
+	try:
+		# Try to ensure an interactive backend (TkAgg preferred for Tk widgets).
+		matplotlib.use("TkAgg")  # type: ignore
+	except Exception:
+		pass
+	import matplotlib.pyplot as plt
+	from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+	import tkinter as tk
+	from tkinter import ttk
+
+	# Collect sorted tick values as integers.
+	ticks = sorted(int(t) for t in data.keys()) if isinstance(data, dict) else []
+	thread_ids, _all_funcs = _collect_names(data)
+	metrics = ["malloc", "free"]
+
+	# Helper to traverse a thread root and sum metric for given function names.
+	def sum_metric(root, fn_names, metric):
+		total = 0
+		stack = [root]
+		while stack:
+			n = stack.pop()
+			if isinstance(n, dict):
+				nm = n.get("name")
+				if nm in fn_names and isinstance(n.get(metric), (int, float)):
+					total += n[metric]
+				ch = n.get("children") or []
+				if isinstance(ch, list):
+					stack.extend(ch)
+		return total
+
+	# Build mapping tick -> thread id -> root object.
+	# Data layout: data[tick][threadIdStr] = rootNode
+	# We will index directly when calculating traces.
+
+	# GUI setup.
+	root = tk.Tk()
+	root.title("MERecorder Memory Plot (matplotlib)")
+
+	# Containers.
+	top_frame = ttk.Frame(root)
+	top_frame.pack(side=tk.TOP, fill=tk.X, padx=8, pady=4)
+
+	list_frame = ttk.Frame(top_frame)
+	list_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+	plot_frame = ttk.Frame(root)
+	plot_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+	# Listbox factory.
+	def make_listbox(parent, title):
+		frame = ttk.Frame(parent)
+		lbl = ttk.Label(frame, text=title)
+		lbl.pack(anchor="w")
+		lb = tk.Listbox(frame, selectmode=tk.EXTENDED, exportselection=False, height=12)
+		lb.pack(fill=tk.BOTH, expand=True)
+		sb = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=lb.yview)
+		lb.configure(yscrollcommand=sb.set)
+		sb.pack(side=tk.RIGHT, fill=tk.Y)
+		frame.pack(side=tk.LEFT, padx=8)
+		return lb
+
+	thread_lb = make_listbox(list_frame, "Threads")
+	func_lb = make_listbox(list_frame, "Functions")
+	metric_lb = make_listbox(list_frame, "Metrics")
+
+	# Populate thread and metric listboxes.
+	for tid in thread_ids:
+		thread_lb.insert(tk.END, tid)
+	for m in metrics:
+		metric_lb.insert(tk.END, m)
+
+	# Figure and canvas.
+	fig, ax = plt.subplots(figsize=(9, 5))
+	canvas = FigureCanvasTkAgg(fig, master=plot_frame)
+	canvas_widget = canvas.get_tk_widget()
+	canvas_widget.pack(fill=tk.BOTH, expand=True)
+
+	# Status label.
+	status_var = tk.StringVar(value="Select items, then click Plot")
+	status_lbl = ttk.Label(root, textvariable=status_var, anchor="w")
+	status_lbl.pack(fill=tk.X, padx=8, pady=2)
+
+	# Plot button.
+	btn_frame = ttk.Frame(top_frame)
+	btn_frame.pack(side=tk.LEFT, padx=8)
+	plot_btn = ttk.Button(btn_frame, text="Plot")
+	plot_btn.pack(pady=4)
+	plot_btn.state(["disabled"])  # disabled until all three have selections
+
+	# Utility to read current selections.
+	def get_selected(listbox):
+		return [listbox.get(i) for i in listbox.curselection()]
+
+	# Update function list based on selected threads.
+	def refresh_functions(*_):
+		selected_threads = get_selected(thread_lb)
+		func_set = set()
+		if not selected_threads:
+			# All functions across all threads.
+			for tdict in agg_struct.values():
+				func_set.update(tdict.keys())
+		else:
+			for tid in selected_threads:
+				try:
+					tid_int = int(tid)
+				except ValueError:
+					continue
+				tdict = agg_struct.get(tid_int, {})
+				func_set.update(tdict.keys())
+		prev = set(get_selected(func_lb))
+		func_lb.delete(0, tk.END)
+		for fn in sorted(func_set):
+			func_lb.insert(tk.END, fn)
+			if fn in prev:
+				# Reselect if previously selected.
+				last_index = func_lb.size() - 1
+				func_lb.selection_set(last_index)
+		evaluate_button_state()
+
+	def evaluate_button_state(*_):
+		if get_selected(thread_lb) and get_selected(func_lb) and get_selected(metric_lb):
+			plot_btn.state(["!disabled"])
+			status_var.set("Ready to plot")
+		else:
+			plot_btn.state(["disabled"])
+			status_var.set("Select at least one in each list")
+
+	def do_plot():
+		threads = get_selected(thread_lb)
+		funcs = get_selected(func_lb)
+		metrics_sel = get_selected(metric_lb)
+		if not (threads and funcs and metrics_sel):
+			return
+		ax.clear()
+		# Build traces similarly to generate_html (one trace per combination).
+		for tid in threads:
+			for fn in funcs:
+				for metric in metrics_sel:
+					y_vals = []
+					for tk_val in ticks:
+						tk_str = str(tk_val)
+						thread_root = None
+						if tk_str in data:
+							thread_root = data[tk_str].get(tid)
+						if thread_root is None:
+							y_vals.append(0)
+							continue
+						y_vals.append(sum_metric(thread_root, {fn}, metric))
+					ax.plot(ticks, y_vals, marker='o', label=f"T{tid}::{fn}::{metric}")
+		ax.set_xlabel("Tick")
+		ax.set_ylabel("Memory Size")
+		ax.set_title("Memory vs Tick")
+		ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, fontsize='small')
+		ax.grid(True, linestyle='--', alpha=0.3)
+		canvas.draw()
+		status_var.set("Plot updated")
+
+	# Bind events.
+	thread_lb.bind('<<ListboxSelect>>', refresh_functions)
+	func_lb.bind('<<ListboxSelect>>', evaluate_button_state)
+	metric_lb.bind('<<ListboxSelect>>', evaluate_button_state)
+	plot_btn.configure(command=do_plot)
+
+	# Initial function population (all functions across all threads).
+	refresh_functions()
+
+	root.mainloop()
+
+	return True
+
+
 def main(argv: List[str]):
     if len(argv) > 2:
         print("too many arguments", file=sys.stderr)
@@ -299,7 +499,8 @@ def main(argv: List[str]):
         html_path = json_path + ".html"
     out = generate_html(data, html_path, struct)
     print(f"HTML written: {out}")
-
+	
+    plot_with_matplotlib(data, struct)
 
 if __name__ == "__main__":  # pragma: no cover
     main(sys.argv)

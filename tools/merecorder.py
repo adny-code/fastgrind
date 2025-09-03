@@ -5,17 +5,17 @@ Purpose
 -------
 1. Parse a profiling output JSON file (``merecorder.json`` by default).
 2. Build an aggregated structure: ``Dict[int, Dict[str, List[str]]]`` where
-	 each key is a thread id and each nested key is a function name discovered
-	 anywhere in that thread across all time slices. The value is a static list
-	 placeholder ``["malloc", "free"]`` representing the available metrics.
-	 (The script does NOT currently sum or aggregate numeric values.)
+         each key is a thread id and each nested key is a function name discovered
+         anywhere in that thread across all time slices. The value is a static list
+         placeholder ``["malloc", "free"]`` representing the available metrics.
+         (The script does NOT currently sum or aggregate numeric values.)
 3. Generate an interactive HTML page (Plotly) that lets a user select
-	 threads, functions, and metrics then plots per-tick sums of the selected
-	 metric for nodes whose name matches the chosen function(s).
+         threads, functions, and metrics then plots per-tick sums of the selected
+         metric for nodes whose name matches the chosen function(s).
 
 CLI Usage
 ---------
-		python merecorder.py [path/to/merecorder.json]
+                python merecorder.py [path/to/merecorder.json]
 
 If the argument is omitted, the script looks for ``merecorder.json`` in the
 current working directory. The resulting HTML filename is derived by replacing
@@ -25,15 +25,15 @@ present). The HTML file is written next to the input file.
 Input JSON Layout (simplified)
 ------------------------------
 {
-	"0": {                 # tick / time slice
-		"1835879": {         # thread id (string form)
-			"name": "(null)",
-			"malloc": 8,
-			"free": 8,
-			"children": [ ... recursive nodes ... ]
-		}
-	},
-	"500": { ... }
+    "0": {                 			# tick / time slice
+        "1835879": {         		# thread id (string form)
+            "name": "functionA",	# function name
+            "malloc": 8,
+            "free": 8,
+            "children": [ ... recursive nodes ... ]
+        }
+    },
+    "500": { ... }
 }
 
 Aggregation Semantics
@@ -56,80 +56,80 @@ AggType = Dict[int, Dict[str, List[str]]]
 
 
 def _walk_node(node: Any, names: set):
-	"""Recursive traversal collecting function names only."""
-	if not isinstance(node, dict):
-		return
-	name = node.get("name")
-	if name is not None:
-		names.add(name)
-	for child in node.get("children", []) or []:
-		_walk_node(child, names)
+    """Recursive traversal collecting function names only."""
+    if not isinstance(node, dict):
+        return
+    name = node.get("name")
+    if name is not None:
+        names.add(name)
+    for child in node.get("children", []) or []:
+        _walk_node(child, names)
 
 
 def load_json(path: str | Path):
-	return json.loads(Path(path).read_text(encoding="utf-8"))
+    return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 def build_structure(path: str | Path) -> AggType:
-	"""Build aggregated structure from a JSON file path."""
-	data = load_json(path)
-	return _build_structure_from_loaded(data)
+    """Build aggregated structure from a JSON file path."""
+    data = load_json(path)
+    return _build_structure_from_loaded(data)
 
 
 def _build_structure_from_loaded(data: Any) -> AggType:
-	"""Internal helper: same logic as ``build_structure`` but the input is
-	already a parsed Python object (dict). Returns the aggregated mapping.
-	"""
-	if not isinstance(data, dict):
-		return {}
-	result: AggType = {}
-	for _slice, threads in data.items():
-		if not isinstance(threads, dict):
-			continue
-		for tid_str, root in threads.items():
-			try:
-				tid = int(tid_str)
-			except (TypeError, ValueError):
-				continue
-			per_thread = result.setdefault(tid, {})
-			names: set = set()
-			_walk_node(root, names)
-			for fname in names:
-				per_thread.setdefault(fname, ["malloc", "free"])
-	return result
+    """Internal helper: same logic as ``build_structure`` but the input is
+    already a parsed Python object (dict). Returns the aggregated mapping.
+    """
+    if not isinstance(data, dict):
+        return {}
+    result: AggType = {}
+    for _slice, threads in data.items():
+        if not isinstance(threads, dict):
+            continue
+        for tid_str, root in threads.items():
+            try:
+                tid = int(tid_str)
+            except (TypeError, ValueError):
+                continue
+            per_thread = result.setdefault(tid, {})
+            names: set = set()
+            _walk_node(root, names)
+            for fname in names:
+                per_thread.setdefault(fname, ["malloc", "free"])
+    return result
 
 
 def _collect_names(data) -> tuple[list[str], list[str]]:
-		"""Collect thread ids (as strings) and function names across all ticks."""
-		threads_set = set()
-		func_set = set()
+    """Collect thread ids (as strings) and function names across all ticks."""
+    threads_set = set()
+    func_set = set()
 
-		def walk(node):
-				if isinstance(node, dict):
-						n = node.get("name")
-						if n is not None:
-								func_set.add(n)
-						for c in node.get("children", []) or []:
-								walk(c)
+    def walk(node):
+        if isinstance(node, dict):
+            n = node.get("name")
+            if n is not None:
+                func_set.add(n)
+            for c in node.get("children", []) or []:
+                walk(c)
 
-		for _tick, threads in data.items():
-				if not isinstance(threads, dict):
-						continue
-				for tid, root in threads.items():
-						threads_set.add(str(tid))
-						walk(root)
-		return sorted(threads_set, key=lambda x: int(x)), sorted(func_set)
+    for _tick, threads in data.items():
+        if not isinstance(threads, dict):
+            continue
+        for tid, root in threads.items():
+            threads_set.add(str(tid))
+            walk(root)
+    return sorted(threads_set, key=lambda x: int(x)), sorted(func_set)
 
 
 def generate_html(data, output: str, agg_struct: AggType | None = None):
-	       thread_ids, func_names = _collect_names(data)
-	       metrics = ["malloc", "free"]
-	       embedded = json.dumps(data)
-	       if agg_struct is None:
-		       agg_struct = _build_structure_from_loaded(data)
-	       agg_struct_json = json.dumps(agg_struct)
+    thread_ids, func_names = _collect_names(data)
+    metrics = ["malloc", "free"]
+    embedded = json.dumps(data)
+    if agg_struct is None:
+        agg_struct = _build_structure_from_loaded(data)
+    agg_struct_json = json.dumps(agg_struct)
 
-	       html = f"""<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 	<html lang=\"en\">
 	<head>
 	       <meta charset=\"UTF-8\" />
@@ -274,32 +274,32 @@ def generate_html(data, output: str, agg_struct: AggType | None = None):
 	       </script>
 	</body>
 	</html>"""
-	       Path(output).write_text(html, encoding="utf-8")
-	       return output
+    Path(output).write_text(html, encoding="utf-8")
+    return output
 
 
 def main(argv: List[str]):
-	if len(argv) > 2:
-		print("too many arguments", file=sys.stderr)
-		sys.exit(2)
+    if len(argv) > 2:
+        print("too many arguments", file=sys.stderr)
+        sys.exit(2)
 
-	json_path = argv[1] if len(argv) == 2 else "merecorder.json"
-	if not Path(json_path).is_file():
-		print(f"File not found: {json_path}", file=sys.stderr)
-		sys.exit(1)
+    json_path = argv[1] if len(argv) == 2 else "merecorder.json"
+    if not Path(json_path).is_file():
+        print(f"File not found: {json_path}", file=sys.stderr)
+        sys.exit(1)
 
-	data = load_json(json_path)
-	struct = _build_structure_from_loaded(data)
-	# json.dump(struct, sys.stdout, ensure_ascii=False, indent=4)
-	# print()
+    data = load_json(json_path)
+    struct = _build_structure_from_loaded(data)
+    # json.dump(struct, sys.stdout, ensure_ascii=False, indent=4)
+    # print()
 
-	if json_path.lower().endswith('.json'):
-		html_path = json_path[:-5] + '.html'
-	else:
-		html_path = json_path + '.html'
-	out = generate_html(data, html_path, struct)
-	print(f"HTML written: {out}")
+    if json_path.lower().endswith(".json"):
+        html_path = json_path[:-5] + ".html"
+    else:
+        html_path = json_path + ".html"
+    out = generate_html(data, html_path, struct)
+    print(f"HTML written: {out}")
 
 
 if __name__ == "__main__":  # pragma: no cover
-	main(sys.argv)
+    main(sys.argv)

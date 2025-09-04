@@ -25,5 +25,5 @@ target_include_directories(pkgC_shared PUBLIC
 target_link_libraries(pkgC_shared PUBLIC merecorder_includes merecorder_instrument pkgB_shared)
 
 add_executable(multi_pkg_main main.cpp)
-target_link_libraries(multi_pkg_main PRIVATE pkgC_shared pkgB_shared pkgA_shared pthread dl merecorder_wrap -Wl,--export-dynamic)
+target_link_libraries(multi_pkg_main PRIVATE pkgA_shared pkgB_shared pkgC_shared pthread dl merecorder_wrap -Wl,--export-dynamic)
 target_link_libraries(multi_pkg_main PRIVATE merecorder_instrument merecorder_includes)

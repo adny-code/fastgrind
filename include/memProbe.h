@@ -100,6 +100,8 @@ constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.json";
 
 #define MEM_NO_INSTRUMENT __attribute__((no_instrument_function))
 
+#define MEM_INLINE_USED __attribute__((used))
+
 #if defined(MERECORDER_INSTRUMENT)
     #include <cxxabi.h>
     #include <dlfcn.h>
@@ -733,7 +735,7 @@ class memGlobalInfo
 };
 
 #if defined(__CPP_STD_17)
-__attribute__((weak)) inline std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
+__attribute__((weak)) MEM_INLINE_USED inline std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
 #else
 __attribute__((weak)) std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
 #endif
@@ -1029,7 +1031,7 @@ extern "C"
     static thread_local bool __mem_in_probe_ = false;
 
 #if defined(__CPP_STD_98)
-    MEM_NO_INSTRUMENT inline void *__wrap_malloc(size_t sz)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_malloc(size_t sz)
     {
         if (sz == 0)
             sz = 1;
@@ -1066,7 +1068,7 @@ extern "C"
         return p;
     }
 
-    MEM_NO_INSTRUMENT inline void *__wrap_calloc(size_t nmemb, size_t size)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_calloc(size_t nmemb, size_t size)
     {
         if (nmemb == 0 || size == 0)
         {
@@ -1106,7 +1108,7 @@ extern "C"
         return p;
     }
 
-    MEM_NO_INSTRUMENT inline void *__wrap_realloc(void *ptr, size_t size)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_realloc(void *ptr, size_t size)
     {
         if (size == 0)
             size = 1;
@@ -1145,7 +1147,7 @@ extern "C"
         return p;
     }
 
-    MEM_NO_INSTRUMENT inline void __wrap_free(void *p)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap_free(void *p)
     {
         if (__mem_in_probe_)
         {
@@ -1174,7 +1176,7 @@ extern "C"
     }
 
     // override operator new
-    MEM_NO_INSTRUMENT inline void *__wrap__Znwm(size_t sz)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__Znwm(size_t sz)
     {
         if (sz == 0)
             sz = 1;
@@ -1235,7 +1237,7 @@ extern "C"
     }
 
     // override operator new[]
-    MEM_NO_INSTRUMENT inline void *__wrap__Znam(size_t sz)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__Znam(size_t sz)
     {
         if (sz == 0)
             sz = 1;
@@ -1296,7 +1298,7 @@ extern "C"
     }
 
     // override operator delete
-    MEM_NO_INSTRUMENT inline void __wrap__ZdlPv(void *p)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPv(void *p)
     {
         if (__mem_in_probe_)
         {
@@ -1325,7 +1327,7 @@ extern "C"
     }
 
     // override operator delete[]
-    MEM_NO_INSTRUMENT inline void __wrap__ZdaPv(void *p)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPv(void *p)
     {
         if (__mem_in_probe_)
         {
@@ -1354,7 +1356,7 @@ extern "C"
     }
 
     // override operator new with nothrow
-    MEM_NO_INSTRUMENT inline void *__wrap__ZnwmRKSt9nothrow_t(size_t sz, const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnwmRKSt9nothrow_t(size_t sz, const std::nothrow_t &)
     {
         if (sz == 0)
             sz = 1;
@@ -1412,7 +1414,7 @@ extern "C"
     }
 
     // override operator new[] with nothrow
-    MEM_NO_INSTRUMENT inline void *__wrap__ZnamRKSt9nothrow_t(size_t sz, const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnamRKSt9nothrow_t(size_t sz, const std::nothrow_t &)
     {
         if (sz == 0)
             sz = 1;
@@ -1471,7 +1473,7 @@ extern "C"
     }
 
     // override operator delete with nothrow
-    MEM_NO_INSTRUMENT inline void __wrap__ZdlPvRKSt9nothrow_t(void *p, const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvRKSt9nothrow_t(void *p, const std::nothrow_t &)
     {
         if (__mem_in_probe_)
         {
@@ -1500,7 +1502,7 @@ extern "C"
     }
 
     // override operator delete[] with nothrow
-    MEM_NO_INSTRUMENT inline void __wrap__ZdaPvRKSt9nothrow_t(void *p, const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvRKSt9nothrow_t(void *p, const std::nothrow_t &)
     {
         if (__mem_in_probe_)
         {
@@ -1530,7 +1532,7 @@ extern "C"
 
     #if defined(DEFAULT_MALLOC) && defined(__USE_SYS_WRAP)
     // sys call
-    MEM_NO_INSTRUMENT inline void *__wrap_sbrk(intptr_t increment)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_sbrk(intptr_t increment)
     {
         if (__mem_in_probe_)
             return __real_sbrk(increment);
@@ -1551,7 +1553,7 @@ extern "C"
     }
 
     // sys call
-    MEM_NO_INSTRUMENT inline int __wrap_brk(void *addr)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline int __wrap_brk(void *addr)
     {
         if (__mem_in_probe_)
             return __real_brk(addr);
@@ -1575,7 +1577,7 @@ extern "C"
     }
 
     // sys call
-    MEM_NO_INSTRUMENT inline void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
     {
         if (__mem_in_probe_)
             return __real_mmap(addr, length, prot, flags, fd, offset);
@@ -1591,7 +1593,7 @@ extern "C"
     }
 
     // sys call
-    MEM_NO_INSTRUMENT inline int __wrap_munmap(void *addr, size_t length)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline int __wrap_munmap(void *addr, size_t length)
     {
         if (__mem_in_probe_)
             return __real_munmap(addr, length);
@@ -1607,7 +1609,7 @@ extern "C"
     }
 
     // sys call
-    MEM_NO_INSTRUMENT inline void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...)
     {
         void *new_addr_opt = nullptr;
         #ifdef MREMAP_FIXED
@@ -1653,7 +1655,7 @@ extern "C"
     #endif
 
     // glibc function, glibc 2.12 abort this function
-    MEM_NO_INSTRUMENT inline void *__wrap_valloc(size_t size)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_valloc(size_t size)
     {
         if (__mem_in_probe_)
         {
@@ -1687,7 +1689,7 @@ extern "C"
     }
 
     // glibc function, glibc 2.12 abort this function
-    MEM_NO_INSTRUMENT inline void *__wrap_pvalloc(size_t size)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_pvalloc(size_t size)
     {
         if (__mem_in_probe_)
         {
@@ -1721,7 +1723,7 @@ extern "C"
     }
 
     // glibc function
-    MEM_NO_INSTRUMENT inline void *__wrap_memalign(size_t alignment, size_t size)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_memalign(size_t alignment, size_t size)
     {
         if (__mem_in_probe_)
         {
@@ -1756,7 +1758,7 @@ extern "C"
     }
 
     // glibc function
-    MEM_NO_INSTRUMENT inline int __wrap_posix_memalign(void **memptr, size_t alignment, size_t size)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline int __wrap_posix_memalign(void **memptr, size_t alignment, size_t size)
     {
         if (__mem_in_probe_)
         {
@@ -1791,7 +1793,7 @@ extern "C"
     }
 
     // glibc function
-    MEM_NO_INSTRUMENT inline void *__wrap_reallocarray(void *ptr, size_t nmemb, size_t size)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_reallocarray(void *ptr, size_t nmemb, size_t size)
     {
         if (nmemb == 0 || size == 0)
         {
@@ -1852,7 +1854,7 @@ extern "C"
 
     // #if defined(__CPP_STD_14)
     // override operator delete(void*, std::size_t)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdlPvm(void *p, size_t sz)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvm(void *p, size_t sz)
     {
         if (__mem_in_probe_)
         {
@@ -1881,7 +1883,7 @@ extern "C"
     }
 
     // override operator delete[](void*, std::size_t)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdaPvm(void *p, size_t sz)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvm(void *p, size_t sz)
     {
         if (__mem_in_probe_)
         {
@@ -1911,7 +1913,7 @@ extern "C"
 #endif
 
 #if defined(__CPP_STD_17)
-    MEM_NO_INSTRUMENT inline void *__wrap_aligned_alloc(size_t alignment, size_t size)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_aligned_alloc(size_t alignment, size_t size)
     {
         if (alignment == 0 || (alignment & (alignment - 1)) || (alignment % sizeof(void *) != 0))
         {
@@ -1954,7 +1956,7 @@ extern "C"
     }
 
     // override operator new(std::size_t, std::align_val_t)
-    MEM_NO_INSTRUMENT inline void *__wrap__ZnwmSt11align_val_t(size_t size, std::align_val_t al)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnwmSt11align_val_t(size_t size, std::align_val_t al)
     {
         if (size == 0)
             size = 1;
@@ -2018,7 +2020,7 @@ extern "C"
     }
 
     // override operator new[](std::size_t size, std::align_val_t alignment)
-    MEM_NO_INSTRUMENT inline void *__wrap__ZnamSt11align_val_t(size_t size, std::align_val_t al)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnamSt11align_val_t(size_t size, std::align_val_t al)
     {
         if (size == 0)
             size = 1;
@@ -2082,7 +2084,7 @@ extern "C"
     }
 
     // override operator delete(void *p, std::align_val_t al)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdlPvSt11align_val_t(void *p, std::align_val_t al)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvSt11align_val_t(void *p, std::align_val_t al)
     {
         (void) al;
 
@@ -2116,7 +2118,7 @@ extern "C"
     }
 
     // override operator delete[](void *p, std::align_val_t al)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdaPvSt11align_val_t(void *p, std::align_val_t al)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvSt11align_val_t(void *p, std::align_val_t al)
     {
         (void) al;
 
@@ -2150,7 +2152,7 @@ extern "C"
     }
 
     // override operator delete(void *p, size_t sz, std::align_val_t al)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdlPvmSt11align_val_t(void *p, size_t sz, std::align_val_t al)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvmSt11align_val_t(void *p, size_t sz, std::align_val_t al)
     {
         (void) al;
 
@@ -2184,7 +2186,7 @@ extern "C"
     }
 
     // override operator delete[](void *p, size_t sz, std::align_val_t al)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdaPvmSt11align_val_t(void *p, size_t sz, std::align_val_t al)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvmSt11align_val_t(void *p, size_t sz, std::align_val_t al)
     {
         (void) al;
 
@@ -2218,7 +2220,7 @@ extern "C"
     }
 
     // override operator delete(void *p, size_t sz, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdlPvmRKSt9nothrow_t(void *p, size_t sz, const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvmRKSt9nothrow_t(void *p, size_t sz, const std::nothrow_t &)
     {
         if (__mem_in_probe_)
         {
@@ -2247,7 +2249,7 @@ extern "C"
     }
 
     // override operator delete[](void *p, size_t sz, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdaPvmRKSt9nothrow_t(void *p, size_t sz, const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvmRKSt9nothrow_t(void *p, size_t sz, const std::nothrow_t &)
     {
         if (__mem_in_probe_)
         {
@@ -2276,7 +2278,7 @@ extern "C"
     }
 
     // override operator new(std::size_t size, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT inline void *__wrap__ZnwmSt11align_val_tRKSt9nothrow_t(size_t size, std::align_val_t al,
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnwmSt11align_val_tRKSt9nothrow_t(size_t size, std::align_val_t al,
                                                                              const std::nothrow_t &)
     {
         if (size == 0)
@@ -2339,7 +2341,7 @@ extern "C"
     }
 
     // override operator new[](std::size_t size, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT inline void *__wrap__ZnamSt11align_val_tRKSt9nothrow_t(size_t size, std::align_val_t al,
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnamSt11align_val_tRKSt9nothrow_t(size_t size, std::align_val_t al,
                                                                              const std::nothrow_t &)
     {
         if (size == 0)
@@ -2402,7 +2404,7 @@ extern "C"
     }
 
     // override operator delete(void *p, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdlPvSt11align_val_tRKSt9nothrow_t(void *p, std::align_val_t al,
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvSt11align_val_tRKSt9nothrow_t(void *p, std::align_val_t al,
                                                                              const std::nothrow_t &)
     {
         (void) al;
@@ -2437,7 +2439,7 @@ extern "C"
     }
 
     // override operator delete[](void *p, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdaPvSt11align_val_tRKSt9nothrow_t(void *p, std::align_val_t al,
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvSt11align_val_tRKSt9nothrow_t(void *p, std::align_val_t al,
                                                                              const std::nothrow_t &)
     {
         (void) al;
@@ -2472,7 +2474,7 @@ extern "C"
     }
 
     // override operator delete(void *p, size_t sz, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al,
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al,
                                                                               const std::nothrow_t &)
     {
         (void) al;
@@ -2507,7 +2509,7 @@ extern "C"
     }
 
     // override operator delete[](void *p, size_t sz, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT inline void __wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al,
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al,
                                                                               const std::nothrow_t &)
     {
         (void) al;

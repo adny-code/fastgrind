@@ -8,36 +8,33 @@
 #include <vector>
 #include <unistd.h>
 
-void worker(int id)
+void thread1()
 {
     PackageA a;
-    PackageB b;
-    PackageC c;
-    for (int i = 0; i < 5; ++i)
-    {
-        std::string msg = "thread" + std::to_string(id) + "_iter" + std::to_string(i);
-        std::string result = c.finalize(b, msg);
-        char *dyn = (char *) malloc(100 + id);
-        free(dyn);
-        std::cout << "Result(" << id << "): " << result << std::endl;
-    }
-    static thread_local std::mt19937 rng{std::random_device{}() ^
-                                         (static_cast<std::mt19937::result_type>(reinterpret_cast<uintptr_t>(&rng)) +
-                                          (static_cast<std::mt19937::result_type>(id) << 16))};
-    std::uniform_int_distribution<int> dist(0, 2500);
-    int random = dist(rng);
+    a.allocTest();
+}
 
-    usleep(random * 1000);
+void thread2()
+{
+    PackageB b;
+    b.allocTest();
+}
+
+void thread3()
+{
+    PackageC c;
+    c.allocTest();
 }
 
 int main()
 {
-    std::vector<std::thread> threads;
-    for (int t = 0; t < 4; ++t)
-    {
-        threads.emplace_back(worker, t);
-    }
-    for (auto &th : threads)
-        th.join();
+    std::thread t1(thread1);
+    std::thread t2(thread2);
+    std::thread t3(thread3);
+
+    t1.join();
+    t2.join();
+    t3.join();
+
     return 0;
 }

@@ -5,15 +5,19 @@
 
 PackageB::PackageB()
 {
-    data_ = std::unique_ptr<int[]>(new int[512]);
+    a_ = new PackageA();
 }
 
-std::string PackageB::combine(PackageA &a, const std::string &msg)
+PackageB::~PackageB()
 {
-    std::string processed = a.process(msg);
-    std::stringstream ss;
-    ss << processed << ":B";
-    void *tmp = malloc(64);
-    free(tmp);
-    return ss.str();
+    delete a_;
+}
+
+void PackageB::allocTest() const
+{
+    double *tmp = new double[128];
+    delete[] tmp;
+
+    double *tmp2 = (double *) malloc(sizeof(double) * 128);
+    free(tmp2);
 }

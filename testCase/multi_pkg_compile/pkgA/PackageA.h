@@ -9,9 +9,11 @@ class PackageA
 {
   public:
     PackageA();
+
     ~PackageA();
-    std::string process(const std::string &in);
+
+    void allocTest() const;
 
   private:
-    std::vector<int> buffer_;
+    int *buffer_ = nullptr;
 };

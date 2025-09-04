@@ -4,23 +4,22 @@
 
 PackageA::PackageA()
 {
-    buffer_.resize(1024);
-    int *raw = (int *) malloc(sizeof(int) * 256);
-    free(raw);
+    buffer_ = (int *) malloc(sizeof(int) * 256);
+
+    char *tmp = (char *) malloc(256);
+    free(tmp);
 }
 
 PackageA::~PackageA()
 {
+    free(buffer_);
 }
 
-std::string PackageA::process(const std::string &in)
+void PackageA::allocTest() const
 {
-    std::string out = in;
-    std::reverse(out.begin(), out.end());
+    long long *tmp = new long long[128];
+    delete[] tmp;
 
-    char *tmp = (char *) malloc(128);
-    snprintf(tmp, 128, "A:%s", out.c_str());
-    std::string ret(tmp);
-    free(tmp);
-    return ret;
+    long long *tmp2 = (long long *) malloc(sizeof(long long) * 128);
+    free(tmp2);
 }

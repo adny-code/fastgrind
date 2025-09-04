@@ -10,8 +10,11 @@ class PackageB
 {
   public:
     PackageB();
-    std::string combine(PackageA &a, const std::string &msg);
+  
+    ~PackageB();
+
+    void allocTest() const;
 
   private:
-    std::unique_ptr<int[]> data_;
+    PackageA *a_ = nullptr;
 };

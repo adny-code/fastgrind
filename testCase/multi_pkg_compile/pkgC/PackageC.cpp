@@ -1,3 +1,4 @@
+#include "memProbe.h"
 #include "PackageC.h"
 #include "pkgA/PackageA.h"
 #include "pkgB/PackageB.h"

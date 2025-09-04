@@ -1,4 +1,3 @@
-#include "memProbe.h"
 #include "pkgA/PackageA.h"
 #include "pkgB/PackageB.h"
 #include "pkgC/PackageC.h"
@@ -7,6 +6,7 @@
 #include <random>
 #include <thread>
 #include <vector>
+#include <unistd.h>
 
 void worker(int id)
 {

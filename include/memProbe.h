@@ -950,7 +950,7 @@ class memProbe
 extern "C"
 {
 #if defined(MERECORDER_INSTRUMENT)
-    MEM_NO_INSTRUMENT void __cyg_profile_func_enter(void *this_fn, void *call_site)
+    MEM_NO_INSTRUMENT __attribute__((weak)) void __cyg_profile_func_enter(void *this_fn, void *call_site)
     {
         (void) call_site;
         static thread_local bool __mem_in_enter = false;
@@ -975,7 +975,7 @@ extern "C"
         __mem_in_enter = false;
     }
 
-    MEM_NO_INSTRUMENT void __cyg_profile_func_exit(void *this_fn, void *call_site)
+    MEM_NO_INSTRUMENT __attribute__((weak)) void __cyg_profile_func_exit(void *this_fn, void *call_site)
     {
         (void) call_site;
         (void) this_fn;
@@ -2549,7 +2549,7 @@ extern "C"
      * @brief Collection of function pointers to all wrapper hooks provided.
      * @details Useful for tools wanting to verify symbol interposition or to iterate over wrappers.
      */
-    static const void *mmProbeOverrideFunc[] = {
+    __attribute__((unused)) static const void *mmProbeOverrideFunc[] = {
 #if defined(__CPP_STD_98)
         (void *) &__wrap_malloc,
         (void *) &__wrap_calloc,

@@ -102,6 +102,7 @@ set(INSTRUMENT_EXCLUDE_FILES
     ${CMAKE_SOURCE_DIR}/third_party/
     ${CMAKE_SOURCE_DIR}/extern/
     ${CMAKE_SOURCE_DIR}/vendor/
+    ${CMAKE_SOURCE_DIR}/testCase/multi_pkg_compile/pkgB/
 )
 list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
 

@@ -1880,6 +1880,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
+    (void)sz;
     }
 
     // override operator delete[](void*, std::size_t)
@@ -1909,6 +1910,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
+    (void)sz;
     }
 #endif
 

@@ -16,6 +16,7 @@ void thread1()
     {
         PackageA a;
         a.allocTest();
+        sleep(1);
     }
 }
 
@@ -26,6 +27,7 @@ void thread2()
     {
         PackageB b;
         b.allocTest();
+        sleep(1);
     }
 }
 
@@ -36,6 +38,7 @@ void thread3()
     {
         PackageC c;
         c.allocTest();
+        sleep(1);
     }
 }
 

@@ -1,11 +1,11 @@
 #include "memProbe.h"
 
-#include <vector>
-#include <thread>
-#include <iostream>
-#include <unistd.h>
 #include <cstdlib>
+#include <iostream>
 #include <random>
+#include <thread>
+#include <unistd.h>
+#include <vector>
 
 struct mallocTest
 {
@@ -45,19 +45,24 @@ void mallocTest::alloc()
 void threadFunc1()
 {
     __MERECORDER__::MEM_PROBE;
-    int *a = new int[100];
-    sleep(1);
-    delete[] a;
+    for (unsigned i = 0; i < 5; ++i)
+    {
+        int *a = new int[100];
+        sleep(1);
+        delete[] a;
+    }
 }
 
 void threadFunc2()
 {
     __MERECORDER__::MEM_PROBE;
     mallocTest t;
-    t.alloc();
-    sleep(1);
+    for (unsigned i = 0; i < 5; ++i)
+    {
+        t.alloc();
+        sleep(1);
+    }
 }
-
 
 int main()
 {

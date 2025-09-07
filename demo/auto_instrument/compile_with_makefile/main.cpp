@@ -1,3 +1,4 @@
+#include "memProbe.h"
 #include "pkgA/PackageA.h"
 #include "pkgB/PackageB.h"
 #include "pkgC/PackageC.h"
@@ -5,25 +6,37 @@
 #include <iostream>
 #include <random>
 #include <thread>
-#include <vector>
 #include <unistd.h>
+#include <vector>
 
 void thread1()
 {
-    PackageA a;
-    a.allocTest();
+    for (unsigned i = 0; i < 5; ++i)
+    {
+        PackageA a;
+        a.allocTest();
+        sleep(1);
+    }
 }
 
 void thread2()
 {
-    PackageB b;
-    b.allocTest();
+    for (unsigned i = 0; i < 5; ++i)
+    {
+        PackageB b;
+        b.allocTest();
+        sleep(1);
+    }
 }
 
 void thread3()
 {
-    PackageC c;
-    c.allocTest();
+    for (unsigned i = 0; i < 5; ++i)
+    {
+        PackageC c;
+        c.allocTest();
+        sleep(1);
+    }
 }
 
 int main()

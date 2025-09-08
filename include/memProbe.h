@@ -97,6 +97,7 @@ namespace __MERECORDER__
 
 /** @brief Output filename for exported JSON statistics. */
 constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.json";
+constexpr const char *__MEM_PATH_TEXT_RESULT = "merecorder.text";
 
 #define MEM_NO_INSTRUMENT __attribute__((no_instrument_function))
 
@@ -410,7 +411,17 @@ class memNode
     /** @brief Print the formatted tree to stdout. */
     MEM_NO_INSTRUMENT void dump() const
     {
-        printf("%s\n", str().c_str());
+        std::string content = str();
+        printf("%s\n", content.c_str());
+
+        content = "[Dump By Callstack]\n" + content;
+        FILE *file = fopen(__MEM_PATH_TEXT_RESULT, "wb");
+        if (file)
+        {
+            fwrite(content.c_str(), 1, content.size(), file);
+            fputc('\n', file);
+            fclose(file);
+        }
     }
 
   protected:
@@ -473,7 +484,7 @@ class memGlobalInfo
     MEM_NO_INSTRUMENT void dump() const
     {
         printf("[Dump By Callstack]\n");
-        memNode info("this");
+        memNode info("Total");
         for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {
             const auto &frames = it->second;

@@ -483,6 +483,9 @@ class memGlobalInfo
      */
     MEM_NO_INSTRUMENT void dump() const
     {
+        printf("[MERECORDER] Start summary memory info\n");
+        fflush(stdout);
+
         memNode info("Total");
         for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {

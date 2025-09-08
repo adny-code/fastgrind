@@ -411,15 +411,13 @@ class memNode
     /** @brief Print the formatted tree to stdout. */
     MEM_NO_INSTRUMENT void dump() const
     {
-        std::string content = str();
-        printf("%s\n", content.c_str());
-
-        content = "[Dump By Callstack]\n" + content;
+        std::string content = "[Dump By Callstack]\n" + str();
+        // printf("%s\n", content.c_str());
+    
         FILE *file = fopen(__MEM_PATH_TEXT_RESULT, "wb");
         if (file)
         {
             fwrite(content.c_str(), 1, content.size(), file);
-            fputc('\n', file);
             fclose(file);
         }
     }
@@ -483,7 +481,6 @@ class memGlobalInfo
      */
     MEM_NO_INSTRUMENT void dump() const
     {
-        printf("[Dump By Callstack]\n");
         memNode info("Total");
         for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {

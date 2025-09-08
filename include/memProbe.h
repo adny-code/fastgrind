@@ -419,6 +419,8 @@ class memNode
         {
             fwrite(content.c_str(), 1, content.size(), file);
             fclose(file);
+            printf("[MERECORDER] saved: %s (size=%zu bytes)\n", __MEM_PATH_TEXT_RESULT, content.size());
+            fflush(stdout);
         }
     }
 
@@ -639,6 +641,7 @@ class memGlobalInfo
 
         fwrite(pretty.c_str(), 1, pretty.size(), file);
         fclose(file);
+        printf("[MERECORDER] saved: %s (size=%zu bytes)\n", __MEM_PATH_JSON_RESULT, pretty.size());
     }
 
     /**

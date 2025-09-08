@@ -461,15 +461,17 @@ class memGlobalInfo
     }
 
     /** @brief Access singleton instance (lazy constructed). */
-    MEM_NO_INSTRUMENT static memGlobalInfo &instance()
+    MEM_NO_INSTRUMENT static memGlobalInfo* instance()
     {
-        if (!_instance)
-        {
-            _instance = std::unique_ptr<memGlobalInfo>(new memGlobalInfo);
-        }
-
-        return *_instance.get();
+		return _instance;
     }
+
+    MEM_NO_INSTRUMENT static void setInst(memGlobalInfo* inst)
+    {
+		_instance = inst;
+    }
+
+	static std::atomic<int>& refs() { return _refs; }
 
     /** @return Current global timer tick (ms). */
     MEM_NO_INSTRUMENT size_t time() const
@@ -705,16 +707,19 @@ class memGlobalInfo
     std::mutex _lk;
 
   private:
-    static std::unique_ptr<memGlobalInfo> _instance;
+    static memGlobalInfo* 	_instance;
+	static std::atomic<int>	_refs;
 
     // timer need to init after all other class members.
     memTimer _timer;
 };
 
 #if defined(__CPP_STD_17)
-__attribute__((weak)) MEM_INLINE_USED inline std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
+__attribute__((weak)) MEM_INLINE_USED inline memGlobalInfo* memGlobalInfo::_instance = nullptr;
+__attribute__((weak)) MEM_INLINE_USED inline std::atomic<int> memGlobalInfo::_refs {0};
 #else
-__attribute__((weak)) MEM_INLINE_USED std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
+__attribute__((weak)) MEM_INLINE_USED memGlobalInfo* memGlobalInfo::_instance = nullptr;
+__attribute__((weak)) MEM_INLINE_USED std::atomic<int> memGlobalInfo::_refs {0};
 #endif
 
 /**
@@ -830,12 +835,15 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
     /** @brief Merge local thread data into global aggregator then reset. */
     MEM_NO_INSTRUMENT void merge()
     {
-        std::lock_guard<std::mutex> lg(memGlobalInfo::instance()._lk);
+		if (!memGlobalInfo::instance())
+			return;
 
-        memGlobalInfo::instance()._frames[tid] = _frames;
+        std::lock_guard<std::mutex> lg(memGlobalInfo::instance()->_lk);
+
+        memGlobalInfo::instance()->_frames[tid] = _frames;
 
         for (auto it = _callstacks.begin(); it != _callstacks.end(); ++it)
-            memGlobalInfo::instance()._callstacks[it->first] = it->second;
+            memGlobalInfo::instance()->_callstacks[it->first] = it->second;
 
         reset();
     }
@@ -843,24 +851,24 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
     /** @brief Record an allocation of sz bytes (real usable size). */
     MEM_NO_INSTRUMENT void add(size_t sz)
     {
-        if (_nested || memStack::instance().depth() == 0)
+        if (_nested || memStack::instance().depth() == 0 || !memGlobalInfo::instance())
             return;
 
         ++_nested;
         const auto &stack = memStack::instance();
-        getFrame(size_t(stack.top()), stack.frameId(), memGlobalInfo::instance().time()).mallocBytes += sz;
+        getFrame(size_t(stack.top()), stack.frameId(), memGlobalInfo::instance()->time()).mallocBytes += sz;
         --_nested;
     }
 
     /** @brief Record a deallocation of sz bytes (real usable size). */
     MEM_NO_INSTRUMENT void sub(size_t sz)
     {
-        if (_nested || memStack::instance().depth() == 0)
+        if (_nested || memStack::instance().depth() == 0 || !memGlobalInfo::instance())
             return;
 
         ++_nested;
         const auto &stack = memStack::instance();
-        getFrame(size_t(stack.top()), stack.frameId(), memGlobalInfo::instance().time()).freeBytes += sz;
+        getFrame(size_t(stack.top()), stack.frameId(), memGlobalInfo::instance()->time()).freeBytes += sz;
         --_nested;
     }
 
@@ -926,6 +934,23 @@ class memProbe
 
 extern "C"
 {
+    MEM_NO_INSTRUMENT __attribute__((weak, constructor)) void before_main() 
+    {
+		if (memGlobalInfo::refs().fetch_add(1) == 0)
+		{
+			memGlobalInfo::setInst(new memGlobalInfo);
+		}
+    }
+
+    MEM_NO_INSTRUMENT __attribute__((weak, destructor)) void after_main() 
+    {
+		if (memGlobalInfo::refs().fetch_sub(1) == 1) 
+		{
+			delete memGlobalInfo::instance();
+			memGlobalInfo::setInst(nullptr);
+		}
+    }
+
 #if defined(MERECORDER_INSTRUMENT)
     MEM_NO_INSTRUMENT __attribute__((weak)) void __cyg_profile_func_enter(void *this_fn, void *call_site)
     {

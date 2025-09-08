@@ -383,7 +383,7 @@ class memNode
     MEM_NO_INSTRUMENT std::string str(unsigned indent = 0) const
     {
         std::string s =
-            std::string(indent * 4, ' ') + memFormat("%s malloc %'ld free %'ld", _name, _mallocBytes, _freeBytes);
+            std::string(indent * 4, ' ') + memFormat("- %s malloc %'ld free %'ld", _name, _mallocBytes, _freeBytes);
 
         for (auto it = _childs.begin(); it != _childs.end(); ++it)
         {
@@ -472,40 +472,6 @@ class memGlobalInfo
      */
     MEM_NO_INSTRUMENT void dump() const
     {
-        printf("[Func Memory Info]\n");
-        unsigned count = 0;
-        for (auto it = _frames.begin(); it != _frames.end(); ++it)
-        {
-            const auto &tid = it->first;
-            const auto &threadsInfo = it->second;
-            for (auto it2 = threadsInfo.begin(); it2 != threadsInfo.end(); ++it2)
-            {
-                const auto &frameId = it2->first;
-                const auto &tickInfo = it2->second;
-                memFrame frame0(0, 0, tickInfo.begin()->second.funcId, tickInfo.begin()->second.frameId);
-                for (auto it3 = tickInfo.begin(); it3 != tickInfo.end(); ++it3)
-                {
-                    frame0 += it3->second;
-                }
-
-                printf("%u: threadId:%lu alloc %lu free %lu\n%s\n",
-                       count++,
-                       tid,
-                       frame0.mallocBytes,
-                       frame0.freeBytes,
-                       getCallstack(frameId).c_str());
-            }
-        }
-
-        printf("\n");
-        printf("[Callstack Info]\n");
-        count = 0;
-        for (auto it = _callstacks.begin(); it != _callstacks.end(); ++it)
-        {
-            printf("%u: frame:%lu\n%s\n", count++, it->first, getCallstack(it->first).c_str());
-        }
-
-        printf("\n");
         printf("[Dump By Callstack]\n");
         memNode info("this");
         for (auto it = _frames.begin(); it != _frames.end(); ++it)
@@ -737,7 +703,7 @@ class memGlobalInfo
 #if defined(__CPP_STD_17)
 __attribute__((weak)) MEM_INLINE_USED inline std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
 #else
-__attribute__((weak)) std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
+__attribute__((weak)) MEM_INLINE_USED std::unique_ptr<memGlobalInfo> memGlobalInfo::_instance = nullptr;
 #endif
 
 /**

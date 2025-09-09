@@ -50,6 +50,18 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#if defined(MERECORDER_INSTRUMENT)
+    #include <cxxabi.h>
+    #include <dlfcn.h>
+    #include <string.h>
+#endif
+
+#if defined(MERECORDER_TC_MALLOC)
+    #include <gperftools/tcmalloc.h>
+#elif defined(MERECORDER_JE_MALLOC)
+    #include <jemalloc/jemalloc.h>
+#endif
+
 namespace __MERECORDER__
 {
 
@@ -104,10 +116,6 @@ constexpr const char *__MEM_PATH_TEXT_RESULT = "merecorder.text";
 #define MEM_INLINE_USED __attribute__((used))
 
 #if defined(MERECORDER_INSTRUMENT)
-    #include <cxxabi.h>
-    #include <dlfcn.h>
-    #include <string.h>
-
 MEM_NO_INSTRUMENT static const char *demangleFunc(const char *mangled)
 {
     if (!mangled)
@@ -413,7 +421,7 @@ class memNode
     {
         std::string content = "[Dump By Callstack]\n" + str();
         // printf("%s\n", content.c_str());
-    
+
         FILE *file = fopen(__MEM_PATH_TEXT_RESULT, "wb");
         if (file)
         {
@@ -461,17 +469,20 @@ class memGlobalInfo
     }
 
     /** @brief Access singleton instance (lazy constructed). */
-    MEM_NO_INSTRUMENT static memGlobalInfo* instance()
+    MEM_NO_INSTRUMENT static memGlobalInfo *instance()
     {
-		return _instance;
+        return _instance;
     }
 
-    MEM_NO_INSTRUMENT static void setInst(memGlobalInfo* inst)
+    MEM_NO_INSTRUMENT static void setInst(memGlobalInfo *inst)
     {
-		_instance = inst;
+        _instance = inst;
     }
 
-	static std::atomic<int>& refs() { return _refs; }
+    static std::atomic<int> &refs()
+    {
+        return _refs;
+    }
 
     /** @return Current global timer tick (ms). */
     MEM_NO_INSTRUMENT size_t time() const
@@ -544,7 +555,8 @@ class memGlobalInfo
             const size_t tick = it->first;
             if (firstOutput && tick > __MEM_SAMPLE_INTERVAL_MS)
             {
-                for (size_t fillerTick = __MEM_SAMPLE_INTERVAL_MS; fillerTick < tick; fillerTick += __MEM_SAMPLE_INTERVAL_MS)
+                for (size_t fillerTick = __MEM_SAMPLE_INTERVAL_MS; fillerTick < tick;
+                     fillerTick += __MEM_SAMPLE_INTERVAL_MS)
                 {
                     compact += memFormat("%s\"%lu\": {}", firstOutput ? "" : ", ", fillerTick);
                     firstOutput = false;
@@ -719,19 +731,19 @@ class memGlobalInfo
     std::mutex _lk;
 
   private:
-    static memGlobalInfo* 	_instance;
-	static std::atomic<int>	_refs;
+    static memGlobalInfo *_instance;
+    static std::atomic<int> _refs;
 
     // timer need to init after all other class members.
     memTimer _timer;
 };
 
 #if defined(__CPP_STD_17)
-__attribute__((weak)) MEM_INLINE_USED inline memGlobalInfo* memGlobalInfo::_instance = nullptr;
-__attribute__((weak)) MEM_INLINE_USED inline std::atomic<int> memGlobalInfo::_refs {0};
+__attribute__((weak)) MEM_INLINE_USED inline memGlobalInfo *memGlobalInfo::_instance = nullptr;
+__attribute__((weak)) MEM_INLINE_USED inline std::atomic<int> memGlobalInfo::_refs{0};
 #else
-__attribute__((weak)) MEM_INLINE_USED memGlobalInfo* memGlobalInfo::_instance = nullptr;
-__attribute__((weak)) MEM_INLINE_USED std::atomic<int> memGlobalInfo::_refs {0};
+__attribute__((weak)) MEM_INLINE_USED memGlobalInfo *memGlobalInfo::_instance = nullptr;
+__attribute__((weak)) MEM_INLINE_USED std::atomic<int> memGlobalInfo::_refs{0};
 #endif
 
 /**
@@ -847,8 +859,8 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
     /** @brief Merge local thread data into global aggregator then reset. */
     MEM_NO_INSTRUMENT void merge()
     {
-		if (!memGlobalInfo::instance())
-			return;
+        if (!memGlobalInfo::instance())
+            return;
 
         std::lock_guard<std::mutex> lg(memGlobalInfo::instance()->_lk);
 
@@ -946,21 +958,21 @@ class memProbe
 
 extern "C"
 {
-    MEM_NO_INSTRUMENT __attribute__((weak, constructor)) void before_main() 
+    MEM_NO_INSTRUMENT __attribute__((weak, constructor)) void before_main()
     {
-		if (memGlobalInfo::refs().fetch_add(1) == 0)
-		{
-			memGlobalInfo::setInst(new memGlobalInfo);
-		}
+        if (memGlobalInfo::refs().fetch_add(1) == 0)
+        {
+            memGlobalInfo::setInst(new memGlobalInfo);
+        }
     }
 
-    MEM_NO_INSTRUMENT __attribute__((weak, destructor)) void after_main() 
+    MEM_NO_INSTRUMENT __attribute__((weak, destructor)) void after_main()
     {
-		if (memGlobalInfo::refs().fetch_sub(1) == 1) 
-		{
-			delete memGlobalInfo::instance();
-			memGlobalInfo::setInst(nullptr);
-		}
+        if (memGlobalInfo::refs().fetch_sub(1) == 1)
+        {
+            delete memGlobalInfo::instance();
+            memGlobalInfo::setInst(nullptr);
+        }
     }
 
 #if defined(MERECORDER_INSTRUMENT)
@@ -1017,9 +1029,9 @@ extern "C"
 #endif // MERECORDER_INSTRUMENT
 
 #if defined(MERECORDER_TC_MALLOC)
-    #include <gperftools/tcmalloc.h>
+    #define TC_MALLOC 1
 #elif defined(MERECORDER_JE_MALLOC)
-    #include <jemalloc/jemalloc.h>
+    #define JE_MALLOC 1
     extern void *je_sdallocx_default(void *ptr, size_t size, int flags);
     extern void *je_malloc_default(size_t size);
     extern void je_free_default(void *ptr);
@@ -1591,7 +1603,8 @@ extern "C"
     }
 
     // sys call
-    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd,
+                                                               off_t offset)
     {
         if (__mem_in_probe_)
             return __real_mmap(addr, length, prot, flags, fd, offset);
@@ -1623,7 +1636,8 @@ extern "C"
     }
 
     // sys call
-    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size,
+                                                                 int flags, ...)
     {
         void *new_addr_opt = nullptr;
         #ifdef MREMAP_FIXED
@@ -1894,7 +1908,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
-    (void)sz;
+        (void) sz;
     }
 
     // override operator delete[](void*, std::size_t)
@@ -1924,7 +1938,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
-    (void)sz;
+        (void) sz;
     }
 #endif
 
@@ -2236,7 +2250,8 @@ extern "C"
     }
 
     // override operator delete(void *p, size_t sz, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvmRKSt9nothrow_t(void *p, size_t sz, const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvmRKSt9nothrow_t(void *p, size_t sz,
+                                                                               const std::nothrow_t &)
     {
         if (__mem_in_probe_)
         {
@@ -2265,7 +2280,8 @@ extern "C"
     }
 
     // override operator delete[](void *p, size_t sz, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvmRKSt9nothrow_t(void *p, size_t sz, const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvmRKSt9nothrow_t(void *p, size_t sz,
+                                                                               const std::nothrow_t &)
     {
         if (__mem_in_probe_)
         {
@@ -2294,8 +2310,9 @@ extern "C"
     }
 
     // override operator new(std::size_t size, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnwmSt11align_val_tRKSt9nothrow_t(size_t size, std::align_val_t al,
-                                                                             const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnwmSt11align_val_tRKSt9nothrow_t(size_t size,
+                                                                                             std::align_val_t al,
+                                                                                             const std::nothrow_t &)
     {
         if (size == 0)
             size = 1;
@@ -2357,8 +2374,9 @@ extern "C"
     }
 
     // override operator new[](std::size_t size, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnamSt11align_val_tRKSt9nothrow_t(size_t size, std::align_val_t al,
-                                                                             const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnamSt11align_val_tRKSt9nothrow_t(size_t size,
+                                                                                             std::align_val_t al,
+                                                                                             const std::nothrow_t &)
     {
         if (size == 0)
             size = 1;
@@ -2420,8 +2438,9 @@ extern "C"
     }
 
     // override operator delete(void *p, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvSt11align_val_tRKSt9nothrow_t(void *p, std::align_val_t al,
-                                                                             const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvSt11align_val_tRKSt9nothrow_t(void *p,
+                                                                                             std::align_val_t al,
+                                                                                             const std::nothrow_t &)
     {
         (void) al;
 
@@ -2455,8 +2474,9 @@ extern "C"
     }
 
     // override operator delete[](void *p, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvSt11align_val_tRKSt9nothrow_t(void *p, std::align_val_t al,
-                                                                             const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvSt11align_val_tRKSt9nothrow_t(void *p,
+                                                                                             std::align_val_t al,
+                                                                                             const std::nothrow_t &)
     {
         (void) al;
 
@@ -2490,8 +2510,9 @@ extern "C"
     }
 
     // override operator delete(void *p, size_t sz, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al,
-                                                                              const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz,
+                                                                                              std::align_val_t al,
+                                                                                              const std::nothrow_t &)
     {
         (void) al;
 
@@ -2525,8 +2546,9 @@ extern "C"
     }
 
     // override operator delete[](void *p, size_t sz, std::align_val_t al, const std::nothrow_t &)
-    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz, std::align_val_t al,
-                                                                              const std::nothrow_t &)
+    MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t(void *p, size_t sz,
+                                                                                              std::align_val_t al,
+                                                                                              const std::nothrow_t &)
     {
         (void) al;
 

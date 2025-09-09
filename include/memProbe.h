@@ -542,6 +542,15 @@ class memGlobalInfo
         for (auto it = datas.begin(); it != datas.end(); ++it)
         {
             const size_t tick = it->first;
+            if (firstOutput && tick > __MEM_SAMPLE_INTERVAL_MS)
+            {
+                for (size_t fillerTick = __MEM_SAMPLE_INTERVAL_MS; fillerTick < tick; fillerTick += __MEM_SAMPLE_INTERVAL_MS)
+                {
+                    compact += memFormat("%s\"%lu\": {}", firstOutput ? "" : ", ", fillerTick);
+                    firstOutput = false;
+                    lastTick = fillerTick;
+                }
+            }
 
             if (!firstOutput)
             {

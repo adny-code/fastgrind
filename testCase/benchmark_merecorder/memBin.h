@@ -6,7 +6,11 @@ class memBin
     typedef std::deque<memBox> memBoxList;
 
   public:
+    memBin();
+
     memBin(memBox binBorder, unsigned grindSise, unsigned dataSize);
+
+    void init(memBox binBorder, unsigned grindSise, unsigned dataSize);
 
     void add(const memBox &box);
 

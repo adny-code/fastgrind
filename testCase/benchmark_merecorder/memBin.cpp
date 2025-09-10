@@ -4,6 +4,11 @@
 memBin::memBin(memBox binBorder, unsigned grindSise, unsigned dataSize)
     : _binBorder(binBorder), _gridSize(grindSise), _dataSize(dataSize)
 {
+    init(binBorder, grindSise, dataSize);
+}
+
+void memBin::init(memBox binBorder, unsigned grindSise, unsigned dataSize)
+{
     unsigned grindCnt = dataSize / grindSise;
     double rateXY = double(binBorder.width()) / double(binBorder.height());
 

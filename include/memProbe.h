@@ -394,7 +394,7 @@ class memNode
     MEM_NO_INSTRUMENT std::string str(unsigned long tm, unsigned long tf, unsigned indent = 0) const
     {
         double rm = tm > 0 ? double(_mallocBytes * 100) / double(tm) : 0.0;
-        double rf = tm > 0 ? double(_freeBytes * 100) / double(tm) : 0.0;
+        double rf = tf > 0 ? double(_freeBytes * 100) / double(tf) : 0.0;
         rm = trunc(rm * 100) / 100;
         rf = trunc(rf * 100) / 100;
         std::string s = std::string(indent * 4, ' ') +

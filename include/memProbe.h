@@ -44,13 +44,14 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <cmath>
 
 #include <assert.h>
+#include <errno.h>
 #include <malloc.h>
 #include <string.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-#include <errno.h>
 
 #if defined(MERECORDER_INSTRUMENT)
     #include <cxxabi.h>
@@ -390,14 +391,18 @@ class memNode
      * @brief Produce a human-readable multi-line string of the subtree.
      * @param indent Current indentation level (spaces are 4 * indent).
      */
-    MEM_NO_INSTRUMENT std::string str(unsigned indent = 0) const
+    MEM_NO_INSTRUMENT std::string str(unsigned long tm, unsigned long tf, unsigned indent = 0) const
     {
-        std::string s =
-            std::string(indent * 4, ' ') + memFormat("- %s malloc %'ld free %'ld", _name, _mallocBytes, _freeBytes);
+        double rm = tm > 0 ? double(_mallocBytes * 100) / double(tm) : 0.0;
+        double rf = tm > 0 ? double(_freeBytes * 100) / double(tm) : 0.0;
+        rm = trunc(rm * 100) / 100;
+        rf = trunc(rf * 100) / 100;
+        std::string s = std::string(indent * 4, ' ') +
+                        memFormat("- %.2f/%.2f%%  %s malloc %'ld free %'ld", rm, rf, _name, _mallocBytes, _freeBytes);
 
         for (auto it = _childs.begin(); it != _childs.end(); ++it)
         {
-            s += std::string("\n") + it->second.str(indent + 1);
+            s += std::string("\n") + it->second.str(tm, tf, indent + 1);
         }
 
         return s;
@@ -420,7 +425,7 @@ class memNode
     /** @brief Print the formatted tree to stdout. */
     MEM_NO_INSTRUMENT void dump() const
     {
-        std::string content = "[Dump By Callstack]\n" + str();
+        std::string content = "[Dump By Callstack]\n" + str(_mallocBytes, _freeBytes);
         // printf("%s\n", content.c_str());
 
         FILE *file = fopen(__MEM_PATH_TEXT_RESULT, "wb");
@@ -1071,6 +1076,14 @@ extern "C"
 
     MEM_NO_INSTRUMENT MEM_INLINE_USED static inline void *je_realloc_emulate(void *ptr, size_t size)
     {
+        if (size == 0)
+        {
+            if (ptr)
+            {
+                je_free_default(ptr);
+            }
+            return nullptr;
+        }
         if (!ptr)
         {
             return je_malloc_default(size);
@@ -1270,9 +1283,6 @@ extern "C"
 
     MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_realloc(void *ptr, size_t size)
     {
-        if (size == 0)
-            size = 1;
-
         if (__mem_in_probe_)
         {
     #if defined(MERECORDER_TC_MALLOC)
@@ -1287,6 +1297,22 @@ extern "C"
         __mem_in_probe_ = true;
 
         size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
+        if (size == 0 && ptr)
+        {
+            if (old_size)
+                memLocalInfo::instance().sub(old_size);
+
+    #if defined(MERECORDER_TC_MALLOC)
+            tc_free(ptr);
+    #elif defined(MERECORDER_JE_MALLOC)
+            je_free_default(ptr);
+    #else
+            __real_free(ptr);
+    #endif
+
+            __mem_in_probe_ = false;
+            return nullptr;
+        }
 
         void *p = nullptr;
     #if defined(MERECORDER_TC_MALLOC)
@@ -1299,7 +1325,8 @@ extern "C"
 
         if (p)
         {
-            memLocalInfo::instance().sub(old_size);
+            if (ptr && old_size)
+                memLocalInfo::instance().sub(old_size);
             memLocalInfo::instance().add(malloc_usable_size(p));
         }
 
@@ -1957,12 +1984,6 @@ extern "C"
     // glibc function
     MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_reallocarray(void *ptr, size_t nmemb, size_t size)
     {
-        if (nmemb == 0 || size == 0)
-        {
-            nmemb = 1;
-            size = 1;
-        }
-
         size_t total = 0;
     #if defined(__GNUC__)
         if (__builtin_mul_overflow(nmemb, size, &total))
@@ -1994,18 +2015,35 @@ extern "C"
 
         size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
 
-        void *p =
+        if (total == 0 && ptr)
+        {
+            if (old_size)
+                memLocalInfo::instance().sub(old_size);
+
     #if defined(MERECORDER_TC_MALLOC)
-            tc_realloc(ptr, total);
+            tc_free(ptr);
     #elif defined(MERECORDER_JE_MALLOC)
-            realloc(ptr, total);
+            je_free_default(ptr);
     #else
-            __real_realloc(ptr, total);
+            __real_free(ptr);
+    #endif
+            __mem_in_probe_ = false;
+            return nullptr;
+        }
+
+        void *p = nullptr;
+    #if defined(MERECORDER_TC_MALLOC)
+        p = tc_realloc(ptr, total);
+    #elif defined(MERECORDER_JE_MALLOC)
+        p = realloc(ptr, total);
+    #else
+        p = __real_realloc(ptr, total);
     #endif
 
         if (p)
         {
-            memLocalInfo::instance().sub(old_size);
+            if (ptr && old_size)
+                memLocalInfo::instance().sub(old_size);
             memLocalInfo::instance().add(malloc_usable_size(p));
         }
 

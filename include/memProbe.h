@@ -47,13 +47,13 @@
 
 #include <assert.h>
 #include <malloc.h>
+#include <string.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
 #if defined(MERECORDER_INSTRUMENT)
     #include <cxxabi.h>
     #include <dlfcn.h>
-    #include <string.h>
 #endif
 
 #if defined(MERECORDER_TC_MALLOC)
@@ -1035,6 +1035,72 @@ extern "C"
     extern void *je_sdallocx_default(void *ptr, size_t size, int flags);
     extern void *je_malloc_default(size_t size);
     extern void je_free_default(void *ptr);
+
+    MEM_NO_INSTRUMENT MEM_INLINE_USED static inline void *je_calloc_emulate(size_t nmemb, size_t size)
+    {
+        if (nmemb == 0 || size == 0)
+        {
+            nmemb = 1;
+            size = 1;
+        }
+
+        size_t total = 0;
+    #if defined(__GNUC__)
+        if (__builtin_mul_overflow(nmemb, size, &total))
+        {
+            errno = ENOMEM;
+            return NULL;
+        }
+    #else
+        if (size != 0 && nmemb > static_cast<size_t>(-1) / size)
+        {
+            errno = ENOMEM;
+            return NULL;
+        }
+        total = nmemb * size;
+    #endif
+
+        void *p = je_malloc_default(total);
+        if (p)
+        {
+            memset(p, 0, total);
+        }
+        return p;
+    }
+
+    MEM_NO_INSTRUMENT MEM_INLINE_USED static inline void *je_realloc_emulate(void *ptr, size_t size)
+    {
+        if (!ptr)
+        {
+            return je_malloc_default(size);
+        }
+        void *newp = je_malloc_default(size);
+        if (!newp)
+        {
+            return nullptr;
+        }
+        size_t old_sz = malloc_usable_size(ptr);
+        size_t copy_sz = old_sz < size ? old_sz : size;
+        if (copy_sz)
+            memcpy(newp, ptr, copy_sz);
+        je_free_default(ptr);
+        return newp;
+    }
+
+    MEM_NO_INSTRUMENT MEM_INLINE_USED static inline void *je_valloc_emulate(size_t size)
+    {
+        if (size == 0)
+            size = 1;
+
+        long pg = sysconf(_SC_PAGESIZE);
+        if (pg <= 0)
+            pg = 4096; // sensible default
+        size_t align = static_cast<size_t>(pg);
+        // round up to page size multiple to satisfy aligned allocation requirements
+        size_t rounded = (size + align - 1) & ~(align - 1);
+        return mallocx(rounded, MALLOCX_ALIGN(align));
+    }
+
 #else
     #define DEFAULT_MALLOC 1
     // #define __USE_SYS_WRAP 1
@@ -1107,7 +1173,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             return tc_calloc(nmemb, size);
     #elif defined(MERECORDER_JE_MALLOC)
-            return calloc(nmemb, size);
+            return je_calloc_emulate(nmemb, size);
     #else
             return __real_calloc(nmemb, size);
     #endif
@@ -1115,13 +1181,13 @@ extern "C"
 
         __mem_in_probe_ = true;
 
-        void *p =
+        void *p = nullptr;
     #if defined(MERECORDER_TC_MALLOC)
-            tc_calloc(nmemb, size);
+        p = tc_calloc(nmemb, size);
     #elif defined(MERECORDER_JE_MALLOC)
-            calloc(nmemb, size);
+        p = je_calloc_emulate(nmemb, size);
     #else
-            __real_calloc(nmemb, size);
+        p = __real_calloc(nmemb, size);
     #endif
 
         if (p)
@@ -1144,7 +1210,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             return tc_realloc(ptr, size);
     #elif defined(MERECORDER_JE_MALLOC)
-            return realloc(ptr, size);
+            return je_realloc_emulate(ptr, size);
     #else
             return __real_realloc(ptr, size);
     #endif
@@ -1154,13 +1220,13 @@ extern "C"
 
         size_t old_size = ptr ? malloc_usable_size(ptr) : 0;
 
-        void *p =
+        void *p = nullptr;
     #if defined(MERECORDER_TC_MALLOC)
-            tc_realloc(ptr, size);
+        p = tc_realloc(ptr, size);
     #elif defined(MERECORDER_JE_MALLOC)
-            realloc(ptr, size);
+        p = je_realloc_emulate(ptr, size);
     #else
-            __real_realloc(ptr, size);
+        p = __real_realloc(ptr, size);
     #endif
 
         if (p)
@@ -1690,7 +1756,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             return tc_valloc(size);
     #elif defined(MERECORDER_JE_MALLOC)
-            return valloc(size);
+            return je_valloc_emulate(size);
     #else
             return __real_valloc(size);
     #endif
@@ -1702,7 +1768,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             tc_valloc(size);
     #elif defined(MERECORDER_JE_MALLOC)
-            valloc(size);
+            je_valloc_emulate(size);
     #else
             __real_valloc(size);
     #endif

@@ -38,9 +38,7 @@ void test_malloc_free()
 
 void test_calloc()
 {
-    printf("test_calloc 1 \n");
     void *p = std::calloc(16, 8); // 128 bytes
-    printf("test_calloc 2 \n");
     if (p)
         std::free(p);
 }

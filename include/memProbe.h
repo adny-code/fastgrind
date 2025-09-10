@@ -50,6 +50,7 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <errno.h>
 
 #if defined(MERECORDER_INSTRUMENT)
     #include <cxxabi.h>
@@ -1094,11 +1095,78 @@ extern "C"
 
         long pg = sysconf(_SC_PAGESIZE);
         if (pg <= 0)
-            pg = 4096; // sensible default
+            pg = 4096;
         size_t align = static_cast<size_t>(pg);
-        // round up to page size multiple to satisfy aligned allocation requirements
         size_t rounded = (size + align - 1) & ~(align - 1);
         return mallocx(rounded, MALLOCX_ALIGN(align));
+    }
+
+    MEM_NO_INSTRUMENT MEM_INLINE_USED static inline void *je_pvalloc_emulate(size_t size)
+    {
+        if (size == 0)
+            size = 1;
+
+        long pg = sysconf(_SC_PAGESIZE);
+        if (pg <= 0)
+            pg = 4096;
+        size_t align = static_cast<size_t>(pg);
+        size_t rounded = (size + align - 1) & ~(align - 1);
+        return mallocx(rounded, MALLOCX_ALIGN(align));
+    }
+
+    MEM_NO_INSTRUMENT MEM_INLINE_USED static inline void *je_memalign_emulate(size_t alignment, size_t size)
+    {
+        if (size == 0)
+            size = 1;
+
+        if (alignment == 0 || (alignment & (alignment - 1)) != 0 || (alignment % sizeof(void *) != 0))
+        {
+            errno = EINVAL;
+            return nullptr;
+        }
+
+        return mallocx(size, MALLOCX_ALIGN(alignment));
+    }
+
+    MEM_NO_INSTRUMENT MEM_INLINE_USED static inline int je_posix_memalign_emulate(void **memptr, size_t alignment,
+                                                                                  size_t size)
+    {
+        if (memptr == nullptr)
+        {
+            return EINVAL;
+        }
+
+        if (size == 0)
+            size = 1;
+
+        if (alignment == 0 || (alignment & (alignment - 1)) != 0 || (alignment % sizeof(void *) != 0))
+        {
+            return EINVAL;
+        }
+
+        void *p = mallocx(size, MALLOCX_ALIGN(alignment));
+        if (!p)
+        {
+            return ENOMEM;
+        }
+        *memptr = p;
+        return 0;
+    }
+
+    MEM_NO_INSTRUMENT MEM_INLINE_USED static inline void *je_aligned_alloc_emulate(size_t alignment, size_t size)
+    {
+        if (alignment == 0 || (alignment & (alignment - 1)) != 0 || (alignment % sizeof(void *) != 0))
+        {
+            errno = EINVAL;
+            return nullptr;
+        }
+        if (size % alignment != 0)
+        {
+            errno = EINVAL;
+            return nullptr;
+        }
+
+        return mallocx(size, MALLOCX_ALIGN(alignment));
     }
 
 #else
@@ -1790,7 +1858,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             return tc_pvalloc(size);
     #elif defined(MERECORDER_JE_MALLOC)
-            return pvalloc(size);
+            return je_pvalloc_emulate(size);
     #else
             return __real_pvalloc(size);
     #endif
@@ -1802,7 +1870,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             tc_pvalloc(size);
     #elif defined(MERECORDER_JE_MALLOC)
-            pvalloc(size);
+            je_pvalloc_emulate(size);
     #else
             __real_pvalloc(size);
     #endif
@@ -1824,7 +1892,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             return tc_memalign(alignment, size);
     #elif defined(MERECORDER_JE_MALLOC)
-            return memalign(alignment, size);
+            return je_memalign_emulate(alignment, size);
     #else
             return __real_memalign(alignment, size);
     #endif
@@ -1836,7 +1904,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             tc_memalign(alignment, size);
     #elif defined(MERECORDER_JE_MALLOC)
-            memalign(alignment, size);
+            je_memalign_emulate(alignment, size);
     #else
             __real_memalign(alignment, size);
     #endif
@@ -1859,7 +1927,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             return tc_posix_memalign(memptr, alignment, size);
     #elif defined(MERECORDER_JE_MALLOC)
-            return posix_memalign(memptr, alignment, size);
+            return je_posix_memalign_emulate(memptr, alignment, size);
     #else
             return __real_posix_memalign(memptr, alignment, size);
     #endif
@@ -1871,7 +1939,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             tc_posix_memalign(memptr, alignment, size);
     #elif defined(MERECORDER_JE_MALLOC)
-            posix_memalign(memptr, alignment, size);
+            je_posix_memalign_emulate(memptr, alignment, size);
     #else
             __real_posix_memalign(memptr, alignment, size);
     #endif
@@ -2027,7 +2095,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
             return tc_memalign(alignment, size);
     #elif defined(MERECORDER_JE_MALLOC)
-            return aligned_alloc(alignment, size);
+            return je_aligned_alloc_emulate(alignment, size);
     #else
             return __real_aligned_alloc(alignment, size);
     #endif
@@ -2039,7 +2107,7 @@ extern "C"
     #if defined(MERECORDER_TC_MALLOC)
         p = tc_memalign(alignment, size);
     #elif defined(MERECORDER_JE_MALLOC)
-        p = aligned_alloc(alignment, size);
+        p = je_aligned_alloc_emulate(alignment, size);
     #else
         p = __real_aligned_alloc(alignment, size);
     #endif

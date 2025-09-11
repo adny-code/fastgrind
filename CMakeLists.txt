@@ -63,8 +63,8 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
 )
 
-add_library(fastgrind_wrap INTERFACE)
-target_link_options(fastgrind_wrap INTERFACE ${WRAP_FLAGS})
+add_library(fastgrind_wrap_flags INTERFACE)
+target_link_options(fastgrind_wrap_flags INTERFACE ${WRAP_FLAGS})
 
 # -----------------------------------------------------------------------------
 # Instrumentation exclusion list & helper interface
@@ -107,20 +107,14 @@ set(INSTRUMENT_EXCLUDE_FILES
 list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
 
 # Define instrumentation compile options variable (shared usage)
-set(FASTGRIND_BASE_DEBUG_OPTS -O3)
-set(FASTGRIND_INSTRUMENT_OPTS ${FASTGRIND_BASE_DEBUG_OPTS})
-if(INSTRUMENT_EXCLUDE_FILES_JOINED)
-    list(APPEND FASTGRIND_INSTRUMENT_OPTS -finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})
-endif()
+set(fastgrind_base_compile_opts -O3)
+
+set(fastgrind_instrument_compile_opts ${fastgrind_base_compile_opts} -DFASTGRIND_INSTRUMENT)
+list(APPEND fastgrind_instrument_compile_opts -finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})
 
 add_library(fastgrind_instrument INTERFACE)
-target_compile_definitions(fastgrind_instrument INTERFACE FASTGRIND_INSTRUMENT)
-target_compile_options(fastgrind_instrument INTERFACE ${FASTGRIND_INSTRUMENT_OPTS})
-
-# Convenience function to apply plain debug options (without instrumentation)
-function(fastgrind_apply_options target)
-    target_compile_options(${target} PRIVATE ${FASTGRIND_BASE_DEBUG_OPTS})
-endfunction()
+target_compile_options(fastgrind_instrument INTERFACE ${fastgrind_instrument_compile_opts})
+target_link_options(fastgrind_instrument INTERFACE -Wl,--export-dynamic)
 
 # -----------------------------------------------------------------------------
 # Subdirectories

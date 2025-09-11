@@ -25,5 +25,5 @@ target_include_directories(pkgC_shared PUBLIC
 target_link_libraries(pkgC_shared PUBLIC fastgrind_includes fastgrind_instrument pkgB_shared)
 
 add_executable(multi_pkg_main main.cpp)
-target_link_libraries(multi_pkg_main PRIVATE pkgA_shared pkgB_shared pkgC_shared pthread dl fastgrind_wrap -Wl,--export-dynamic)
+target_link_libraries(multi_pkg_main PRIVATE pkgA_shared pkgB_shared pkgC_shared pthread dl fastgrind_wrap_flags)
 target_link_libraries(multi_pkg_main PRIVATE fastgrind_instrument fastgrind_includes)

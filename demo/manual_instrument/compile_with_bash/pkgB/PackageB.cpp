@@ -1,4 +1,4 @@
-#include "fastGrind.h"
+#include "fastgrind.h"
 #include "PackageB.h"
 #include "PackageA.h"
 #include <cstdlib>

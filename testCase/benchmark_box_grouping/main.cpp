@@ -1,5 +1,5 @@
 #if defined(FASTGRIND)
-    #include "fastGrind.h"
+    #include "fastgrind.h"
 #endif
 #include "memBin.h"
 #include "memBoxGrouping.h"

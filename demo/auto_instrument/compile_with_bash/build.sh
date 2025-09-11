@@ -72,7 +72,7 @@ EXCLUDE_FILE_LISTS=(
     /usr/lib/clang/
     /usr/local/include/
     # Third-Party, should be excluded
-    fastGrind.h
+    fastgrind.h
     /usr/include/boost/
     /usr/include/eigen3/
     /usr/include/openssl/

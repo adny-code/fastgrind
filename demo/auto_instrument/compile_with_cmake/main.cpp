@@ -1,4 +1,4 @@
-#include "fastGrind.h"
+#include "fastgrind.h"
 #include "pkgA/PackageA.h"
 #include "pkgB/PackageB.h"
 #include "pkgC/PackageC.h"

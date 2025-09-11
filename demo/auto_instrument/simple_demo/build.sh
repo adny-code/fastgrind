@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Simple example: compile simple_demo/main.cpp and enable allocation wrapping for fastGrind.
+# Simple example: compile simple_demo/main.cpp and enable allocation wrapping for fastgrind.
 # Usage: run ./build.sh to generate build/app
 # Overridable via environment variables: CXX, CXXSTD, CXXFLAGS
 
@@ -70,7 +70,7 @@ EXCLUDE_FILE_LISTS=(
     /usr/lib/clang/
     /usr/local/include/
     # Third-Party, should be excluded
-    fastGrind.h
+    fastgrind.h
     /usr/include/boost/
     /usr/include/eigen3/
     /usr/include/openssl/

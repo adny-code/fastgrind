@@ -78,7 +78,7 @@ EXCLUDE_FILE_LISTS ?= /usr/include/c++/,\
 /usr/include/c++/v1,\
 /usr/lib/clang/,\
 /usr/local/include/,\
-fastGrind.h,\
+fastgrind.h,\
 /usr/include/boost/,\
 /usr/include/eigen3/,\
 /usr/include/openssl/,\

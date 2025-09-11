@@ -1,4 +1,4 @@
-# memRecorder
+# fastgrind
 
 ## Overview
 A lightweight memory pool built on jemalloc with memory allocation tracking and call stack analysis capabilities.
@@ -22,7 +22,7 @@ sudo make install  # Optional system-wide installation
 
 ## Basic Usage
 ```c++
-#include "fastGrind.h"
+#include "fastgrind.h"
 
 void example() {
     FAST_GRIND;  // Enable call stack tracking
@@ -37,7 +37,7 @@ void example() {
 - memGlobalInfo: Singleton for global memory stats
 - memLocalInfo	Thread-local memory tracking
 - memStack	Call stack management
-- fastGrind	RAII-style stack probe
+- fastgrind	RAII-style stack probe
 
 ## Configuration Macros
 ```c++

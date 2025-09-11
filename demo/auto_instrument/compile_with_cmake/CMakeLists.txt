@@ -1,6 +1,6 @@
 # Minimal CMake build replicating ../compile_with_bash/build.sh logic
 # Builds three static libraries (pkgA / pkgB / pkgC) and a final executable "app".
-# It applies the same allocator wrap linker flags so the interception in fastGrind.h works.
+# It applies the same allocator wrap linker flags so the interception in fastgrind.h works.
 # Keep things intentionally simple and self‑contained.
 
 cmake_minimum_required(VERSION 3.10)
@@ -20,7 +20,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -O3 -g -DFASTGRIND_INSTRUMENT)
 endif()
 
-# Path to repository root include directory (fastGrind.h lives there).
+# Path to repository root include directory (fastgrind.h lives there).
 set(REPO_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../include)
 
 # Expose current source dir so we can #include "pkgA/PackageA.h" etc.
@@ -50,7 +50,7 @@ set(INSTRUMENT_EXCLUDE_FILES
     /usr/lib/clang/
     /usr/local/include/
     # Third-Party, should be excluded
-    fastGrind.h
+    fastgrind.h
     /usr/include/boost/
     /usr/include/eigen3/
     /usr/include/openssl/

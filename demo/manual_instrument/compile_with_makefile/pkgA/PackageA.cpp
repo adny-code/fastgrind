@@ -1,5 +1,5 @@
 #include "PackageA.h"
-#include "fastGrind.h"
+#include "fastgrind.h"
 #include <algorithm>
 #include <sstream>
 

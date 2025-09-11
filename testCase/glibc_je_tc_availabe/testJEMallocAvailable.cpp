@@ -1,4 +1,4 @@
-#include "fastGrind.h"
+#include "fastgrind.h"
 
 #include <cstdio>
 #include <cstdlib>

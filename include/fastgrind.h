@@ -1,5 +1,5 @@
 /**
- * @file fastGrind.h
+ * @file fastgrind.h
  * @brief Lightweight in-process memory allocation probe and callstack aggregator.
  *
  * This header provides a set of instrumentation utilities that intercept dynamic
@@ -756,7 +756,7 @@ __attribute__((weak)) MEM_INLINE_USED std::atomic<int> memGlobalInfo::_refs{0};
  * @class memStack
  * @brief Thread-local logical call stack used to synthesize frame identifiers.
  *
- * The stack is explicitly manipulated via fastGrind RAII objects (FAST_GRIND macro)
+ * The stack is explicitly manipulated via fastgrind RAII objects (FAST_GRIND macro)
  * rather than relying on platform unwinding. Each push/pop updates a rolling id
  * so that the same textual sequence of function names maps to a deterministic
  * frameId across time slices.
@@ -933,22 +933,22 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
 };
 
 /**
- * @class fastGrind
+ * @class fastgrind
  * @brief RAII helper pushing current function onto logical stack.
  *
  * Construct an instance at function scope to automatically attribute all
  * allocations to that function until destruction (end of scope). Macro
  * FAST_GRIND wraps construction with __PRETTY_FUNCTION__ providing decorated name.
  */
-class fastGrind
+class fastgrind
 {
   public:
-    MEM_NO_INSTRUMENT fastGrind(const char *name)
+    MEM_NO_INSTRUMENT fastgrind(const char *name)
     {
         if (__FAST_GRIND_STATUS)
             memStack::instance().push(name);
     }
-    MEM_NO_INSTRUMENT ~fastGrind()
+    MEM_NO_INSTRUMENT ~fastgrind()
     {
         if (__FAST_GRIND_STATUS)
             memStack::instance().pop();
@@ -958,9 +958,9 @@ class fastGrind
 /**
  * @def FAST_GRIND
  * @brief Annotate a scope to participate in logical memory call stack.
- * @details Expands to creation of a fastGrind with the current pretty function symbol.
+ * @details Expands to creation of a fastgrind with the current pretty function symbol.
  */
-#define FAST_GRIND fastGrind __probe__(__PRETTY_FUNCTION__);
+#define FAST_GRIND fastgrind __probe__(__PRETTY_FUNCTION__);
 
 extern "C"
 {

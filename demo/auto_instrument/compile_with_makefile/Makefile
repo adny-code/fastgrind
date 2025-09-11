@@ -15,7 +15,7 @@ ARFLAGS   ?= rcs
 CXXSTD    ?= c++11
 CXXWARN    = -Wall -Wextra
 OPTFLAGS  ?= -O3 -g
-CXXFLAGS  ?= $(OPTFLAGS) $(CXXWARN) -std=$(CXXSTD) -DMERECORDER_INSTRUMENT
+CXXFLAGS  ?= $(OPTFLAGS) $(CXXWARN) -std=$(CXXSTD) -DFASTGRIND_INSTRUMENT
 LDFLAGS   ?=
 
 ## Paths
@@ -78,7 +78,7 @@ EXCLUDE_FILE_LISTS ?= /usr/include/c++/,\
 /usr/include/c++/v1,\
 /usr/lib/clang/,\
 /usr/local/include/,\
-memProbe.h,\
+fastGrind.h,\
 /usr/include/boost/,\
 /usr/include/eigen3/,\
 /usr/include/openssl/,\

@@ -3,7 +3,7 @@
 
 Purpose
 -------
-1. Parse a profiling output JSON file (``merecorder.json`` by default).
+1. Parse a profiling output JSON file (``fastgrind.json`` by default).
 2. Build an aggregated structure: ``Dict[int, Dict[str, List[str]]]`` where
          each key is a thread id and each nested key is a function name discovered
          anywhere in that thread across all time slices. The value is a static list
@@ -15,9 +15,9 @@ Purpose
 
 CLI Usage
 ---------
-                python merecorder.py [path/to/merecorder.json]
+                python fastgrind.py [path/to/fastgrind.json]
 
-If the argument is omitted, the script looks for ``merecorder.json`` in the
+If the argument is omitted, the script looks for ``fastgrind.json`` in the
 current working directory. The resulting HTML filename is derived by replacing
 ``.json`` with ``.html`` (or appending ``.html`` if no ``.json`` extension is
 present). The HTML file is written next to the input file.
@@ -519,7 +519,7 @@ def main(argv: List[str]):
         print("too many arguments", file=sys.stderr)
         sys.exit(2)
 
-    json_path = argv[1] if len(argv) == 2 else "merecorder.json"
+    json_path = argv[1] if len(argv) == 2 else "fastgrind.json"
     if not Path(json_path).is_file():
         print(f"File not found: {json_path}", file=sys.stderr)
         sys.exit(1)

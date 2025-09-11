@@ -11,7 +11,7 @@ BUILD_DIR="$SCRIPT_DIR/build"
 
 CXX=${CXX:-g++}
 CXXSTD=${CXXSTD:-c++11}
-CXXFLAGS=${CXXFLAGS:--O3 -g -Wall -Wextra -std=${CXXSTD} -DMERECORDER_INSTRUMENT}
+CXXFLAGS=${CXXFLAGS:--O3 -g -Wall -Wextra -std=${CXXSTD} -DFASTGRIND_INSTRUMENT}
 INCLUDE_FLAGS=( -I"$REPO_ROOT/include" -I"$SCRIPT_DIR" )
 LINK_FLAGS=( -Wl,--export-dynamic )
 AR=${AR:-ar}
@@ -72,7 +72,7 @@ EXCLUDE_FILE_LISTS=(
     /usr/lib/clang/
     /usr/local/include/
     # Third-Party, should be excluded
-    memProbe.h
+    fastGrind.h
     /usr/include/boost/
     /usr/include/eigen3/
     /usr/include/openssl/

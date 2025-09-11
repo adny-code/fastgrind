@@ -1,5 +1,5 @@
 #include "PackageC.h"
-#include "memProbe.h"
+#include "fastGrind.h"
 #include "pkgA/PackageA.h"
 #include "pkgB/PackageB.h"
 #include <cstdlib>

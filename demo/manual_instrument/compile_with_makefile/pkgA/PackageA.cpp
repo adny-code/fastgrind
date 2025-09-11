@@ -1,11 +1,11 @@
 #include "PackageA.h"
-#include "memProbe.h"
+#include "fastGrind.h"
 #include <algorithm>
 #include <sstream>
 
 PackageA::PackageA()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 
     buffer_ = (int *) malloc(sizeof(int) * 256);
 
@@ -15,13 +15,13 @@ PackageA::PackageA()
 
 PackageA::~PackageA()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     free(buffer_);
 }
 
 void PackageA::allocTest() const
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     long long *tmp = new long long[128];
     delete[] tmp;
 

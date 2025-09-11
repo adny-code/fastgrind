@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Simple example: compile simple_demo/main.cpp and enable allocation wrapping for memProbe.
+# Simple example: compile simple_demo/main.cpp and enable allocation wrapping for fastGrind.
 # Usage: run ./build.sh to generate build/app
 # Overridable via environment variables: CXX, CXXSTD, CXXFLAGS
 
@@ -11,7 +11,7 @@ BUILD_DIR="${SCRIPT_DIR}/build"
 
 CXX=${CXX:-g++}
 CXXSTD=${CXXSTD:-c++11}
-CXXFLAGS=${CXXFLAGS:--O3 -g -Wall -Wextra -std=${CXXSTD} -DMERECORDER_INSTRUMENT}
+CXXFLAGS=${CXXFLAGS:--O3 -g -Wall -Wextra -std=${CXXSTD} -DFASTGRIND_INSTRUMENT}
 INCLUDE_FLAGS=( -I"${REPO_ROOT}/include" -I"${SCRIPT_DIR}" )
 LINK_FLAGS=( -Wl,--export-dynamic )
 
@@ -70,7 +70,7 @@ EXCLUDE_FILE_LISTS=(
     /usr/lib/clang/
     /usr/local/include/
     # Third-Party, should be excluded
-    memProbe.h
+    fastGrind.h
     /usr/include/boost/
     /usr/include/eigen3/
     /usr/include/openssl/
@@ -105,4 +105,4 @@ echo "[LINK ] app"
 ${CXX} -pthread -o "${BUILD_DIR}/app" "${BUILD_DIR}/main.o" "${WRAP_FLAGS[@]}" "${LINK_FLAGS[@]}"
 
 echo "[DONE ] Executable: ${BUILD_DIR}/app"
-echo "Run: ${BUILD_DIR}/app (a merecorder.json will be generated on exit)"
+echo "Run: ${BUILD_DIR}/app (a fastgrind.json will be generated on exit)"

@@ -22,10 +22,10 @@ sudo make install  # Optional system-wide installation
 
 ## Basic Usage
 ```c++
-#include "mem_probe.h"
+#include "fastGrind.h"
 
 void example() {
-    MEM_PROBE;  // Enable call stack tracking
+    FAST_GRIND;  // Enable call stack tracking
     int* arr = new int[100];  // Tracked allocation
     delete[] arr;             // Tracked deallocation
 }
@@ -37,11 +37,11 @@ void example() {
 - memGlobalInfo: Singleton for global memory stats
 - memLocalInfo	Thread-local memory tracking
 - memStack	Call stack management
-- memProbe	RAII-style stack probe
+- fastGrind	RAII-style stack probe
 
 ## Configuration Macros
 ```c++
-#define MEM_PROBE_STATUS 1    // Enable/disable profiling
+#define FAST_GRIND_STATUS 1    // Enable/disable profiling
 #define JE_MALLOC          // Use jemalloc (default)
 ```
 

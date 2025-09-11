@@ -1,4 +1,4 @@
-#include "memProbe.h"
+#include "fastGrind.h"
 #include "PackageB.h"
 #include "PackageA.h"
 #include <cstdlib>
@@ -6,19 +6,19 @@
 
 PackageB::PackageB()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     a_ = new PackageA();
 }
 
 PackageB::~PackageB()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     delete a_;
 }
 
 void PackageB::allocTest() const
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     double *tmp = new double[128];
     delete[] tmp;
 

@@ -1,6 +1,6 @@
 # Minimal CMake build replicating ../compile_with_bash/build.sh logic
 # Builds three static libraries (pkgA / pkgB / pkgC) and a final executable "app".
-# It applies the same allocator wrap linker flags so the interception in memProbe.h works.
+# It applies the same allocator wrap linker flags so the interception in fastGrind.h works.
 # Keep things intentionally simple and self‑contained.
 
 cmake_minimum_required(VERSION 3.10)
@@ -17,10 +17,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Basic warning/optimization flags (user can still pass their own via CXXFLAGS when invoking cmake).
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-Wall -Wextra -O3 -g -DMERECORDER_INSTRUMENT)
+    add_compile_options(-Wall -Wextra -O3 -g -DFASTGRIND_INSTRUMENT)
 endif()
 
-# Path to repository root include directory (memProbe.h lives there).
+# Path to repository root include directory (fastGrind.h lives there).
 set(REPO_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../include)
 
 # Expose current source dir so we can #include "pkgA/PackageA.h" etc.
@@ -50,7 +50,7 @@ set(INSTRUMENT_EXCLUDE_FILES
     /usr/lib/clang/
     /usr/local/include/
     # Third-Party, should be excluded
-    memProbe.h
+    fastGrind.h
     /usr/include/boost/
     /usr/include/eigen3/
     /usr/include/openssl/
@@ -68,17 +68,17 @@ set(INSTRUMENT_EXCLUDE_FILES
     ${REPO_INCLUDE_DIR}/include/
 )
 list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
-set(MERECORDER_INSTRUMENT_OPTS -finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})
+set(FASTGRIND_INSTRUMENT_OPTS -finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})
 
 # Provide instrumentation flags to all targets through an interface library (modern CMake style).
-add_library(merecorder_instrument_opts INTERFACE)
-target_compile_options(merecorder_instrument_opts INTERFACE ${MERECORDER_INSTRUMENT_OPTS})
+add_library(fastgrind_instrument_opts INTERFACE)
+target_compile_options(fastgrind_instrument_opts INTERFACE ${FASTGRIND_INSTRUMENT_OPTS})
 
 # ---- Libraries ----
 # Each package is built as a static library; dependency chain: pkgC -> pkgB -> pkgA.
 add_library(pkgA STATIC pkgA/PackageA.cpp)
 # Link instrumentation opts so flags propagate to its dependents as PUBLIC
-target_link_libraries(pkgA PUBLIC merecorder_instrument_opts)
+target_link_libraries(pkgA PUBLIC fastgrind_instrument_opts)
 # Public include dirs allow dependents to include headers through the pkgX/ path.
 target_include_directories(pkgA PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/pkgA)
 

@@ -1,4 +1,4 @@
-#include "memProbe.h"
+#include "fastGrind.h"
 #include "pkgA/PackageA.h"
 #include "pkgB/PackageB.h"
 #include "pkgC/PackageC.h"
@@ -11,7 +11,7 @@
 
 void thread1()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     for (unsigned i = 0; i < 5; ++i)
     {
         PackageA a;
@@ -22,7 +22,7 @@ void thread1()
 
 void thread2()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     for (unsigned i = 0; i < 5; ++i)
     {
         PackageB b;
@@ -33,7 +33,7 @@ void thread2()
 
 void thread3()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     for (unsigned i = 0; i < 5; ++i)
     {
         PackageC c;
@@ -44,7 +44,7 @@ void thread3()
 
 int main()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     std::thread t1(thread1);
     std::thread t2(thread2);
     std::thread t3(thread3);

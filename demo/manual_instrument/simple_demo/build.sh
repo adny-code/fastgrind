@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Simple example: compile simple_demo/main.cpp and enable allocation wrapping for memProbe.
+# Simple example: compile simple_demo/main.cpp and enable allocation wrapping for fastGrind.
 # Usage: run ./build.sh to generate build/app
 # Overridable via environment variables: CXX, CXXSTD, CXXFLAGS
 
@@ -61,4 +61,4 @@ echo "[LINK ] app"
 ${CXX} -pthread -o "${BUILD_DIR}/app" "${BUILD_DIR}/main.o" "${WRAP_FLAGS[@]}"
 
 echo "[DONE ] Executable: ${BUILD_DIR}/app"
-echo "Run: ${BUILD_DIR}/app (a merecorder.json will be generated on exit)"
+echo "Run: ${BUILD_DIR}/app (a fastgrind.json will be generated on exit)"

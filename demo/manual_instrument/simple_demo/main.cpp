@@ -1,4 +1,4 @@
-#include "memProbe.h"
+#include "fastGrind.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -22,12 +22,12 @@ struct mallocTest
 
 mallocTest::mallocTest()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 }
 
 mallocTest::~mallocTest()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     delete a;
     delete b;
     delete c;
@@ -35,7 +35,7 @@ mallocTest::~mallocTest()
 
 void mallocTest::alloc()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     a = new char;
     b = new int;
     c = new double;
@@ -44,7 +44,7 @@ void mallocTest::alloc()
 
 void threadFunc1()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     for (unsigned i = 0; i < 5; ++i)
     {
         int *a = new int[100];
@@ -55,7 +55,7 @@ void threadFunc1()
 
 void threadFunc2()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     mallocTest t;
     for (unsigned i = 0; i < 5; ++i)
     {
@@ -66,7 +66,7 @@ void threadFunc2()
 
 int main()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 
     std::thread t1(threadFunc1);
     std::thread t2(threadFunc2);

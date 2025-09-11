@@ -1,5 +1,5 @@
 /**
- * @file memProbe.h
+ * @file fastGrind.h
  * @brief Lightweight in-process memory allocation probe and callstack aggregator.
  *
  * This header provides a set of instrumentation utilities that intercept dynamic
@@ -12,10 +12,10 @@
  *   1. Include this header in one translation unit (typically a .cpp).
  *   2. Link with --wrap symbols (GNU ld) or provide alternative malloc impls as
  *      expected (tcmalloc/jemalloc) so the __wrap_* hooks are used.
- *   3. Annotate functions of interest with MEM_PROBE macro (or rely on global
+ *   3. Annotate functions of interest with FAST_GRIND macro (or rely on global
  *      interception) to push/pop symbolic stack entries.
  *   4. At process end (static destruction) memGlobalInfo automatically dumps
- *      human readable and JSON formatted results (merecorder.json).
+ *      human readable and JSON formatted results (fastgrind.json).
  *
  * Thread safety: Per-thread accumulation is stored in thread local structures
  * and periodically merged into a global, mutex-protected container on thread
@@ -33,8 +33,8 @@
  * @copyright
  * See LICENSE for details.
  */
-#ifndef MEM_PROBE_H
-#define MEM_PROBE_H
+#ifndef FAST_GRIND_H
+#define FAST_GRIND_H
 
 #include <atomic>
 #include <functional>
@@ -53,18 +53,18 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#if defined(MERECORDER_INSTRUMENT)
+#if defined(FASTGRIND_INSTRUMENT)
     #include <cxxabi.h>
     #include <dlfcn.h>
 #endif
 
-#if defined(MERECORDER_TC_MALLOC)
+#if defined(FASTGRIND_TC_MALLOC)
     #include <gperftools/tcmalloc.h>
-#elif defined(MERECORDER_JE_MALLOC)
+#elif defined(FASTGRIND_JE_MALLOC)
     #include <jemalloc/jemalloc.h>
 #endif
 
-namespace __MERECORDER__
+namespace __FASTGRIND__
 {
 
 #if __cplusplus >= 202002L
@@ -102,22 +102,22 @@ namespace __MERECORDER__
  */
 #define __MEM_SAMPLE_INTERVAL_MS 500
 
-/** @def __MEM_PROBE_STATUS
+/** @def __FAST_GRIND_STATUS
  *  @brief Global enable switch (set to 0 at compile time to disable probing at runtime with minimal overhead).
  */
-#define __MEM_PROBE_STATUS 1
+#define __FAST_GRIND_STATUS 1
 
 // #define __MEM_DEBUG_INFO 1
 
 /** @brief Output filename for exported JSON statistics. */
-constexpr const char *__MEM_PATH_JSON_RESULT = "merecorder.json";
-constexpr const char *__MEM_PATH_TEXT_RESULT = "merecorder.text";
+constexpr const char *__MEM_PATH_JSON_RESULT = "fastgrind.json";
+constexpr const char *__MEM_PATH_TEXT_RESULT = "fastgrind.text";
 
 #define MEM_NO_INSTRUMENT __attribute__((no_instrument_function))
 
 #define MEM_INLINE_USED __attribute__((used))
 
-#if defined(MERECORDER_INSTRUMENT)
+#if defined(FASTGRIND_INSTRUMENT)
 MEM_NO_INSTRUMENT static const char *demangleFunc(const char *mangled)
 {
     if (!mangled)
@@ -433,7 +433,7 @@ class memNode
         {
             fwrite(content.c_str(), 1, content.size(), file);
             fclose(file);
-            printf("[MERECORDER] saved: %s (size=%zu bytes)\n", __MEM_PATH_TEXT_RESULT, content.size());
+            printf("[FASTGRIND] saved: %s (size=%zu bytes)\n", __MEM_PATH_TEXT_RESULT, content.size());
             fflush(stdout);
         }
     }
@@ -502,7 +502,7 @@ class memGlobalInfo
      */
     MEM_NO_INSTRUMENT void dump() const
     {
-        printf("[MERECORDER] Start summary memory info\n");
+        printf("[FASTGRIND] Start summary memory info\n");
         fflush(stdout);
 
         memNode info("Total");
@@ -673,7 +673,7 @@ class memGlobalInfo
 
         fwrite(pretty.c_str(), 1, pretty.size(), file);
         fclose(file);
-        printf("[MERECORDER] saved: %s (size=%zu bytes)\n", __MEM_PATH_JSON_RESULT, pretty.size());
+        printf("[FASTGRIND] saved: %s (size=%zu bytes)\n", __MEM_PATH_JSON_RESULT, pretty.size());
     }
 
     /**
@@ -702,7 +702,7 @@ class memGlobalInfo
 
     MEM_NO_INSTRUMENT void callStackTrans()
     {
-#if defined(MERECORDER_INSTRUMENT)
+#if defined(FASTGRIND_INSTRUMENT)
         for (auto &kv : _callstacks)
         {
             auto &arr = kv.second;
@@ -756,7 +756,7 @@ __attribute__((weak)) MEM_INLINE_USED std::atomic<int> memGlobalInfo::_refs{0};
  * @class memStack
  * @brief Thread-local logical call stack used to synthesize frame identifiers.
  *
- * The stack is explicitly manipulated via memProbe RAII objects (MEM_PROBE macro)
+ * The stack is explicitly manipulated via fastGrind RAII objects (FAST_GRIND macro)
  * rather than relying on platform unwinding. Each push/pop updates a rolling id
  * so that the same textual sequence of function names maps to a deterministic
  * frameId across time slices.
@@ -933,34 +933,34 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
 };
 
 /**
- * @class memProbe
+ * @class fastGrind
  * @brief RAII helper pushing current function onto logical stack.
  *
  * Construct an instance at function scope to automatically attribute all
  * allocations to that function until destruction (end of scope). Macro
- * MEM_PROBE wraps construction with __PRETTY_FUNCTION__ providing decorated name.
+ * FAST_GRIND wraps construction with __PRETTY_FUNCTION__ providing decorated name.
  */
-class memProbe
+class fastGrind
 {
   public:
-    MEM_NO_INSTRUMENT memProbe(const char *name)
+    MEM_NO_INSTRUMENT fastGrind(const char *name)
     {
-        if (__MEM_PROBE_STATUS)
+        if (__FAST_GRIND_STATUS)
             memStack::instance().push(name);
     }
-    MEM_NO_INSTRUMENT ~memProbe()
+    MEM_NO_INSTRUMENT ~fastGrind()
     {
-        if (__MEM_PROBE_STATUS)
+        if (__FAST_GRIND_STATUS)
             memStack::instance().pop();
     }
 };
 
 /**
- * @def MEM_PROBE
+ * @def FAST_GRIND
  * @brief Annotate a scope to participate in logical memory call stack.
- * @details Expands to creation of a memProbe with the current pretty function symbol.
+ * @details Expands to creation of a fastGrind with the current pretty function symbol.
  */
-#define MEM_PROBE memProbe __probe__(__PRETTY_FUNCTION__);
+#define FAST_GRIND fastGrind __probe__(__PRETTY_FUNCTION__);
 
 extern "C"
 {
@@ -981,7 +981,7 @@ extern "C"
         }
     }
 
-#if defined(MERECORDER_INSTRUMENT)
+#if defined(FASTGRIND_INSTRUMENT)
     MEM_NO_INSTRUMENT __attribute__((weak)) void __cyg_profile_func_enter(void *this_fn, void *call_site)
     {
         (void) call_site;
@@ -1032,11 +1032,11 @@ extern "C"
 
         __mem_in_exit = false;
     }
-#endif // MERECORDER_INSTRUMENT
+#endif // FASTGRIND_INSTRUMENT
 
-#if defined(MERECORDER_TC_MALLOC)
+#if defined(FASTGRIND_TC_MALLOC)
     #define TC_MALLOC 1
-#elif defined(MERECORDER_JE_MALLOC)
+#elif defined(FASTGRIND_JE_MALLOC)
     #define JE_MALLOC 1
     extern void *je_sdallocx_default(void *ptr, size_t size, int flags);
     extern void *je_malloc_default(size_t size);
@@ -1211,9 +1211,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             return tc_malloc(sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             return je_malloc_default(sz);
     #else
             return __real_malloc(sz);
@@ -1223,9 +1223,9 @@ extern "C"
         __mem_in_probe_ = true;
 
         void *p =
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_malloc(sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_malloc_default(sz);
     #else
             __real_malloc(sz);
@@ -1251,9 +1251,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             return tc_calloc(nmemb, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             return je_calloc_emulate(nmemb, size);
     #else
             return __real_calloc(nmemb, size);
@@ -1263,9 +1263,9 @@ extern "C"
         __mem_in_probe_ = true;
 
         void *p = nullptr;
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         p = tc_calloc(nmemb, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         p = je_calloc_emulate(nmemb, size);
     #else
         p = __real_calloc(nmemb, size);
@@ -1285,9 +1285,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             return tc_realloc(ptr, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             return je_realloc_emulate(ptr, size);
     #else
             return __real_realloc(ptr, size);
@@ -1302,9 +1302,9 @@ extern "C"
             if (old_size)
                 memLocalInfo::instance().sub(old_size);
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(ptr);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_free_default(ptr);
     #else
             __real_free(ptr);
@@ -1315,9 +1315,9 @@ extern "C"
         }
 
         void *p = nullptr;
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         p = tc_realloc(ptr, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         p = je_realloc_emulate(ptr, size);
     #else
         p = __real_realloc(ptr, size);
@@ -1338,9 +1338,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_free_default(p);
     #else
             __real_free(p);
@@ -1353,9 +1353,9 @@ extern "C"
             memLocalInfo::instance().sub(malloc_usable_size(p));
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_free_default(p);
     #else
         __real_free(p);
@@ -1370,9 +1370,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             void *p = tc_malloc(sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             void *p = je_malloc_default(sz);
     #else
             void *p = __real_malloc(sz);
@@ -1387,9 +1387,9 @@ extern "C"
         void *p = nullptr;
         for (;;)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             p = tc_malloc(sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             p = je_malloc_default(sz);
     #else
             p = __real_malloc(sz);
@@ -1431,9 +1431,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             void *p = tc_malloc(sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             void *p = je_malloc_default(sz);
     #else
             void *p = __real_malloc(sz);
@@ -1448,9 +1448,9 @@ extern "C"
         void *p = nullptr;
         for (;;)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             p = tc_malloc(sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             p = je_malloc_default(sz);
     #else
             p = __real_malloc(sz);
@@ -1489,9 +1489,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_free_default(p);
     #else
             __real_free(p);
@@ -1504,9 +1504,9 @@ extern "C"
             memLocalInfo::instance().sub(malloc_usable_size(p));
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_free_default(p);
     #else
         __real_free(p);
@@ -1518,9 +1518,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_free_default(p);
     #else
             __real_free(p);
@@ -1533,9 +1533,9 @@ extern "C"
             memLocalInfo::instance().sub(malloc_usable_size(p));
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_free_default(p);
     #else
         __real_free(p);
@@ -1550,9 +1550,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             void *p = tc_malloc(sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             void *p = je_malloc_default(sz);
     #else
             void *p = __real_malloc(sz);
@@ -1565,9 +1565,9 @@ extern "C"
         void *p = nullptr;
         for (;;)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             p = tc_malloc(sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             p = je_malloc_default(sz);
     #else
             p = __real_malloc(sz);
@@ -1608,9 +1608,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             void *p = tc_malloc(sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             void *p = je_malloc_default(sz);
     #else
             void *p = __real_malloc(sz);
@@ -1623,9 +1623,9 @@ extern "C"
         void *p = nullptr;
         for (;;)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             p = tc_malloc(sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             p = je_malloc_default(sz);
     #else
             p = __real_malloc(sz);
@@ -1664,9 +1664,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_free_default(p);
     #else
             __real_free(p);
@@ -1679,9 +1679,9 @@ extern "C"
             memLocalInfo::instance().sub(malloc_usable_size(p));
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_free_default(p);
     #else
         __real_free(p);
@@ -1693,9 +1693,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_free_default(p);
     #else
             __real_free(p);
@@ -1708,9 +1708,9 @@ extern "C"
             memLocalInfo::instance().sub(malloc_usable_size(p));
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_free_default(p);
     #else
         __real_free(p);
@@ -1848,9 +1848,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             return tc_valloc(size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             return je_valloc_emulate(size);
     #else
             return __real_valloc(size);
@@ -1860,9 +1860,9 @@ extern "C"
         __mem_in_probe_ = true;
 
         void *p =
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_valloc(size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_valloc_emulate(size);
     #else
             __real_valloc(size);
@@ -1882,9 +1882,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             return tc_pvalloc(size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             return je_pvalloc_emulate(size);
     #else
             return __real_pvalloc(size);
@@ -1894,9 +1894,9 @@ extern "C"
         __mem_in_probe_ = true;
 
         void *p =
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_pvalloc(size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_pvalloc_emulate(size);
     #else
             __real_pvalloc(size);
@@ -1916,9 +1916,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             return tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             return je_memalign_emulate(alignment, size);
     #else
             return __real_memalign(alignment, size);
@@ -1928,9 +1928,9 @@ extern "C"
         __mem_in_probe_ = true;
 
         void *p =
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_memalign_emulate(alignment, size);
     #else
             __real_memalign(alignment, size);
@@ -1951,9 +1951,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             return tc_posix_memalign(memptr, alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             return je_posix_memalign_emulate(memptr, alignment, size);
     #else
             return __real_posix_memalign(memptr, alignment, size);
@@ -1963,9 +1963,9 @@ extern "C"
         __mem_in_probe_ = true;
 
         int ret =
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_posix_memalign(memptr, alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_posix_memalign_emulate(memptr, alignment, size);
     #else
             __real_posix_memalign(memptr, alignment, size);
@@ -2002,9 +2002,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             return tc_realloc(ptr, total);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             return realloc(ptr, total);
     #else
             return __real_realloc(ptr, total);
@@ -2020,9 +2020,9 @@ extern "C"
             if (old_size)
                 memLocalInfo::instance().sub(old_size);
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(ptr);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_free_default(ptr);
     #else
             __real_free(ptr);
@@ -2032,9 +2032,9 @@ extern "C"
         }
 
         void *p = nullptr;
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         p = tc_realloc(ptr, total);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         p = realloc(ptr, total);
     #else
         p = __real_realloc(ptr, total);
@@ -2058,9 +2058,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_sdallocx_default(p, sz, 0);
     #else
             __real_free(p);
@@ -2073,9 +2073,9 @@ extern "C"
             memLocalInfo::instance().sub(malloc_usable_size(p));
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_sdallocx_default(p, sz, 0);
     #else
         __real_free(p);
@@ -2088,9 +2088,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_sdallocx_default(p, sz, 0);
     #else
             __real_free(p);
@@ -2103,9 +2103,9 @@ extern "C"
             memLocalInfo::instance().sub(malloc_usable_size(p));
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_sdallocx_default(p, sz, 0);
     #else
         __real_free(p);
@@ -2130,9 +2130,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             return tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             return je_aligned_alloc_emulate(alignment, size);
     #else
             return __real_aligned_alloc(alignment, size);
@@ -2142,9 +2142,9 @@ extern "C"
         __mem_in_probe_ = true;
 
         void *p = nullptr;
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         p = tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         p = je_aligned_alloc_emulate(alignment, size);
     #else
         p = __real_aligned_alloc(alignment, size);
@@ -2166,9 +2166,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             void *p = tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             void *p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
@@ -2184,9 +2184,9 @@ extern "C"
         void *p = nullptr;
         for (;;)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             p = tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
@@ -2230,9 +2230,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             void *p = tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             void *p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
@@ -2248,9 +2248,9 @@ extern "C"
         void *p = nullptr;
         for (;;)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             p = tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
@@ -2292,9 +2292,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             dallocx(p, 0);
     #else
             __real_free(p);
@@ -2310,9 +2310,9 @@ extern "C"
         }
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         dallocx(p, 0);
     #else
         __real_free(p);
@@ -2326,9 +2326,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             dallocx(p, 0);
     #else
             __real_free(p);
@@ -2344,9 +2344,9 @@ extern "C"
         }
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         dallocx(p, 0);
     #else
         __real_free(p);
@@ -2360,9 +2360,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_sdallocx_default(p, sz, 0);
     #else
             __real_free(p);
@@ -2378,9 +2378,9 @@ extern "C"
         }
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_sdallocx_default(p, sz, 0);
     #else
         __real_free(p);
@@ -2394,9 +2394,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_sdallocx_default(p, sz, 0);
     #else
             __real_free(p);
@@ -2412,9 +2412,9 @@ extern "C"
         }
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_sdallocx_default(p, sz, 0);
     #else
         __real_free(p);
@@ -2427,9 +2427,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_sdallocx_default(p, sz, 0);
     #else
             __real_free(p);
@@ -2442,9 +2442,9 @@ extern "C"
             memLocalInfo::instance().sub(malloc_usable_size(p));
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_sdallocx_default(p, sz, 0);
     #else
         __real_free(p);
@@ -2457,9 +2457,9 @@ extern "C"
     {
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_sdallocx_default(p, sz, 0);
     #else
             __real_free(p);
@@ -2472,9 +2472,9 @@ extern "C"
             memLocalInfo::instance().sub(malloc_usable_size(p));
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_sdallocx_default(p, sz, 0);
     #else
         __real_free(p);
@@ -2492,9 +2492,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             void *p = tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             void *p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
@@ -2508,9 +2508,9 @@ extern "C"
         void *p = nullptr;
         for (;;)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             p = tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
@@ -2556,9 +2556,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             void *p = tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             void *p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
@@ -2572,9 +2572,9 @@ extern "C"
         void *p = nullptr;
         for (;;)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             p = tc_memalign(alignment, size);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             p = mallocx(size, MALLOCX_ALIGN(alignment));
     #else
             size_t sz = (size + alignment - 1) & ~(alignment - 1);
@@ -2618,9 +2618,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             dallocx(p, 0);
     #else
             __real_free(p);
@@ -2636,9 +2636,9 @@ extern "C"
         }
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         dallocx(p, 0);
     #else
         __real_free(p);
@@ -2654,9 +2654,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             dallocx(p, 0);
     #else
             __real_free(p);
@@ -2672,9 +2672,9 @@ extern "C"
         }
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free(p);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         dallocx(p, 0);
     #else
         __real_free(p);
@@ -2690,9 +2690,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_sdallocx_default(p, sz, 0);
     #else
             __real_free(p);
@@ -2708,9 +2708,9 @@ extern "C"
         }
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_sdallocx_default(p, sz, 0);
     #else
         __real_free(p);
@@ -2726,9 +2726,9 @@ extern "C"
 
         if (__mem_in_probe_)
         {
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
             tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
             je_sdallocx_default(p, sz, 0);
     #else
             __real_free(p);
@@ -2744,9 +2744,9 @@ extern "C"
         }
         __mem_in_probe_ = false;
 
-    #if defined(MERECORDER_TC_MALLOC)
+    #if defined(FASTGRIND_TC_MALLOC)
         tc_free_sized(p, sz);
-    #elif defined(MERECORDER_JE_MALLOC)
+    #elif defined(FASTGRIND_JE_MALLOC)
         je_sdallocx_default(p, sz, 0);
     #else
         __real_free(p);
@@ -2811,6 +2811,6 @@ extern "C"
 #endif
     };
 };
-} // namespace __MERECORDER__
+} // namespace __FASTGRIND__
 
 #endif

@@ -15,8 +15,8 @@ set(CMAKE_INSTALL_PREFIX "/usr/local" CACHE PATH "Install prefix")
 include(GNUInstallDirs)
 
 # Public include directory for all targets in this project
-add_library(merecorder_includes INTERFACE)
-target_include_directories(merecorder_includes INTERFACE ${CMAKE_SOURCE_DIR}/include)
+add_library(fastgrind_includes INTERFACE)
+target_include_directories(fastgrind_includes INTERFACE ${CMAKE_SOURCE_DIR}/include)
 
 # -----------------------------------------------------------------------------
 # Linker wrap flags (centralized)
@@ -63,8 +63,8 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
 )
 
-add_library(merecorder_wrap INTERFACE)
-target_link_options(merecorder_wrap INTERFACE ${WRAP_FLAGS})
+add_library(fastgrind_wrap INTERFACE)
+target_link_options(fastgrind_wrap INTERFACE ${WRAP_FLAGS})
 
 # -----------------------------------------------------------------------------
 # Instrumentation exclusion list & helper interface
@@ -87,7 +87,7 @@ set(INSTRUMENT_EXCLUDE_FILES
     /usr/lib/clang/
     /usr/local/include/
     # Third-Party, should be excluded
-    memProbe.h
+    fastGrind.h
     /usr/include/boost/
     /usr/include/eigen3/
     /usr/include/openssl/
@@ -107,19 +107,19 @@ set(INSTRUMENT_EXCLUDE_FILES
 list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
 
 # Define instrumentation compile options variable (shared usage)
-set(MERECORDER_BASE_DEBUG_OPTS -O3)
-set(MERECORDER_INSTRUMENT_OPTS ${MERECORDER_BASE_DEBUG_OPTS})
+set(FASTGRIND_BASE_DEBUG_OPTS -O3)
+set(FASTGRIND_INSTRUMENT_OPTS ${FASTGRIND_BASE_DEBUG_OPTS})
 if(INSTRUMENT_EXCLUDE_FILES_JOINED)
-    list(APPEND MERECORDER_INSTRUMENT_OPTS -finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})
+    list(APPEND FASTGRIND_INSTRUMENT_OPTS -finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})
 endif()
 
-add_library(merecorder_instrument INTERFACE)
-target_compile_definitions(merecorder_instrument INTERFACE MERECORDER_INSTRUMENT)
-target_compile_options(merecorder_instrument INTERFACE ${MERECORDER_INSTRUMENT_OPTS})
+add_library(fastgrind_instrument INTERFACE)
+target_compile_definitions(fastgrind_instrument INTERFACE FASTGRIND_INSTRUMENT)
+target_compile_options(fastgrind_instrument INTERFACE ${FASTGRIND_INSTRUMENT_OPTS})
 
 # Convenience function to apply plain debug options (without instrumentation)
-function(merecorder_apply_options target)
-    target_compile_options(${target} PRIVATE ${MERECORDER_BASE_DEBUG_OPTS})
+function(fastgrind_apply_options target)
+    target_compile_options(${target} PRIVATE ${FASTGRIND_BASE_DEBUG_OPTS})
 endfunction()
 
 # -----------------------------------------------------------------------------
@@ -127,7 +127,7 @@ endfunction()
 # -----------------------------------------------------------------------------
 add_subdirectory(testCase/glibc_je_tc_availabe)
 add_subdirectory(testCase/multi_pkg_compile)
-add_subdirectory(testCase/benchmark_merecorder)
+add_subdirectory(testCase/benchmark_fastgrind)
 
 # -----------------------------------------------------------------------------
 # Install headers

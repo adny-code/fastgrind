@@ -1,4 +1,4 @@
-#include "memProbe.h"
+#include "fastGrind.h"
 
 #include <gperftools/malloc_extension.h>
 #include <cstdio>
@@ -27,7 +27,7 @@ void print_stacktrace() {
 // Individual test case functions extracted from original testAllMalloc
 void test_malloc_free()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     void *p = std::malloc(128);
     if (p)
     {
@@ -38,7 +38,7 @@ void test_malloc_free()
 
 void test_calloc()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     void *p = std::calloc(16, 8); // 128 bytes
     if (p)
         std::free(p);
@@ -46,7 +46,7 @@ void test_calloc()
 
 void test_realloc_grow_shrink()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     char *p = static_cast<char *>(std::malloc(32));
     p = static_cast<char *>(std::realloc(p, 256));
     p = static_cast<char *>(std::realloc(p, 64));
@@ -55,7 +55,7 @@ void test_realloc_grow_shrink()
 
 void test_new_delete_scalar()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     int *pi = new int(42);
     if (pi)
         delete pi;
@@ -63,7 +63,7 @@ void test_new_delete_scalar()
 
 void test_new_delete_array()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     int *arr = new int[50];
     arr[0] = 7;
     delete[] arr;
@@ -71,7 +71,7 @@ void test_new_delete_array()
 
 void test_nothrow_new_delete()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     int *pi = new (std::nothrow) int(5);
     if (pi)
         delete pi;
@@ -79,7 +79,7 @@ void test_nothrow_new_delete()
 
 void test_nothrow_new_delete_array()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     int *arr = new (std::nothrow) int[10];
     arr[0] = 7;
     delete[] arr;
@@ -87,7 +87,7 @@ void test_nothrow_new_delete_array()
 
 void test_valloc()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     void *p = valloc(4096);
     if (p)
         free(p);
@@ -95,7 +95,7 @@ void test_valloc()
 
 void test_pvalloc()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     void *p = pvalloc(3000);
     if (p)
         free(p);
@@ -103,7 +103,7 @@ void test_pvalloc()
 
 void test_memalign()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     void *p = memalign(64, 256);
     if (p)
         free(p);
@@ -111,7 +111,7 @@ void test_memalign()
 
 void test_posix_memalign()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     void *p = nullptr;
     if (posix_memalign(&p, 128, 512) == 0)
     {
@@ -121,7 +121,7 @@ void test_posix_memalign()
 
 void test_reallocarray_basic()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 #if defined(__GLIBC__) && (__GLIBC__ * 100 + __GLIBC_MINOR__) >= 230
     void *p = reallocarray(nullptr, 32, 16); // 512 bytes
     if (!p)
@@ -132,7 +132,7 @@ void test_reallocarray_basic()
 
 void test_aligned_alloc_cxx17()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 #if defined(__cpp_aligned_new) && __cpp_aligned_new >= 201606
     void *p = aligned_alloc(64, 256); // size multiple of alignment
     if (p)
@@ -142,7 +142,7 @@ void test_aligned_alloc_cxx17()
 
 void test_aligned_new_delete()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 #if defined(__cpp_aligned_new) && __cpp_aligned_new >= 201606
     struct alignas(64) Al64
     {
@@ -159,7 +159,7 @@ void test_aligned_new_delete()
 
 void test_nothrow_aligned_new_delete()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 #if defined(__cpp_aligned_new) && __cpp_aligned_new >= 201606
     int *p = new (std::align_val_t(64), std::nothrow) int(9);
     p[0] = 7;
@@ -172,7 +172,7 @@ void test_nothrow_aligned_new_delete()
 
 void test_sized_delete_path()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 #if defined(__cpp_sized_deallocation)
     struct Foo
     {
@@ -189,7 +189,7 @@ void test_sized_delete_path()
 
 void test_sized_aligned_delete()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 #if defined(__cpp_aligned_new) && __cpp_aligned_new >= 201606 && defined(__cpp_sized_deallocation)
     struct alignas(64) BigAligned
     {
@@ -207,7 +207,7 @@ void test_sized_aligned_delete()
 
 void test_sized_aligned_nothrow_delete()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 #if defined(__cpp_aligned_new) && __cpp_aligned_new >= 201606 && defined(__cpp_sized_deallocation)
     struct alignas(128) BigAlignedNT
     {
@@ -225,7 +225,7 @@ void test_sized_aligned_nothrow_delete()
 
 void test_throwing_constructor_deallocation()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 #if defined(__cpp_aligned_new) && __cpp_aligned_new >= 201606 && defined(__cpp_sized_deallocation)
     struct alignas(256) ThrowAligned
     {
@@ -256,7 +256,7 @@ void test_throwing_constructor_deallocation()
 
 void test_reallocarray_grow_shrink()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 #if defined(__GLIBC__) && (__GLIBC__ * 100 + __GLIBC_MINOR__) >= 230
     void *q = reallocarray(nullptr, 4, 128);
     if (q)
@@ -280,7 +280,7 @@ void test_reallocarray_grow_shrink()
 
 void add()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     auto a = new int;
     delete a;
     return;
@@ -288,7 +288,7 @@ void add()
 
 void add2()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     std::vector<int *> pp;
     for (unsigned i = 0; i < 10000; ++i)
     {
@@ -309,7 +309,7 @@ bool sysCheckTcmalloc()
 
 void testAllMalloc()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
 
     test_malloc_free();
     test_calloc();
@@ -335,7 +335,7 @@ void testAllMalloc()
 
 int main()
 {
-    __MERECORDER__::MEM_PROBE;
+    __FASTGRIND__::FAST_GRIND;
     usleep(2500 * 1000);
 
     printf("tid %lu tcmalloc status %u\n", syscall(SYS_gettid), sysCheckTcmalloc());

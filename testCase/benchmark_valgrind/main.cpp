@@ -32,7 +32,7 @@ int main()
         std::deque<std::deque<memBox>> groups;
         for (unsigned i = 0; i < 512; ++i)
         {
-            memBox testBox(-20000 + i * 100, -20000 + i * 100, -19000 + i * 100, -19000 + i * 100);
+            memBox testBox(-20000 + i * 100, -20000 + i * 100, -10000 + i * 100, -10000 + i * 100);
             g.getTouchedGroups(testBox, groups);
         }
     }

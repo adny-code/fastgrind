@@ -102,7 +102,7 @@ set(INSTRUMENT_EXCLUDE_FILES
     ${CMAKE_SOURCE_DIR}/third_party/
     ${CMAKE_SOURCE_DIR}/extern/
     ${CMAKE_SOURCE_DIR}/vendor/
-    ${CMAKE_SOURCE_DIR}/testCase/multi_pkg_compile/pkgB/
+    ${CMAKE_SOURCE_DIR}/testcase/multi_pkg_compile/pkgB/
 )
 list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
 
@@ -119,9 +119,9 @@ target_link_options(fastgrind_instrument INTERFACE -Wl,--export-dynamic)
 # -----------------------------------------------------------------------------
 # Subdirectories
 # -----------------------------------------------------------------------------
-add_subdirectory(testCase/glibc_je_tc_availabe)
-add_subdirectory(testCase/multi_pkg_compile)
-add_subdirectory(testCase/benchmark_box_grouping)
+add_subdirectory(testcase/glibc_je_tc_availabe)
+add_subdirectory(testcase/multi_pkg_compile)
+add_subdirectory(testcase/benchmark_box_grouping)
 
 # -----------------------------------------------------------------------------
 # Install headers

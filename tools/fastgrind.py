@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MERecorder post-processing tool.
+"""fastgrind post-processing tool.
 
 Purpose
 -------
@@ -137,7 +137,7 @@ def generate_html(data, output: str, agg_struct: AggType | None = None):
 	<html lang=\"en\">
 	<head>
 	       <meta charset=\"UTF-8\" />
-	       <title>MERecorder Memory Plot</title>
+	       <title>fastgrind memory plot</title>
 	       <script src=\"https://cdn.plot.ly/plotly-2.30.0.min.js\"></script>
 	       <style>
 		       body {{ font-family: Arial, sans-serif; margin: 12px; }}
@@ -150,7 +150,7 @@ def generate_html(data, output: str, agg_struct: AggType | None = None):
 	       </style>
 	</head>
 	<body>
-	       <h2>MERecorder Memory Timeline (Show Thread::Functions allocation & deallocation by ticks)</h2>
+	       <h2>fastgrind memory timeline (Show Thread::Functions allocation & deallocation by ticks)</h2>
 	       <div class=\"selectors\">
 		       <div>
 			       <label>Threads (multi-select)</label>
@@ -347,7 +347,7 @@ def plot_with_matplotlib(
     # GUI setup.
     root = tk.Tk()
     root.title(
-        "MERecorder Memory Plot (Show Thread::Functions allocation & deallocation by ticks)"
+        "fastgrind memory plot (Show Thread::Functions allocation & deallocation by ticks)"
     )
 
     # Containers.

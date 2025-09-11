@@ -1,3 +1,5 @@
+#pragma once
+
 #include "memBin.h"
 #include "memGroup.h"
 #include <mutex>
@@ -7,9 +9,9 @@ class memBoxGrouping
   public:
     memBoxGrouping();
 
-    void getTouchedGroups(const memBox& q, std::deque<std::deque<memBox>>& groups) const;
+    void getTouchedGroups(const memBox& q, std::deque<std::deque<memBox>>& groups);
 
-    void multiThreadGrouping(unsigned threadCnt) const;
+    void multiThreadGrouping(unsigned threadCnt, unsigned testBoxCnt = 1024);
 
   protected:
     void genRandomBoxes(unsigned count, int minX, int minY, int maxX, int maxY);

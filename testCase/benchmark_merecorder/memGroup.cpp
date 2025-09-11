@@ -40,10 +40,9 @@ void memGroup::add(std::set<unsigned> groups)
     }
 
     for (auto it = groups.begin(); it != groups.end(); ++it)
-    {
         _groups[*it] = header;
-        _cache[*it] = groups;
-    }
+    for (auto& it : groups)
+        _cache[header].emplace(it);
 }
 
 void memGroup::getGroups(unsigned index, std::deque<unsigned> &groups) const
@@ -62,3 +61,4 @@ void memGroup::getGroups(unsigned index, std::deque<unsigned> &groups) const
             }
         }
     }
+}

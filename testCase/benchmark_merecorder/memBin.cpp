@@ -1,5 +1,6 @@
 #include "memBin.h"
 #include <cmath>
+#include <cstdio>
 
 memBin::memBin(memBox binBorder, unsigned grindSise, unsigned dataSize)
     : _binBorder(binBorder), _gridSize(grindSise), _dataSize(dataSize)
@@ -9,6 +10,7 @@ memBin::memBin(memBox binBorder, unsigned grindSise, unsigned dataSize)
 
 void memBin::init(memBox binBorder, unsigned grindSise, unsigned dataSize)
 {
+    _binBorder = binBorder;
     unsigned grindCnt = dataSize / grindSise;
     double rateXY = double(binBorder.width()) / double(binBorder.height());
 
@@ -61,9 +63,9 @@ void memBin::add(const memBox &box)
     }
 }
 
-std::deque<memBox> memBin::query(const memBox &box, bool proper) const
+std::set<memBox> memBin::query(const memBox &box, bool proper) const
 {
-    std::deque<memBox> results;
+    std::set<memBox> results;
     unsigned x1, y1, x2, y2;
     if (!getGridIndex(box, x1, y1, x2, y2))
         return results;
@@ -75,9 +77,22 @@ std::deque<memBox> memBin::query(const memBox &box, bool proper) const
             for (const auto &item : _datas[ix][iy])
             {
                 if (item.overlap(box, proper))
-                    results.emplace_back(item);
+                    results.emplace(item);
             }
         }
     }
     return results;
+}
+
+void memBin::dump() const
+{
+    printf("[Grouping] border: <%d, %d, %d, %d>, gridXCnt: %u, gridYCnt: %u, gridX: %u, gridY: %u \n",
+           _binBorder.leftBottom().x(),
+           _binBorder.leftBottom().y(),
+           _binBorder.rightTop().x(),
+           _binBorder.rightTop().y(),
+           _gridXCnt,
+           _gridYCnt,
+           _gridX,
+           _gridY);
 }

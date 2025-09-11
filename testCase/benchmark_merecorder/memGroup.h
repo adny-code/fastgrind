@@ -1,3 +1,5 @@
+#pragma once
+
 #include <deque>
 #include <map>
 #include <set>
@@ -6,7 +8,7 @@
 class memGroup
 {
   public:
-    memGroup();
+    memGroup() {};
 
     memGroup(unsigned size);
 

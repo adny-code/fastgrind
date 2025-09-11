@@ -1,3 +1,5 @@
+#pragma once
+
 #include <deque>
 
 struct memPoint
@@ -59,12 +61,12 @@ struct memPoint
         return true;
     }
 
-    bool x() const
+    int x() const
     {
         return _x;
     }
 
-    bool y() const
+    int y() const
     {
         return _y;
     }

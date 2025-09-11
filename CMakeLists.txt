@@ -118,7 +118,7 @@ target_compile_definitions(merecorder_instrument INTERFACE MERECORDER_INSTRUMENT
 target_compile_options(merecorder_instrument INTERFACE ${MERECORDER_INSTRUMENT_OPTS})
 
 # Convenience function to apply plain debug options (without instrumentation)
-function(merecorder_apply_debug_options target)
+function(merecorder_apply_options target)
     target_compile_options(${target} PRIVATE ${MERECORDER_BASE_DEBUG_OPTS})
 endfunction()
 
@@ -127,6 +127,7 @@ endfunction()
 # -----------------------------------------------------------------------------
 add_subdirectory(testCase/glibc_je_tc_availabe)
 add_subdirectory(testCase/multi_pkg_compile)
+add_subdirectory(testCase/benchmark_merecorder)
 
 # -----------------------------------------------------------------------------
 # Install headers

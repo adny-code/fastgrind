@@ -15,9 +15,9 @@ memBoxGrouping::memBoxGrouping()
     genGroup();
 }
 
-void memBoxGrouping::getTouchedGroups(const memBox &q, std::deque<std::deque<memBox>> &groups) const
+void memBoxGrouping::getTouchedGroups(const memBox &q, std::deque<std::deque<memBox>> &groups)
 {
-    std::deque<memBox> touchList = _bin.query(q, true);
+    std::set<memBox> touchList = _bin.query(q, true);
     std::set<unsigned> headers;
     for (auto &it : touchList)
     {
@@ -36,15 +36,15 @@ void memBoxGrouping::getTouchedGroups(const memBox &q, std::deque<std::deque<mem
     }
 }
 
-void memBoxGrouping::multiThreadGrouping(unsigned threadCnt) const
+void memBoxGrouping::multiThreadGrouping(unsigned threadCnt, unsigned testBoxCnt)
 {
     std::deque<memBox> testBoxes;
-    genTestBoxes(1024, testBoxes);
+    genTestBoxes(testBoxCnt, testBoxes);
 
     std::map<memBox, std::deque<std::deque<memBox>>> results;
 
     threadCnt = std::max(1u, threadCnt);
-    const unsigned total = 1024u;
+    const unsigned total = testBoxCnt;
     const unsigned step = std::max(1u, (total + threadCnt - 1) / threadCnt);
 
     std::vector<std::thread> threads;
@@ -123,11 +123,11 @@ void memBoxGrouping::genRandomBoxes(unsigned count, int minX, int minY, int maxX
 
     for (unsigned i = 0; i < countX; ++i)
     {
+        curX += dx;
+        curY = minY;
         for (unsigned j = 0; j < countY; ++j)
         {
-            curX += i * dx;
-            curY += j * dy;
-
+            curY += dy;
             int w = getRandom(dx * 0.5, dx * 1.5);
             int h = getRandom(dy * 0.5, dy * 1.5);
 
@@ -138,21 +138,27 @@ void memBoxGrouping::genRandomBoxes(unsigned count, int minX, int minY, int maxX
     }
 
     _border = memBox(minX - (dx * 2), minY - (dy * 2), maxX + (dx * 2), maxY + (dy * 2));
+
+    printf("[Grouping] boxes count: %lu \n", _boxes.size());
 }
 
 void memBoxGrouping::genBin()
 {
     _bin.init(_border, 16, _boxes.size());
+    _bin.dump();
 }
 
 void memBoxGrouping::genGroup()
 {
-    for (auto &b : _boxes)
+    _group.init(_boxes.size());
+    for (unsigned i = 0; i < _boxes.size(); ++i)
     {
-        std::deque<memBox> touchList = _bin.query(b, false);
+        memBox b = _boxes[i];
+        std::set<memBox> touchList = _bin.query(b, false);
         _bin.add(b);
 
         std::set<unsigned> thisGroup;
+        thisGroup.emplace(i);
         for (auto &tb : touchList)
             thisGroup.emplace(_boxMap[tb]);
 

@@ -1,0 +1,38 @@
+#pragma once
+
+#include "memBox.h"
+#include <deque>
+#include <set>
+
+class memBin
+{
+    typedef std::deque<memBox> memBoxList;
+
+  public:
+    memBin() {};
+
+    memBin(memBox binBorder, unsigned grindSise, unsigned dataSize);
+
+    void init(memBox binBorder, unsigned grindSise, unsigned dataSize);
+
+    void add(const memBox &box);
+
+    std::set<memBox> query(const memBox &box, bool proper) const;
+
+    void dump() const;
+
+  protected:
+    bool getGridIndex(const memBox &box, unsigned &x1, unsigned &y1, unsigned &x2, unsigned &y2) const;
+
+  protected:
+    memBox _binBorder;
+
+    unsigned _gridXCnt;
+    unsigned _gridYCnt;
+    unsigned _gridX;
+    unsigned _gridY;
+
+    unsigned _gridSize;
+    unsigned _dataSize;
+    std::deque<std::deque<memBoxList>> _datas;
+};

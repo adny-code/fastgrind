@@ -1,4 +1,6 @@
-#include "fastGrind.h"
+#if defined(FASTGRIND)
+    #include "fastGrind.h"
+#endif
 #include "memBin.h"
 #include "memBoxGrouping.h"
 #include "memGroup.h"

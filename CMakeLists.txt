@@ -121,9 +121,7 @@ target_link_options(fastgrind_instrument INTERFACE -Wl,--export-dynamic)
 # -----------------------------------------------------------------------------
 add_subdirectory(testCase/glibc_je_tc_availabe)
 add_subdirectory(testCase/multi_pkg_compile)
-add_subdirectory(testCase/benchmark_fastgrind)
-add_subdirectory(testCase/benchmark_raw)
-add_subdirectory(testCase/benchmark_valgrind)
+add_subdirectory(testCase/benchmark_box_grouping)
 
 # -----------------------------------------------------------------------------
 # Install headers

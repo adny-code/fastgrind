@@ -2385,6 +2385,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
+    (void) sz;
     }
 
     // override operator delete[](void *p, size_t sz, std::align_val_t al)
@@ -2419,6 +2420,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
+    (void) sz;
     }
 
     // override operator delete(void *p, size_t sz, const std::nothrow_t &)
@@ -2449,6 +2451,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
+    (void) sz;
     }
 
     // override operator delete[](void *p, size_t sz, const std::nothrow_t &)
@@ -2479,6 +2482,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
+    (void) sz;
     }
 
     // override operator new(std::size_t size, std::align_val_t al, const std::nothrow_t &)
@@ -2715,6 +2719,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
+    (void) sz;
     }
 
     // override operator delete[](void *p, size_t sz, std::align_val_t al, const std::nothrow_t &)
@@ -2751,6 +2756,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
+    (void) sz;
     }
 
 #endif

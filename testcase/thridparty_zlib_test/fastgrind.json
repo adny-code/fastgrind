@@ -1,0 +1,2024 @@
+{
+    "0": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 1362706176,
+            "free": 1361903824,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 1362706176,
+                    "free": 1361903824,
+                    "children": [
+                        {
+                            "name": "test_compress_decompress()",
+                            "malloc": 289696,
+                            "free": 289696,
+                            "children": [
+                                {
+                                    "name": "uncompress",
+                                    "malloc": 7160,
+                                    "free": 7160,
+                                    "children": [
+                                        {
+                                            "name": "uncompress2",
+                                            "malloc": 7160,
+                                            "free": 7160,
+                                            "children": [
+                                                {
+                                                    "name": "inflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 7160,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 7160,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "inflateInit_",
+                                                    "malloc": 7160,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "inflateInit2_",
+                                                            "malloc": 7160,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 7160,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "compress",
+                                    "malloc": 268136,
+                                    "free": 268136,
+                                    "children": [
+                                        {
+                                            "name": "compress2",
+                                            "malloc": 268136,
+                                            "free": 268136,
+                                            "children": [
+                                                {
+                                                    "name": "deflateInit_",
+                                                    "malloc": 268136,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateInit2_",
+                                                            "malloc": 268136,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 268136,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "deflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 268136,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 268136,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "stress_test()",
+                            "malloc": 1362126784,
+                            "free": 1361324432,
+                            "children": [
+                                {
+                                    "name": "uncompress",
+                                    "malloc": 34532680,
+                                    "free": 34532680,
+                                    "children": [
+                                        {
+                                            "name": "uncompress2",
+                                            "malloc": 34532680,
+                                            "free": 34532680,
+                                            "children": [
+                                                {
+                                                    "name": "inflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 34532680,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 34532680,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "inflateInit_",
+                                                    "malloc": 34532680,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "inflateInit2_",
+                                                            "malloc": 34532680,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 34532680,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "compress",
+                                    "malloc": 1293488064,
+                                    "free": 1293219928,
+                                    "children": [
+                                        {
+                                            "name": "compress2",
+                                            "malloc": 1293488064,
+                                            "free": 1293219928,
+                                            "children": [
+                                                {
+                                                    "name": "deflateInit_",
+                                                    "malloc": 1293488064,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateInit2_",
+                                                            "malloc": 1293488064,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 1293488064,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "deflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 1293219928,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 1293219928,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "test_deflate_inflate()",
+                            "malloc": 289696,
+                            "free": 289696,
+                            "children": [
+                                {
+                                    "name": "deflateInit_",
+                                    "malloc": 268136,
+                                    "free": 0,
+                                    "children": [
+                                        {
+                                            "name": "deflateInit2_",
+                                            "malloc": 268136,
+                                            "free": 0,
+                                            "children": [
+                                                {
+                                                    "name": "zcalloc",
+                                                    "malloc": 268136,
+                                                    "free": 0,
+                                                    "children": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "deflateEnd",
+                                    "malloc": 0,
+                                    "free": 268136,
+                                    "children": [
+                                        {
+                                            "name": "zcfree",
+                                            "malloc": 0,
+                                            "free": 268136,
+                                            "children": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "inflateEnd",
+                                    "malloc": 0,
+                                    "free": 7160,
+                                    "children": [
+                                        {
+                                            "name": "zcfree",
+                                            "malloc": 0,
+                                            "free": 7160,
+                                            "children": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "inflateInit_",
+                                    "malloc": 7160,
+                                    "free": 0,
+                                    "children": [
+                                        {
+                                            "name": "inflateInit2_",
+                                            "malloc": 7160,
+                                            "free": 0,
+                                            "children": [
+                                                {
+                                                    "name": "zcalloc",
+                                                    "malloc": 7160,
+                                                    "free": 0,
+                                                    "children": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "500": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 1299192544,
+            "free": 1299188096,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 1299192544,
+                    "free": 1299188096,
+                    "children": [
+                        {
+                            "name": "stress_test()",
+                            "malloc": 1299192544,
+                            "free": 1299188096,
+                            "children": [
+                                {
+                                    "name": "uncompress",
+                                    "malloc": 31919312,
+                                    "free": 31919312,
+                                    "children": [
+                                        {
+                                            "name": "uncompress2",
+                                            "malloc": 31919312,
+                                            "free": 31919312,
+                                            "children": [
+                                                {
+                                                    "name": "inflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 31919312,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 31919312,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "inflateInit_",
+                                                    "malloc": 31919312,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "inflateInit2_",
+                                                            "malloc": 31919312,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 31919312,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "compress",
+                                    "malloc": 1195350288,
+                                    "free": 1195350288,
+                                    "children": [
+                                        {
+                                            "name": "compress2",
+                                            "malloc": 1195350288,
+                                            "free": 1195350288,
+                                            "children": [
+                                                {
+                                                    "name": "deflateInit_",
+                                                    "malloc": 1195350288,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateInit2_",
+                                                            "malloc": 1195350288,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 1195350288,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "deflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 1195350288,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 1195350288,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "1000": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 302046600,
+            "free": 213788112,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 302046600,
+                    "free": 213788112,
+                    "children": [
+                        {
+                            "name": "stress_test()",
+                            "malloc": 212981312,
+                            "free": 213788112,
+                            "children": [
+                                {
+                                    "name": "uncompress",
+                                    "malloc": 5148040,
+                                    "free": 5148040,
+                                    "children": [
+                                        {
+                                            "name": "uncompress2",
+                                            "malloc": 5148040,
+                                            "free": 5148040,
+                                            "children": [
+                                                {
+                                                    "name": "inflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 5148040,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 5148040,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "inflateInit_",
+                                                    "malloc": 5148040,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "inflateInit2_",
+                                                            "malloc": 5148040,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 5148040,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "compress",
+                                    "malloc": 192521648,
+                                    "free": 192789784,
+                                    "children": [
+                                        {
+                                            "name": "compress2",
+                                            "malloc": 192521648,
+                                            "free": 192789784,
+                                            "children": [
+                                                {
+                                                    "name": "deflateInit_",
+                                                    "malloc": 192521648,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateInit2_",
+                                                            "malloc": 192521648,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 192521648,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "deflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 192789784,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 192789784,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "test_recursive_compression()",
+                            "malloc": 89065288,
+                            "free": 0,
+                            "children": [
+                                {
+                                    "name": "recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int)",
+                                    "malloc": 44672856,
+                                    "free": 0,
+                                    "children": [
+                                        {
+                                            "name": "compress",
+                                            "malloc": 268136,
+                                            "free": 0,
+                                            "children": [
+                                                {
+                                                    "name": "compress2",
+                                                    "malloc": 268136,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateInit_",
+                                                            "malloc": 268136,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "deflateInit2_",
+                                                                    "malloc": 268136,
+                                                                    "free": 0,
+                                                                    "children": [
+                                                                        {
+                                                                            "name": "zcalloc",
+                                                                            "malloc": 268136,
+                                                                            "free": 0,
+                                                                            "children": []
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "1500": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 11127496,
+            "free": 99144200,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 11127496,
+                    "free": 99144200,
+                    "children": [
+                        {
+                            "name": "test_large_dataset_compression()",
+                            "malloc": 1048584,
+                            "free": 0,
+                            "children": []
+                        },
+                        {
+                            "name": "test_compression_chain()",
+                            "malloc": 6630600,
+                            "free": 6630600,
+                            "children": [
+                                {
+                                    "name": "deflateInit_",
+                                    "malloc": 804408,
+                                    "free": 0,
+                                    "children": [
+                                        {
+                                            "name": "deflateInit2_",
+                                            "malloc": 804408,
+                                            "free": 0,
+                                            "children": [
+                                                {
+                                                    "name": "zcalloc",
+                                                    "malloc": 804408,
+                                                    "free": 0,
+                                                    "children": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "deflateEnd",
+                                    "malloc": 0,
+                                    "free": 804408,
+                                    "children": [
+                                        {
+                                            "name": "zcfree",
+                                            "malloc": 0,
+                                            "free": 804408,
+                                            "children": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "inflateEnd",
+                                    "malloc": 0,
+                                    "free": 14320,
+                                    "children": [
+                                        {
+                                            "name": "zcfree",
+                                            "malloc": 0,
+                                            "free": 14320,
+                                            "children": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "inflateInit_",
+                                    "malloc": 14320,
+                                    "free": 0,
+                                    "children": [
+                                        {
+                                            "name": "inflateInit2_",
+                                            "malloc": 14320,
+                                            "free": 0,
+                                            "children": [
+                                                {
+                                                    "name": "zcalloc",
+                                                    "malloc": 14320,
+                                                    "free": 0,
+                                                    "children": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "test_recursive_compression()",
+                            "malloc": 3448312,
+                            "free": 92513600,
+                            "children": [
+                                {
+                                    "name": "recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int)",
+                                    "malloc": 3448312,
+                                    "free": 48098424,
+                                    "children": [
+                                        {
+                                            "name": "recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int)",
+                                            "malloc": 3448312,
+                                            "free": 3425568,
+                                            "children": [
+                                                {
+                                                    "name": "recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int)",
+                                                    "malloc": 1774632,
+                                                    "free": 1751888,
+                                                    "children": [
+                                                        {
+                                                            "name": "recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int)",
+                                                            "malloc": 1476984,
+                                                            "free": 1454240,
+                                                            "children": [
+                                                                {
+                                                                    "name": "recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int)",
+                                                                    "malloc": 1186168,
+                                                                    "free": 1163424,
+                                                                    "children": [
+                                                                        {
+                                                                            "name": "recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int)",
+                                                                            "malloc": 895336,
+                                                                            "free": 872592,
+                                                                            "children": [
+                                                                                {
+                                                                                    "name": "recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int)",
+                                                                                    "malloc": 604488,
+                                                                                    "free": 581744,
+                                                                                    "children": [
+                                                                                        {
+                                                                                            "name": "recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int)",
+                                                                                            "malloc": 313624,
+                                                                                            "free": 290880,
+                                                                                            "children": [
+                                                                                                {
+                                                                                                    "name": "recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int)",
+                                                                                                    "malloc": 22744,
+                                                                                                    "free": 0,
+                                                                                                    "children": []
+                                                                                                },
+                                                                                                {
+                                                                                                    "name": "compress",
+                                                                                                    "malloc": 268136,
+                                                                                                    "free": 268136,
+                                                                                                    "children": [
+                                                                                                        {
+                                                                                                            "name": "compress2",
+                                                                                                            "malloc": 268136,
+                                                                                                            "free": 268136,
+                                                                                                            "children": [
+                                                                                                                {
+                                                                                                                    "name": "deflateInit_",
+                                                                                                                    "malloc": 268136,
+                                                                                                                    "free": 0,
+                                                                                                                    "children": [
+                                                                                                                        {
+                                                                                                                            "name": "deflateInit2_",
+                                                                                                                            "malloc": 268136,
+                                                                                                                            "free": 0,
+                                                                                                                            "children": [
+                                                                                                                                {
+                                                                                                                                    "name": "zcalloc",
+                                                                                                                                    "malloc": 268136,
+                                                                                                                                    "free": 0,
+                                                                                                                                    "children": []
+                                                                                                                                }
+                                                                                                                            ]
+                                                                                                                        }
+                                                                                                                    ]
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    "name": "deflateEnd",
+                                                                                                                    "malloc": 0,
+                                                                                                                    "free": 268136,
+                                                                                                                    "children": [
+                                                                                                                        {
+                                                                                                                            "name": "zcfree",
+                                                                                                                            "malloc": 0,
+                                                                                                                            "free": 268136,
+                                                                                                                            "children": []
+                                                                                                                        }
+                                                                                                                    ]
+                                                                                                                }
+                                                                                                            ]
+                                                                                                        }
+                                                                                                    ]
+                                                                                                }
+                                                                                            ]
+                                                                                        },
+                                                                                        {
+                                                                                            "name": "compress",
+                                                                                            "malloc": 268136,
+                                                                                            "free": 268136,
+                                                                                            "children": [
+                                                                                                {
+                                                                                                    "name": "compress2",
+                                                                                                    "malloc": 268136,
+                                                                                                    "free": 268136,
+                                                                                                    "children": [
+                                                                                                        {
+                                                                                                            "name": "deflateInit_",
+                                                                                                            "malloc": 268136,
+                                                                                                            "free": 0,
+                                                                                                            "children": [
+                                                                                                                {
+                                                                                                                    "name": "deflateInit2_",
+                                                                                                                    "malloc": 268136,
+                                                                                                                    "free": 0,
+                                                                                                                    "children": [
+                                                                                                                        {
+                                                                                                                            "name": "zcalloc",
+                                                                                                                            "malloc": 268136,
+                                                                                                                            "free": 0,
+                                                                                                                            "children": []
+                                                                                                                        }
+                                                                                                                    ]
+                                                                                                                }
+                                                                                                            ]
+                                                                                                        },
+                                                                                                        {
+                                                                                                            "name": "deflateEnd",
+                                                                                                            "malloc": 0,
+                                                                                                            "free": 268136,
+                                                                                                            "children": [
+                                                                                                                {
+                                                                                                                    "name": "zcfree",
+                                                                                                                    "malloc": 0,
+                                                                                                                    "free": 268136,
+                                                                                                                    "children": []
+                                                                                                                }
+                                                                                                            ]
+                                                                                                        }
+                                                                                                    ]
+                                                                                                }
+                                                                                            ]
+                                                                                        }
+                                                                                    ]
+                                                                                },
+                                                                                {
+                                                                                    "name": "compress",
+                                                                                    "malloc": 268136,
+                                                                                    "free": 268136,
+                                                                                    "children": [
+                                                                                        {
+                                                                                            "name": "compress2",
+                                                                                            "malloc": 268136,
+                                                                                            "free": 268136,
+                                                                                            "children": [
+                                                                                                {
+                                                                                                    "name": "deflateInit_",
+                                                                                                    "malloc": 268136,
+                                                                                                    "free": 0,
+                                                                                                    "children": [
+                                                                                                        {
+                                                                                                            "name": "deflateInit2_",
+                                                                                                            "malloc": 268136,
+                                                                                                            "free": 0,
+                                                                                                            "children": [
+                                                                                                                {
+                                                                                                                    "name": "zcalloc",
+                                                                                                                    "malloc": 268136,
+                                                                                                                    "free": 0,
+                                                                                                                    "children": []
+                                                                                                                }
+                                                                                                            ]
+                                                                                                        }
+                                                                                                    ]
+                                                                                                },
+                                                                                                {
+                                                                                                    "name": "deflateEnd",
+                                                                                                    "malloc": 0,
+                                                                                                    "free": 268136,
+                                                                                                    "children": [
+                                                                                                        {
+                                                                                                            "name": "zcfree",
+                                                                                                            "malloc": 0,
+                                                                                                            "free": 268136,
+                                                                                                            "children": []
+                                                                                                        }
+                                                                                                    ]
+                                                                                                }
+                                                                                            ]
+                                                                                        }
+                                                                                    ]
+                                                                                }
+                                                                            ]
+                                                                        },
+                                                                        {
+                                                                            "name": "compress",
+                                                                            "malloc": 268136,
+                                                                            "free": 268136,
+                                                                            "children": [
+                                                                                {
+                                                                                    "name": "compress2",
+                                                                                    "malloc": 268136,
+                                                                                    "free": 268136,
+                                                                                    "children": [
+                                                                                        {
+                                                                                            "name": "deflateInit_",
+                                                                                            "malloc": 268136,
+                                                                                            "free": 0,
+                                                                                            "children": [
+                                                                                                {
+                                                                                                    "name": "deflateInit2_",
+                                                                                                    "malloc": 268136,
+                                                                                                    "free": 0,
+                                                                                                    "children": [
+                                                                                                        {
+                                                                                                            "name": "zcalloc",
+                                                                                                            "malloc": 268136,
+                                                                                                            "free": 0,
+                                                                                                            "children": []
+                                                                                                        }
+                                                                                                    ]
+                                                                                                }
+                                                                                            ]
+                                                                                        },
+                                                                                        {
+                                                                                            "name": "deflateEnd",
+                                                                                            "malloc": 0,
+                                                                                            "free": 268136,
+                                                                                            "children": [
+                                                                                                {
+                                                                                                    "name": "zcfree",
+                                                                                                    "malloc": 0,
+                                                                                                    "free": 268136,
+                                                                                                    "children": []
+                                                                                                }
+                                                                                            ]
+                                                                                        }
+                                                                                    ]
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "name": "compress",
+                                                                    "malloc": 268136,
+                                                                    "free": 268136,
+                                                                    "children": [
+                                                                        {
+                                                                            "name": "compress2",
+                                                                            "malloc": 268136,
+                                                                            "free": 268136,
+                                                                            "children": [
+                                                                                {
+                                                                                    "name": "deflateInit_",
+                                                                                    "malloc": 268136,
+                                                                                    "free": 0,
+                                                                                    "children": [
+                                                                                        {
+                                                                                            "name": "deflateInit2_",
+                                                                                            "malloc": 268136,
+                                                                                            "free": 0,
+                                                                                            "children": [
+                                                                                                {
+                                                                                                    "name": "zcalloc",
+                                                                                                    "malloc": 268136,
+                                                                                                    "free": 0,
+                                                                                                    "children": []
+                                                                                                }
+                                                                                            ]
+                                                                                        }
+                                                                                    ]
+                                                                                },
+                                                                                {
+                                                                                    "name": "deflateEnd",
+                                                                                    "malloc": 0,
+                                                                                    "free": 268136,
+                                                                                    "children": [
+                                                                                        {
+                                                                                            "name": "zcfree",
+                                                                                            "malloc": 0,
+                                                                                            "free": 268136,
+                                                                                            "children": []
+                                                                                        }
+                                                                                    ]
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "name": "compress",
+                                                            "malloc": 268136,
+                                                            "free": 268136,
+                                                            "children": [
+                                                                {
+                                                                    "name": "compress2",
+                                                                    "malloc": 268136,
+                                                                    "free": 268136,
+                                                                    "children": [
+                                                                        {
+                                                                            "name": "deflateInit_",
+                                                                            "malloc": 268136,
+                                                                            "free": 0,
+                                                                            "children": [
+                                                                                {
+                                                                                    "name": "deflateInit2_",
+                                                                                    "malloc": 268136,
+                                                                                    "free": 0,
+                                                                                    "children": [
+                                                                                        {
+                                                                                            "name": "zcalloc",
+                                                                                            "malloc": 268136,
+                                                                                            "free": 0,
+                                                                                            "children": []
+                                                                                        }
+                                                                                    ]
+                                                                                }
+                                                                            ]
+                                                                        },
+                                                                        {
+                                                                            "name": "deflateEnd",
+                                                                            "malloc": 0,
+                                                                            "free": 268136,
+                                                                            "children": [
+                                                                                {
+                                                                                    "name": "zcfree",
+                                                                                    "malloc": 0,
+                                                                                    "free": 268136,
+                                                                                    "children": []
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "compress",
+                                                    "malloc": 268136,
+                                                    "free": 268136,
+                                                    "children": [
+                                                        {
+                                                            "name": "compress2",
+                                                            "malloc": 268136,
+                                                            "free": 268136,
+                                                            "children": [
+                                                                {
+                                                                    "name": "deflateInit_",
+                                                                    "malloc": 268136,
+                                                                    "free": 0,
+                                                                    "children": [
+                                                                        {
+                                                                            "name": "deflateInit2_",
+                                                                            "malloc": 268136,
+                                                                            "free": 0,
+                                                                            "children": [
+                                                                                {
+                                                                                    "name": "zcalloc",
+                                                                                    "malloc": 268136,
+                                                                                    "free": 0,
+                                                                                    "children": []
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "name": "deflateEnd",
+                                                                    "malloc": 0,
+                                                                    "free": 268136,
+                                                                    "children": [
+                                                                        {
+                                                                            "name": "zcfree",
+                                                                            "malloc": 0,
+                                                                            "free": 268136,
+                                                                            "children": []
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "compress",
+                                            "malloc": 0,
+                                            "free": 268136,
+                                            "children": [
+                                                {
+                                                    "name": "compress2",
+                                                    "malloc": 0,
+                                                    "free": 268136,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateEnd",
+                                                            "malloc": 0,
+                                                            "free": 268136,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcfree",
+                                                                    "malloc": 0,
+                                                                    "free": 268136,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "2000": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 54527920,
+            "free": 27263960,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 54527920,
+                    "free": 27263960,
+                    "children": [
+                        {
+                            "name": "test_large_dataset_compression()",
+                            "malloc": 54527920,
+                            "free": 27263960,
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "2500": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 54527912,
+            "free": 27263960,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 54527912,
+                    "free": 27263960,
+                    "children": [
+                        {
+                            "name": "test_large_dataset_compression()",
+                            "malloc": 54527912,
+                            "free": 27263960,
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "3000": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 52432280,
+            "free": 26216144,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 52432280,
+                    "free": 26216144,
+                    "children": [
+                        {
+                            "name": "test_large_dataset_compression()",
+                            "malloc": 52432280,
+                            "free": 26216144,
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "3500": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 58008352,
+            "free": 33608712,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 58008352,
+                    "free": 33608712,
+                    "children": [
+                        {
+                            "name": "test_large_dataset_compression()",
+                            "malloc": 58008352,
+                            "free": 33608712,
+                            "children": [
+                                {
+                                    "name": "uncompress",
+                                    "malloc": 28640,
+                                    "free": 28640,
+                                    "children": [
+                                        {
+                                            "name": "uncompress2",
+                                            "malloc": 28640,
+                                            "free": 28640,
+                                            "children": [
+                                                {
+                                                    "name": "inflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 28640,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 28640,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "inflateInit_",
+                                                    "malloc": 28640,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "inflateInit2_",
+                                                            "malloc": 28640,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 28640,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "compress",
+                                    "malloc": 1340680,
+                                    "free": 1072544,
+                                    "children": [
+                                        {
+                                            "name": "compress2",
+                                            "malloc": 1340680,
+                                            "free": 1072544,
+                                            "children": [
+                                                {
+                                                    "name": "deflateInit_",
+                                                    "malloc": 1340680,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateInit2_",
+                                                            "malloc": 1340680,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 1340680,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "deflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 1072544,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 1072544,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "4000": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 78430760,
+            "free": 78303872,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 78430760,
+                    "free": 78303872,
+                    "children": [
+                        {
+                            "name": "test_large_dataset_compression()",
+                            "malloc": 78430760,
+                            "free": 78303872,
+                            "children": [
+                                {
+                                    "name": "uncompress",
+                                    "malloc": 236280,
+                                    "free": 236280,
+                                    "children": [
+                                        {
+                                            "name": "uncompress2",
+                                            "malloc": 236280,
+                                            "free": 236280,
+                                            "children": [
+                                                {
+                                                    "name": "inflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 236280,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 236280,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "inflateInit_",
+                                                    "malloc": 236280,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "inflateInit2_",
+                                                            "malloc": 236280,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 236280,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "compress",
+                                    "malloc": 8848488,
+                                    "free": 8848488,
+                                    "children": [
+                                        {
+                                            "name": "compress2",
+                                            "malloc": 8848488,
+                                            "free": 8848488,
+                                            "children": [
+                                                {
+                                                    "name": "deflateInit_",
+                                                    "malloc": 8848488,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateInit2_",
+                                                            "malloc": 8848488,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 8848488,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "deflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 8848488,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 8848488,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "4500": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 80808200,
+            "free": 80676744,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 80808200,
+                    "free": 80676744,
+                    "children": [
+                        {
+                            "name": "test_large_dataset_compression()",
+                            "malloc": 80808200,
+                            "free": 80676744,
+                            "children": [
+                                {
+                                    "name": "uncompress",
+                                    "malloc": 243440,
+                                    "free": 243440,
+                                    "children": [
+                                        {
+                                            "name": "uncompress2",
+                                            "malloc": 243440,
+                                            "free": 243440,
+                                            "children": [
+                                                {
+                                                    "name": "inflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 243440,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 243440,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "inflateInit_",
+                                                    "malloc": 243440,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "inflateInit2_",
+                                                            "malloc": 243440,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 243440,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "compress",
+                                    "malloc": 9116624,
+                                    "free": 9116624,
+                                    "children": [
+                                        {
+                                            "name": "compress2",
+                                            "malloc": 9116624,
+                                            "free": 9116624,
+                                            "children": [
+                                                {
+                                                    "name": "deflateInit_",
+                                                    "malloc": 9116624,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateInit2_",
+                                                            "malloc": 9116624,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 9116624,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "deflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 9116624,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 9116624,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "5000": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 81572824,
+            "free": 174055680,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 81572824,
+                    "free": 174055680,
+                    "children": [
+                        {
+                            "name": "test_large_dataset_compression()",
+                            "malloc": 67605064,
+                            "free": 174055680,
+                            "children": [
+                                {
+                                    "name": "uncompress",
+                                    "malloc": 207640,
+                                    "free": 207640,
+                                    "children": [
+                                        {
+                                            "name": "uncompress2",
+                                            "malloc": 207640,
+                                            "free": 207640,
+                                            "children": [
+                                                {
+                                                    "name": "inflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 207640,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 207640,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "inflateInit_",
+                                                    "malloc": 207640,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "inflateInit2_",
+                                                            "malloc": 207640,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 207640,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "compress",
+                                    "malloc": 7507808,
+                                    "free": 7775944,
+                                    "children": [
+                                        {
+                                            "name": "compress2",
+                                            "malloc": 7507808,
+                                            "free": 7775944,
+                                            "children": [
+                                                {
+                                                    "name": "deflateInit_",
+                                                    "malloc": 7507808,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateInit2_",
+                                                            "malloc": 7507808,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 7507808,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "deflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 7775944,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 7775944,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "test_recursive_stream_processing()",
+                            "malloc": 13967760,
+                            "free": 0,
+                            "children": [
+                                {
+                                    "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                    "malloc": 10959840,
+                                    "free": 0,
+                                    "children": [
+                                        {
+                                            "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                            "malloc": 8219880,
+                                            "free": 0,
+                                            "children": [
+                                                {
+                                                    "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                                    "malloc": 5479920,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                                            "malloc": 2739960,
+                                                            "free": 0,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "deflateInit_",
+                                    "malloc": 268136,
+                                    "free": 0,
+                                    "children": [
+                                        {
+                                            "name": "deflateInit2_",
+                                            "malloc": 268136,
+                                            "free": 0,
+                                            "children": [
+                                                {
+                                                    "name": "zcalloc",
+                                                    "malloc": 268136,
+                                                    "free": 0,
+                                                    "children": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "5500": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 33025408,
+            "free": 33153616,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 33025408,
+                    "free": 33153616,
+                    "children": [
+                        {
+                            "name": "test_recursive_stream_processing()",
+                            "malloc": 19185856,
+                            "free": 33153616,
+                            "children": [
+                                {
+                                    "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                    "malloc": 16439760,
+                                    "free": 27399600,
+                                    "children": [
+                                        {
+                                            "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                            "malloc": 16439760,
+                                            "free": 24659640,
+                                            "children": [
+                                                {
+                                                    "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                                    "malloc": 16439760,
+                                                    "free": 21919680,
+                                                    "children": [
+                                                        {
+                                                            "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                                            "malloc": 16439760,
+                                                            "free": 19179720,
+                                                            "children": [
+                                                                {
+                                                                    "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                                                    "malloc": 16439760,
+                                                                    "free": 16439760,
+                                                                    "children": [
+                                                                        {
+                                                                            "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                                                            "malloc": 13699800,
+                                                                            "free": 13699800,
+                                                                            "children": [
+                                                                                {
+                                                                                    "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                                                                    "malloc": 10959840,
+                                                                                    "free": 10959840,
+                                                                                    "children": [
+                                                                                        {
+                                                                                            "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                                                                            "malloc": 8219880,
+                                                                                            "free": 8219880,
+                                                                                            "children": [
+                                                                                                {
+                                                                                                    "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                                                                                    "malloc": 5479920,
+                                                                                                    "free": 5479920,
+                                                                                                    "children": [
+                                                                                                        {
+                                                                                                            "name": "recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int)",
+                                                                                                            "malloc": 2739960,
+                                                                                                            "free": 2739960,
+                                                                                                            "children": []
+                                                                                                        }
+                                                                                                    ]
+                                                                                                }
+                                                                                            ]
+                                                                                        }
+                                                                                    ]
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "deflateEnd",
+                                    "malloc": 0,
+                                    "free": 268136,
+                                    "children": [
+                                        {
+                                            "name": "zcfree",
+                                            "malloc": 0,
+                                            "free": 268136,
+                                            "children": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "inflateEnd",
+                                    "malloc": 0,
+                                    "free": 7160,
+                                    "children": [
+                                        {
+                                            "name": "zcfree",
+                                            "malloc": 0,
+                                            "free": 7160,
+                                            "children": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "inflateInit_",
+                                    "malloc": 7160,
+                                    "free": 0,
+                                    "children": [
+                                        {
+                                            "name": "inflateInit2_",
+                                            "malloc": 7160,
+                                            "free": 0,
+                                            "children": [
+                                                {
+                                                    "name": "zcalloc",
+                                                    "malloc": 7160,
+                                                    "free": 0,
+                                                    "children": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "test_nested_dictionary_compression()",
+                            "malloc": 13839552,
+                            "free": 0,
+                            "children": [
+                                {
+                                    "name": "create_compression_dictionary(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&, std::vector<unsigned char, std::allocator<unsigned char> >&)",
+                                    "malloc": 184,
+                                    "free": 0,
+                                    "children": []
+                                },
+                                {
+                                    "name": "nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > const&, int)",
+                                    "malloc": 268136,
+                                    "free": 0,
+                                    "children": [
+                                        {
+                                            "name": "deflateInit_",
+                                            "malloc": 268136,
+                                            "free": 0,
+                                            "children": [
+                                                {
+                                                    "name": "deflateInit2_",
+                                                    "malloc": 268136,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcalloc",
+                                                            "malloc": 268136,
+                                                            "free": 0,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "6000": {
+        "2222787": {
+            "name": "(null)",
+            "malloc": 2629240,
+            "free": 16468792,
+            "children": [
+                {
+                    "name": "main",
+                    "malloc": 2629240,
+                    "free": 16468792,
+                    "children": [
+                        {
+                            "name": "test_nested_dictionary_compression()",
+                            "malloc": 2629240,
+                            "free": 16468792,
+                            "children": [
+                                {
+                                    "name": "nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > const&, int)",
+                                    "malloc": 2629240,
+                                    "free": 2897376,
+                                    "children": [
+                                        {
+                                            "name": "nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > const&, int)",
+                                            "malloc": 961320,
+                                            "free": 961320,
+                                            "children": [
+                                                {
+                                                    "name": "nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > const&, int)",
+                                                    "malloc": 609248,
+                                                    "free": 609248,
+                                                    "children": [
+                                                        {
+                                                            "name": "nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > const&, int)",
+                                                            "malloc": 268136,
+                                                            "free": 268136,
+                                                            "children": [
+                                                                {
+                                                                    "name": "deflateInit_",
+                                                                    "malloc": 268136,
+                                                                    "free": 0,
+                                                                    "children": [
+                                                                        {
+                                                                            "name": "deflateInit2_",
+                                                                            "malloc": 268136,
+                                                                            "free": 0,
+                                                                            "children": [
+                                                                                {
+                                                                                    "name": "zcalloc",
+                                                                                    "malloc": 268136,
+                                                                                    "free": 0,
+                                                                                    "children": []
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "name": "deflateEnd",
+                                                                    "malloc": 0,
+                                                                    "free": 268136,
+                                                                    "children": [
+                                                                        {
+                                                                            "name": "zcfree",
+                                                                            "malloc": 0,
+                                                                            "free": 268136,
+                                                                            "children": []
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "name": "deflateInit_",
+                                                            "malloc": 268136,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "deflateInit2_",
+                                                                    "malloc": 268136,
+                                                                    "free": 0,
+                                                                    "children": [
+                                                                        {
+                                                                            "name": "zcalloc",
+                                                                            "malloc": 268136,
+                                                                            "free": 0,
+                                                                            "children": []
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "name": "deflateEnd",
+                                                            "malloc": 0,
+                                                            "free": 268136,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcfree",
+                                                                    "malloc": 0,
+                                                                    "free": 268136,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "deflateInit_",
+                                                    "malloc": 268136,
+                                                    "free": 0,
+                                                    "children": [
+                                                        {
+                                                            "name": "deflateInit2_",
+                                                            "malloc": 268136,
+                                                            "free": 0,
+                                                            "children": [
+                                                                {
+                                                                    "name": "zcalloc",
+                                                                    "malloc": 268136,
+                                                                    "free": 0,
+                                                                    "children": []
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "name": "deflateEnd",
+                                                    "malloc": 0,
+                                                    "free": 268136,
+                                                    "children": [
+                                                        {
+                                                            "name": "zcfree",
+                                                            "malloc": 0,
+                                                            "free": 268136,
+                                                            "children": []
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "name": "deflateEnd",
+                                            "malloc": 0,
+                                            "free": 268136,
+                                            "children": [
+                                                {
+                                                    "name": "zcfree",
+                                                    "malloc": 0,
+                                                    "free": 268136,
+                                                    "children": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

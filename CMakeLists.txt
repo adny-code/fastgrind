@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-project(mmPool VERSION 1.0 LANGUAGES CXX)
+project(fastgrind VERSION 1.0 LANGUAGES CXX)
 
 # -----------------------------------------------------------------------------
 # Global configuration
@@ -20,12 +20,15 @@ target_include_directories(fastgrind_includes INTERFACE ${CMAKE_SOURCE_DIR}/incl
 
 # -----------------------------------------------------------------------------
 # Linker wrap flags (centralized)
+# Memory allocation function wrappers for instrumentation and interception
 # -----------------------------------------------------------------------------
 set(WRAP_FLAGS
+    # Standard C memory allocation functions
     -Wl,--wrap=malloc
     -Wl,--wrap=calloc
     -Wl,--wrap=realloc
     -Wl,--wrap=free
+    # C++ new/delete operators (mangled names)
     -Wl,--wrap=_Znwm
     -Wl,--wrap=_Znam
     -Wl,--wrap=_ZdlPv
@@ -34,11 +37,13 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZnamRKSt9nothrow_t
     -Wl,--wrap=_ZdlPvRKSt9nothrow_t
     -Wl,--wrap=_ZdaPvRKSt9nothrow_t
+    # System calls (commented out for stability)
     # -Wl,--wrap=sbrk
     # -Wl,--wrap=brk
     # -Wl,--wrap=mmap
     # -Wl,--wrap=munmap
     # -Wl,--wrap=mremap
+    # POSIX and GNU extension memory functions
     -Wl,--wrap=valloc
     -Wl,--wrap=pvalloc
     -Wl,--wrap=memalign
@@ -47,6 +52,7 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZdaPvm
     -Wl,--wrap=_ZdlPvm
     -Wl,--wrap=aligned_alloc
+    # C++17 aligned allocation operators
     -Wl,--wrap=_ZnwmSt11align_val_t
     -Wl,--wrap=_ZnamSt11align_val_t
     -Wl,--wrap=_ZdlPvSt11align_val_t
@@ -62,7 +68,6 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZdlPvmSt11align_val_tRKSt9nothrow_t
     -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
 )
-
 add_library(fastgrind_wrap_flags INTERFACE)
 target_link_options(fastgrind_wrap_flags INTERFACE ${WRAP_FLAGS})
 
@@ -70,7 +75,7 @@ target_link_options(fastgrind_wrap_flags INTERFACE ${WRAP_FLAGS})
 # Instrumentation exclusion list & helper interface
 # -----------------------------------------------------------------------------
 set(INSTRUMENT_EXCLUDE_FILES
-    # Must be excluded
+    # System headers, must be excluded
     /usr/include/c++/
     /usr/include/x86_64-linux-gnu/c++/
     /usr/lib/gcc/
@@ -111,6 +116,7 @@ set(fastgrind_base_compile_opts -O3)
 set(fastgrind_instrument_compile_opts ${fastgrind_base_compile_opts} -DFASTGRIND_INSTRUMENT)
 list(APPEND fastgrind_instrument_compile_opts -finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})
 
+# Export all symbols for dynamic lookup
 add_library(fastgrind_instrument INTERFACE)
 target_compile_options(fastgrind_instrument INTERFACE ${fastgrind_instrument_compile_opts})
 target_link_options(fastgrind_instrument INTERFACE -Wl,--export-dynamic)
@@ -121,6 +127,7 @@ target_link_options(fastgrind_instrument INTERFACE -Wl,--export-dynamic)
 add_subdirectory(testcase/glibc_je_tc_availabe)
 add_subdirectory(testcase/multi_pkg_compile)
 add_subdirectory(testcase/benchmark_box_grouping)
+add_subdirectory(testcase/cpp_feature_test)
 
 # -----------------------------------------------------------------------------
 # Install headers

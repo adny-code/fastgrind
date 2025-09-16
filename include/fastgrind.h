@@ -6,7 +6,7 @@
  * memory allocation/deallocation (malloc/new family, and optionally low level
  * syscalls) to build per-thread, per-time-slice statistics. Captured data is
  * organized by synthetic frames (derived from the active function call stack)
- * and can be exported as a hierarchical JSON tree suitable for visualization.
+ * and can be exported two files (fastgrind.json/fastgrind.text) for analysis.
  * @details
  * Usage pattern:
  *   1. Include this header in one translation unit (typically a .cpp).
@@ -15,7 +15,7 @@
  *   3. Annotate functions of interest with FAST_GRIND macro (or rely on global
  *      interception) to push/pop symbolic stack entries.
  *   4. At process end (static destruction) memGlobalInfo automatically dumps
- *      human readable and JSON formatted results (fastgrind.json).
+ *      human readable results (fastgrind.json/fastgrind.text).
  *
  * @note Thread safety: Per-thread accumulation is stored in thread local structures
  * and periodically merged into a global, mutex-protected container on thread
@@ -26,11 +26,12 @@
  *  - When a block of memory is allocated and released in different function stack
  *    frames, it will be recorded truthfully, resulting in the memory allocated and
  *    released in those function stack frames being mismatched.
- *  - Export JSON file overwrites previous content.
+ *  - Export files overwrite previous content.
  *
  * @author
  * For any advice or questions, please contact us:
  *  - email: zfzmalloc@gmail.com
+ *  - github: https://github.com/adny-code/fastgrind
  *
  * @copyright
  * See LICENSE for details.

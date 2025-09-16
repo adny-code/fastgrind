@@ -28,6 +28,8 @@ private:
     int failedTests_ = 0;
     
 public:
+    TestRunner() = default;
+
     template<typename TestFunc>
     void runTest(const std::string& testName, TestFunc testFunc) {
         std::cout << "\n🧪 Running: " << testName << std::endl;
@@ -73,42 +75,29 @@ public:
     }
 };
 
-void showTestMenu() {
-    std::cout << "\n🔧 C++ Features Test Suite" << std::endl;
-    std::cout << "============================" << std::endl;
-    std::cout << "1. Object-Oriented Programming Features (Virtual Functions, Polymorphism)" << std::endl;
-    std::cout << "2. Template Programming & Metaprogramming" << std::endl;
-    std::cout << "3. Modern C++ Features (C++11/14/17)" << std::endl;
-    std::cout << "4. Namespace Features" << std::endl;
-    std::cout << "5. Run ALL Tests" << std::endl;
-    std::cout << "6. Interactive Test Selection" << std::endl;
-    std::cout << "0. Exit" << std::endl;
-    std::cout << "============================" << std::endl;
-}
-
 void runOOPTests() {
     printBanner("OBJECT-ORIENTED PROGRAMMING TESTS");
     
     TestRunner runner;
     
     runner.runTest("Virtual Functions Test", []() {
-        test_oop::testVirtualFunctions();
+        testVirtualFunctions();
     });
     
     runner.runTest("Multiple Inheritance Test", []() {
-        test_oop::testMultipleInheritance();
+        testMultipleInheritance();
     });
     
     runner.runTest("Function Overloading Test", []() {
-        test_oop::testFunctionOverloading();
+        testFunctionOverloading();
     });
     
     runner.runTest("Abstract Classes Test", []() {
-        test_oop::testAbstractClasses();
+        testAbstractClasses();
     });
     
     runner.runTest("Polymorphism Test", []() {
-        test_oop::testPolymorphism();
+        testPolymorphism();
     });
     
     runner.printSummary();
@@ -290,66 +279,6 @@ void runAllTests() {
     std::cout << "\n🎉 All C++ feature tests completed successfully! 🎉" << std::endl;
 }
 
-void runInteractiveTests() {
-    std::cout << "\n🎮 Interactive Test Selection" << std::endl;
-    std::cout << "==============================" << std::endl;
-    
-    while (true) {
-        std::cout << "\nSelect test category:" << std::endl;
-        std::cout << "1. OOP - Virtual Functions" << std::endl;
-        std::cout << "2. OOP - Multiple Inheritance" << std::endl;
-        std::cout << "3. OOP - Function Overloading" << std::endl;
-        std::cout << "4. OOP - Abstract Classes" << std::endl;
-        std::cout << "5. OOP - Polymorphism" << std::endl;
-        std::cout << "6. Templates - Basic Templates" << std::endl;
-        std::cout << "7. Templates - Advanced (SFINAE)" << std::endl;
-        std::cout << "8. Templates - Metaprogramming" << std::endl;
-        std::cout << "9. Modern C++ - Lambda & Auto" << std::endl;
-        std::cout << "10. Modern C++ - Smart Pointers" << std::endl;
-        std::cout << "11. Modern C++ - C++17 Features" << std::endl;
-        std::cout << "12. Namespace - Basic Features" << std::endl;
-        std::cout << "13. Namespace - Advanced Features" << std::endl;
-        std::cout << "0. Back to main menu" << std::endl;
-        
-        int choice;
-        std::cout << "\nEnter your choice: ";
-        std::cin >> choice;
-        
-        switch (choice) {
-            case 1: test_oop::testVirtualFunctions(); break;
-            case 2: test_oop::testMultipleInheritance(); break;
-            case 3: test_oop::testFunctionOverloading(); break;
-            case 4: test_oop::testAbstractClasses(); break;
-            case 5: test_oop::testPolymorphism(); break;
-            case 6: test_templates::testBasicTemplates(); break;
-            case 7: test_templates::testAdvancedTemplates(); break;
-            case 8: test_templates::testMetaprogramming(); break;
-            case 9: 
-                test_modern_cpp::testLambdaExpressions();
-                test_modern_cpp::testAutoKeyword();
-                break;
-            case 10: test_modern_cpp::testSmartPointers(); break;
-            case 11: test_modern_cpp::testCpp17Features(); break;
-            case 12:
-                testBasicNamespace();
-                testNestedNamespace();
-                break;
-            case 13:
-                testADL();
-                testInlineNamespace();
-                break;
-            case 0: return;
-            default:
-                std::cout << "❌ Invalid choice! Please try again." << std::endl;
-                continue;
-        }
-        
-        std::cout << "\nPress Enter to continue...";
-        std::cin.ignore();
-        std::cin.get();
-    }
-}
-
 int main() {
     std::cout << "🔬 C++ Features Comprehensive Test Suite" << std::endl;
     std::cout << "==========================================" << std::endl;
@@ -359,45 +288,8 @@ int main() {
     std::cout << "• Modern C++ features (C++11/14/17)" << std::endl;
     std::cout << "• Namespace scope management and conflict resolution" << std::endl;
     
-    while (true) {
-        showTestMenu();
-        
-        int choice;
-        std::cout << "\nEnter your choice: ";
-        std::cin >> choice;
-        
-        switch (choice) {
-            case 1:
-                runOOPTests();
-                break;
-            case 2:
-                runTemplateTests();
-                break;
-            case 3:
-                runModernCppTests();
-                break;
-            case 4:
-                runNamespaceTests();
-                break;
-            case 5:
-                runAllTests();
-                break;
-            case 6:
-                runInteractiveTests();
-                break;
-            case 0:
-                std::cout << "\n👋 Thank you for using the C++ Features Test Suite!" << std::endl;
-                std::cout << "🎓 Keep learning and exploring C++!" << std::endl;
-                return 0;
-            default:
-                std::cout << "\n❌ Invalid choice! Please enter a number between 0-6." << std::endl;
-                continue;
-        }
-        
-        std::cout << "\nPress Enter to continue...";
-        std::cin.ignore();
-        std::cin.get();
-    }
+    // Run all tests directly without interaction
+    runAllTests();
     
     return 0;
 }

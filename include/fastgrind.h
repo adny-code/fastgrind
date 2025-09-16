@@ -120,31 +120,6 @@ constexpr const char *__MEM_PATH_TEXT_RESULT = "fastgrind.text";
 
 #define MEM_INLINE_USED __attribute__((used))
 
-#if defined(FASTGRIND_INSTRUMENT)
-MEM_NO_INSTRUMENT static const char *demangleFunc(const char *mangled)
-{
-    if (!mangled)
-        return mangled;
-    static std::mutex lk;
-    static std::unordered_map<const char *, const char *> cache;
-    {
-        std::lock_guard<std::mutex> g(lk);
-        auto it = cache.find(mangled);
-        if (it != cache.end())
-            return it->second;
-    }
-    int status = 0;
-    char *tmp = abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
-    const char *ret = (status == 0 && tmp) ? strdup(tmp) : mangled;
-    free(tmp);
-    {
-        std::lock_guard<std::mutex> g(lk);
-        cache[mangled] = ret;
-    }
-    return ret;
-}
-#endif
-
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args) MEM_NO_INSTRUMENT;
 template <typename... Args> static std::string memFormat(const char *fstr, Args... args)
 {
@@ -155,6 +130,244 @@ template <typename... Args> static std::string memFormat(const char *fstr, Args.
     delete[] bytes;
     return out;
 }
+
+#if defined(FASTGRIND_INSTRUMENT)
+MEM_NO_INSTRUMENT static const char *demangleFunc(const char *mangled)
+{
+    if (!mangled)
+        return mangled;
+
+    struct protect {
+        ~protect() {
+            cache.clear();
+        }
+        std::unordered_map<const char *, const char *> cache;
+        std::mutex lk;
+    };
+
+    static protect p;
+    {
+        std::lock_guard<std::mutex> g(p.lk);
+        auto it = p.cache.find(mangled);
+        if (it != p.cache.end())
+            return it->second;
+    }
+    int status = 0;
+    char *tmp = abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
+    const char *ret = (status == 0 && tmp) ? strdup(tmp) : mangled;
+    free(tmp);
+    {
+        std::lock_guard<std::mutex> g(p.lk);
+        p.cache[mangled] = ret;
+    }
+    return ret;
+}
+
+MEM_NO_INSTRUMENT static const char *tryAddr2lineResolve(void *addr)
+{
+    struct protect {
+        ~protect() {
+            exe_path_initialized = false;
+            memset(exe_path, 0, sizeof(exe_path));
+        }
+        char exe_path[1024] = {0};
+        bool exe_path_initialized = false;
+    };
+
+    static protect p;
+    char *exe_path = p.exe_path;
+    bool &exe_path_initialized = p.exe_path_initialized;
+
+    if (!exe_path_initialized)
+    {
+        ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+        if (len > 0)
+        {
+            exe_path[len] = '\0';
+            exe_path_initialized = true;
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd), "addr2line -f -C -e %s %p 2>/dev/null", exe_path, addr);
+
+    FILE *fp = popen(cmd, "r");
+    if (!fp)
+        return nullptr;
+
+    char function_name[512] = {0};
+    char file_location[512] = {0};
+
+    if (fgets(function_name, sizeof(function_name), fp))
+    {
+        char *newline = strchr(function_name, '\n');
+        if (newline)
+            *newline = '\0';
+
+        if (fgets(file_location, sizeof(file_location), fp))
+        {
+            newline = strchr(file_location, '\n');
+            if (newline)
+                *newline = '\0';
+
+            if (strcmp(function_name, "??") != 0)
+            {
+                const char *filename = strrchr(file_location, '/');
+                filename = filename ? filename + 1 : file_location;
+
+                std::string result;
+                if (strcmp(file_location, "??:0") != 0 && strlen(filename) > 0)
+                {
+                    result = memFormat("%s [%s]", function_name, filename);
+                }
+                else
+                {
+                    result = std::string(function_name);
+                }
+
+                pclose(fp);
+                return strdup(result.c_str());
+            }
+        }
+    }
+
+    pclose(fp);
+    return nullptr;
+}
+
+MEM_NO_INSTRUMENT static std::string beautifySymbolName(const char *symbol)
+{
+    if (!symbol)
+        return "<null>";
+
+    std::string name(symbol);
+
+    if (name.find("lambda") != std::string::npos)
+    {
+
+        size_t pos = name.find("::");
+        if (pos != std::string::npos)
+        {
+            std::string container = name.substr(0, pos);
+            return memFormat("<lambda in %s>", container.c_str());
+        }
+        return "<lambda>";
+    }
+
+    if (name.find('<') != std::string::npos)
+    {
+        size_t template_start = name.find('<');
+        size_t template_end = name.rfind('>');
+
+        if (template_end != std::string::npos && template_end > template_start)
+        {
+            std::string base_name = name.substr(0, template_start);
+            std::string template_params = name.substr(template_start + 1, template_end - template_start - 1);
+
+            if (template_params.length() > 128)
+            {
+                template_params = template_params.substr(0, 128) + "...";
+            }
+
+            return memFormat("%s<%s>", base_name.c_str(), template_params.c_str());
+        }
+    }
+
+    return name;
+}
+
+MEM_NO_INSTRUMENT static const char *enhancedSymbolResolve(void *addr)
+{
+    struct protect
+    {
+        ~protect()
+        {
+            resolve_cache.clear();
+        }
+        std::mutex resolve_mutex;
+        std::unordered_map<void *, const char *> resolve_cache;
+    };
+
+    static protect p;
+    std::mutex &resolve_mutex = p.resolve_mutex;
+    std::unordered_map<void *, const char *> &resolve_cache = p.resolve_cache;
+    {
+        std::lock_guard<std::mutex> g(resolve_mutex);
+        auto it = resolve_cache.find(addr);
+        if (it != resolve_cache.end())
+            return it->second;
+    }
+
+    const char *result = nullptr;
+
+    Dl_info info;
+    if (dladdr(addr, &info))
+    {
+        if (info.dli_sname && info.dli_saddr == addr)
+        {
+            const char *demangled = demangleFunc(info.dli_sname);
+            std::string beautified = beautifySymbolName(demangled);
+            result = strdup(beautified.c_str());
+        }
+        else if (info.dli_sname)
+        {
+            ptrdiff_t offset = (char *) addr - (char *) info.dli_saddr;
+            if (offset >= 0 && offset < 0x10000)
+            {
+                const char *demangled = demangleFunc(info.dli_sname);
+                std::string beautified = beautifySymbolName(demangled);
+                if (offset == 0)
+                {
+                    result = strdup(beautified.c_str());
+                }
+                else
+                {
+                    std::string with_offset = memFormat("%s+0x%lx", beautified.c_str(), offset);
+                    result = strdup(with_offset.c_str());
+                }
+            }
+        }
+
+        if (!result && info.dli_fname)
+        {
+            const char *basename = strrchr(info.dli_fname, '/');
+            basename = basename ? basename + 1 : info.dli_fname;
+
+            ptrdiff_t module_offset = (char *) addr - (char *) info.dli_fbase;
+            std::string module_info = memFormat("%s+0x%lx", basename, module_offset);
+            result = strdup(module_info.c_str());
+        }
+    }
+
+    if (!result)
+    {
+        result = tryAddr2lineResolve(addr);
+        if (result)
+        {
+            std::string beautified = beautifySymbolName(result);
+            free((void *) result);
+            result = strdup(beautified.c_str());
+        }
+    }
+
+    if (!result)
+    {
+        std::string fallback = memFormat("<unresolved@%p>", addr);
+        result = strdup(fallback.c_str());
+    }
+
+    {
+        std::lock_guard<std::mutex> g(resolve_mutex);
+        resolve_cache[addr] = result;
+    }
+
+    return result;
+}
+#endif
 
 /**
  * @struct memFrame
@@ -726,17 +939,8 @@ class memGlobalInfo
                 if (!entry)
                     break;
 
-                Dl_info info;
-                if (dladdr((void *) entry, &info) && info.dli_sname && info.dli_saddr == (void *) entry)
-                {
-                    const char *pretty = demangleFunc(info.dli_sname);
-                    arr[i] = pretty;
-                }
-                else
-                {
-                    std::string fallback = memFormat("<unresolved@%p>", entry);
-                    arr[i] = strdup(fallback.c_str());
-                }
+                const char *resolved = enhancedSymbolResolve((void *) entry);
+                arr[i] = resolved;
             }
         }
 #endif

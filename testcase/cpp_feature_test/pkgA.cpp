@@ -3,7 +3,6 @@
 #include <memory>
 #include <vector>
 
-namespace test_oop {
 
 void testVirtualFunctions() {
     std::cout << "\n=== Testing Virtual Functions ===" << std::endl;
@@ -192,4 +191,3 @@ void runAllOOPTests() {
     std::cout << "########################################" << std::endl;
 }
 
-} // namespace test_oop

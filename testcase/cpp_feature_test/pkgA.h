@@ -6,8 +6,6 @@
 #include <vector>
 #include <string>
 
-namespace test_oop {
-
 // 测试1: 基础虚函数和继承
 class Shape {
 public:
@@ -234,6 +232,5 @@ void testAbstractClasses();
 void testPolymorphism();
 void runAllOOPTests();
 
-} // namespace test_oop
 
 #endif // PKGA_H

@@ -1,36 +1,6 @@
 [Dump By Callstack]
 - 100.00/100.00%  Total malloc 3,471,035,712 free 3,471,035,712
     - 100.00/100.00%  main malloc 3,471,035,712 free 3,471,035,712
-        - 12.88/12.88%  test_large_dataset_compression() malloc 447,389,072 free 447,389,072
-            - 0.02/0.02%  uncompress malloc 716,000 free 716,000
-                - 0.02/0.02%  uncompress2 malloc 716,000 free 716,000
-                    - 0.00/0.02%  inflateEnd malloc 0 free 716,000
-                        - 0.00/0.02%  zcfree malloc 0 free 716,000
-                    - 0.02/0.00%  inflateInit_ malloc 716,000 free 0
-                        - 0.02/0.00%  inflateInit2_ malloc 716,000 free 0
-                            - 0.02/0.00%  zcalloc malloc 716,000 free 0
-            - 0.77/0.77%  compress malloc 26,813,600 free 26,813,600
-                - 0.77/0.77%  compress2 malloc 26,813,600 free 26,813,600
-                    - 0.77/0.00%  deflateInit_ malloc 26,813,600 free 0
-                        - 0.77/0.00%  deflateInit2_ malloc 26,813,600 free 0
-                            - 0.77/0.00%  zcalloc malloc 26,813,600 free 0
-                    - 0.00/0.77%  deflateEnd malloc 0 free 26,813,600
-                        - 0.00/0.77%  zcfree malloc 0 free 26,813,600
-        - 0.00/0.00%  test_compress_decompress() malloc 289,696 free 289,696
-            - 0.00/0.00%  uncompress malloc 7,160 free 7,160
-                - 0.00/0.00%  uncompress2 malloc 7,160 free 7,160
-                    - 0.00/0.00%  inflateEnd malloc 0 free 7,160
-                        - 0.00/0.00%  zcfree malloc 0 free 7,160
-                    - 0.00/0.00%  inflateInit_ malloc 7,160 free 0
-                        - 0.00/0.00%  inflateInit2_ malloc 7,160 free 0
-                            - 0.00/0.00%  zcalloc malloc 7,160 free 0
-            - 0.00/0.00%  compress malloc 268,136 free 268,136
-                - 0.00/0.00%  compress2 malloc 268,136 free 268,136
-                    - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
-                        - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
-                            - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                    - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                        - 0.00/0.00%  zcfree malloc 0 free 268,136
         - 0.95/0.95%  test_recursive_stream_processing() malloc 33,153,616 free 33,153,616
             - 0.78/0.78%  recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int) malloc 27,399,600 free 27,399,600
                 - 0.71/0.71%  recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int) malloc 24,659,640 free 24,659,640
@@ -42,142 +12,172 @@
                                         - 0.23/0.23%  recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int) malloc 8,219,880 free 8,219,880
                                             - 0.15/0.15%  recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int) malloc 5,479,920 free 5,479,920
                                                 - 0.07/0.07%  recursive_stream_compress(z_stream_s*, unsigned char const*, unsigned long, unsigned char*, unsigned long, int, int) malloc 2,739,960 free 2,739,960
-            - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
-                - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
-                    - 0.00/0.00%  zcalloc malloc 268,136 free 0
             - 0.00/0.00%  deflateEnd malloc 0 free 268,136
                 - 0.00/0.00%  zcfree malloc 0 free 268,136
-            - 0.00/0.00%  inflateEnd malloc 0 free 7,160
-                - 0.00/0.00%  zcfree malloc 0 free 7,160
             - 0.00/0.00%  inflateInit_ malloc 7,160 free 0
                 - 0.00/0.00%  inflateInit2_ malloc 7,160 free 0
                     - 0.00/0.00%  zcalloc malloc 7,160 free 0
-        - 0.47/0.47%  test_nested_dictionary_compression() malloc 16,468,792 free 16,468,792
-            - 0.00/0.00%  create_compression_dictionary(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&, std::vector<unsigned char, std::allocator<unsigned char> >&) malloc 184 free 0
-            - 0.08/0.08%  nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > const&, int) malloc 2,897,376 free 2,897,376
-                - 0.02/0.02%  nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > const&, int) malloc 961,320 free 961,320
-                    - 0.01/0.01%  nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > const&, int) malloc 609,248 free 609,248
-                        - 0.00/0.00%  nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > const&, int) malloc 268,136 free 268,136
-                            - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
-                                - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
-                                    - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                            - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                                - 0.00/0.00%  zcfree malloc 0 free 268,136
-                        - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
-                            - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
-                                - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                        - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                            - 0.00/0.00%  zcfree malloc 0 free 268,136
-                    - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
-                        - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
-                            - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                    - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                        - 0.00/0.00%  zcfree malloc 0 free 268,136
-                - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
-                    - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
-                        - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                    - 0.00/0.00%  zcfree malloc 0 free 268,136
+            - 0.00/0.00%  inflateEnd malloc 0 free 7,160
+                - 0.00/0.00%  zcfree malloc 0 free 7,160
+            - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
+                - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
+                    - 0.00/0.00%  zcalloc malloc 268,136 free 0
         - 0.19/0.19%  test_compression_chain() malloc 6,630,600 free 6,630,600
-            - 0.02/0.00%  deflateInit_ malloc 804,408 free 0
-                - 0.02/0.00%  deflateInit2_ malloc 804,408 free 0
-                    - 0.02/0.00%  zcalloc malloc 804,408 free 0
             - 0.00/0.02%  deflateEnd malloc 0 free 804,408
                 - 0.00/0.02%  zcfree malloc 0 free 804,408
-            - 0.00/0.00%  inflateEnd malloc 0 free 14,320
-                - 0.00/0.00%  zcfree malloc 0 free 14,320
             - 0.00/0.00%  inflateInit_ malloc 14,320 free 0
                 - 0.00/0.00%  inflateInit2_ malloc 14,320 free 0
                     - 0.00/0.00%  zcalloc malloc 14,320 free 0
-        - 82.80/82.80%  stress_test() malloc 2,874,300,640 free 2,874,300,640
-            - 2.06/2.06%  uncompress malloc 71,600,032 free 71,600,032
-                - 2.06/2.06%  uncompress2 malloc 71,600,032 free 71,600,032
-                    - 0.00/2.06%  inflateEnd malloc 0 free 71,600,032
-                        - 0.00/2.06%  zcfree malloc 0 free 71,600,032
-                    - 2.06/0.00%  inflateInit_ malloc 71,600,032 free 0
-                        - 2.06/0.00%  inflateInit2_ malloc 71,600,032 free 0
-                            - 2.06/0.00%  zcalloc malloc 71,600,032 free 0
-            - 77.24/77.24%  compress malloc 2,681,360,000 free 2,681,360,000
-                - 77.24/77.24%  compress2 malloc 2,681,360,000 free 2,681,360,000
-                    - 77.24/0.00%  deflateInit_ malloc 2,681,360,000 free 0
-                        - 77.24/0.00%  deflateInit2_ malloc 2,681,360,000 free 0
-                            - 77.24/0.00%  zcalloc malloc 2,681,360,000 free 0
-                    - 0.00/77.24%  deflateEnd malloc 0 free 2,681,360,000
-                        - 0.00/77.24%  zcfree malloc 0 free 2,681,360,000
-        - 0.00/0.00%  test_deflate_inflate() malloc 289,696 free 289,696
-            - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
-                - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
-                    - 0.00/0.00%  zcalloc malloc 268,136 free 0
-            - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                - 0.00/0.00%  zcfree malloc 0 free 268,136
-            - 0.00/0.00%  inflateEnd malloc 0 free 7,160
-                - 0.00/0.00%  zcfree malloc 0 free 7,160
-            - 0.00/0.00%  inflateInit_ malloc 7,160 free 0
-                - 0.00/0.00%  inflateInit2_ malloc 7,160 free 0
-                    - 0.00/0.00%  zcalloc malloc 7,160 free 0
+            - 0.00/0.00%  inflateEnd malloc 0 free 14,320
+                - 0.00/0.00%  zcfree malloc 0 free 14,320
+            - 0.02/0.00%  deflateInit_ malloc 804,408 free 0
+                - 0.02/0.00%  deflateInit2_ malloc 804,408 free 0
+                    - 0.02/0.00%  zcalloc malloc 804,408 free 0
         - 2.66/2.66%  test_recursive_compression() malloc 92,513,600 free 92,513,600
-            - 1.38/1.38%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int) malloc 48,121,168 free 48,098,424
-                - 0.09/0.09%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int) malloc 3,448,312 free 3,425,568
-                    - 0.05/0.05%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int) malloc 1,774,632 free 1,751,888
-                        - 0.04/0.04%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int) malloc 1,476,984 free 1,454,240
-                            - 0.03/0.03%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int) malloc 1,186,168 free 1,163,424
-                                - 0.02/0.02%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int) malloc 895,336 free 872,592
-                                    - 0.01/0.01%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int) malloc 604,488 free 581,744
-                                        - 0.00/0.00%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int) malloc 313,624 free 290,880
-                                            - 0.00/0.00%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > const&, int, int) malloc 22,744 free 0
+            - 1.38/1.38%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > malloc 48,121,168 free 48,098,424
+                - 0.09/0.09%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > malloc 3,448,312 free 3,425,568
+                    - 0.05/0.05%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > malloc 1,774,632 free 1,751,888
+                        - 0.04/0.04%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > malloc 1,476,984 free 1,454,240
+                            - 0.03/0.03%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > malloc 1,186,168 free 1,163,424
+                                - 0.02/0.02%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > malloc 895,336 free 872,592
+                                    - 0.01/0.01%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > malloc 604,488 free 581,744
+                                        - 0.00/0.00%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > malloc 313,624 free 290,880
+                                            - 0.00/0.00%  recursive_compress(std::vector<unsigned char, std::allocator<unsigned char> > malloc 22,744 free 0
                                             - 0.00/0.00%  compress malloc 268,136 free 268,136
                                                 - 0.00/0.00%  compress2 malloc 268,136 free 268,136
+                                                    - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                                                        - 0.00/0.00%  zcfree malloc 0 free 268,136
                                                     - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
                                                         - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
                                                             - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                                                    - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                                                        - 0.00/0.00%  zcfree malloc 0 free 268,136
                                         - 0.00/0.00%  compress malloc 268,136 free 268,136
                                             - 0.00/0.00%  compress2 malloc 268,136 free 268,136
+                                                - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                                                    - 0.00/0.00%  zcfree malloc 0 free 268,136
                                                 - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
                                                     - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
                                                         - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                                                - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                                                    - 0.00/0.00%  zcfree malloc 0 free 268,136
                                     - 0.00/0.00%  compress malloc 268,136 free 268,136
                                         - 0.00/0.00%  compress2 malloc 268,136 free 268,136
+                                            - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                                                - 0.00/0.00%  zcfree malloc 0 free 268,136
                                             - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
                                                 - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
                                                     - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                                            - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                                                - 0.00/0.00%  zcfree malloc 0 free 268,136
                                 - 0.00/0.00%  compress malloc 268,136 free 268,136
                                     - 0.00/0.00%  compress2 malloc 268,136 free 268,136
+                                        - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                                            - 0.00/0.00%  zcfree malloc 0 free 268,136
                                         - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
                                             - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
                                                 - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                                        - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                                            - 0.00/0.00%  zcfree malloc 0 free 268,136
                             - 0.00/0.00%  compress malloc 268,136 free 268,136
                                 - 0.00/0.00%  compress2 malloc 268,136 free 268,136
+                                    - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                                        - 0.00/0.00%  zcfree malloc 0 free 268,136
                                     - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
                                         - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
                                             - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                                    - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                                        - 0.00/0.00%  zcfree malloc 0 free 268,136
                         - 0.00/0.00%  compress malloc 268,136 free 268,136
                             - 0.00/0.00%  compress2 malloc 268,136 free 268,136
+                                - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                                    - 0.00/0.00%  zcfree malloc 0 free 268,136
                                 - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
                                     - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
                                         - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                                - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                                    - 0.00/0.00%  zcfree malloc 0 free 268,136
                     - 0.00/0.00%  compress malloc 268,136 free 268,136
                         - 0.00/0.00%  compress2 malloc 268,136 free 268,136
+                            - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                                - 0.00/0.00%  zcfree malloc 0 free 268,136
                             - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
                                 - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
                                     - 0.00/0.00%  zcalloc malloc 268,136 free 0
-                            - 0.00/0.00%  deflateEnd malloc 0 free 268,136
-                                - 0.00/0.00%  zcfree malloc 0 free 268,136
                 - 0.00/0.00%  compress malloc 268,136 free 268,136
                     - 0.00/0.00%  compress2 malloc 268,136 free 268,136
+                        - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                            - 0.00/0.00%  zcfree malloc 0 free 268,136
                         - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
                             - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
                                 - 0.00/0.00%  zcalloc malloc 268,136 free 0
+        - 12.88/12.88%  test_large_dataset_compression() malloc 447,389,072 free 447,389,072
+            - 0.77/0.77%  compress malloc 26,813,600 free 26,813,600
+                - 0.77/0.77%  compress2 malloc 26,813,600 free 26,813,600
+                    - 0.00/0.77%  deflateEnd malloc 0 free 26,813,600
+                        - 0.00/0.77%  zcfree malloc 0 free 26,813,600
+                    - 0.77/0.00%  deflateInit_ malloc 26,813,600 free 0
+                        - 0.77/0.00%  deflateInit2_ malloc 26,813,600 free 0
+                            - 0.77/0.00%  zcalloc malloc 26,813,600 free 0
+            - 0.02/0.02%  uncompress malloc 716,000 free 716,000
+                - 0.02/0.02%  uncompress2 malloc 716,000 free 716,000
+                    - 0.02/0.00%  inflateInit_ malloc 716,000 free 0
+                        - 0.02/0.00%  inflateInit2_ malloc 716,000 free 0
+                            - 0.02/0.00%  zcalloc malloc 716,000 free 0
+                    - 0.00/0.02%  inflateEnd malloc 0 free 716,000
+                        - 0.00/0.02%  zcfree malloc 0 free 716,000
+        - 0.00/0.00%  test_deflate_inflate() malloc 289,696 free 289,696
+            - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                - 0.00/0.00%  zcfree malloc 0 free 268,136
+            - 0.00/0.00%  inflateInit_ malloc 7,160 free 0
+                - 0.00/0.00%  inflateInit2_ malloc 7,160 free 0
+                    - 0.00/0.00%  zcalloc malloc 7,160 free 0
+            - 0.00/0.00%  inflateEnd malloc 0 free 7,160
+                - 0.00/0.00%  zcfree malloc 0 free 7,160
+            - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
+                - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
+                    - 0.00/0.00%  zcalloc malloc 268,136 free 0
+        - 82.80/82.80%  stress_test() malloc 2,874,300,640 free 2,874,300,640
+            - 77.24/77.24%  compress malloc 2,681,360,000 free 2,681,360,000
+                - 77.24/77.24%  compress2 malloc 2,681,360,000 free 2,681,360,000
+                    - 0.00/77.24%  deflateEnd malloc 0 free 2,681,360,000
+                        - 0.00/77.24%  zcfree malloc 0 free 2,681,360,000
+                    - 77.24/0.00%  deflateInit_ malloc 2,681,360,000 free 0
+                        - 77.24/0.00%  deflateInit2_ malloc 2,681,360,000 free 0
+                            - 77.24/0.00%  zcalloc malloc 2,681,360,000 free 0
+            - 2.06/2.06%  uncompress malloc 71,600,032 free 71,600,032
+                - 2.06/2.06%  uncompress2 malloc 71,600,032 free 71,600,032
+                    - 2.06/0.00%  inflateInit_ malloc 71,600,032 free 0
+                        - 2.06/0.00%  inflateInit2_ malloc 71,600,032 free 0
+                            - 2.06/0.00%  zcalloc malloc 71,600,032 free 0
+                    - 0.00/2.06%  inflateEnd malloc 0 free 71,600,032
+                        - 0.00/2.06%  zcfree malloc 0 free 71,600,032
+        - 0.00/0.00%  test_compress_decompress() malloc 289,696 free 289,696
+            - 0.00/0.00%  compress malloc 268,136 free 268,136
+                - 0.00/0.00%  compress2 malloc 268,136 free 268,136
+                    - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                        - 0.00/0.00%  zcfree malloc 0 free 268,136
+                    - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
+                        - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
+                            - 0.00/0.00%  zcalloc malloc 268,136 free 0
+            - 0.00/0.00%  uncompress malloc 7,160 free 7,160
+                - 0.00/0.00%  uncompress2 malloc 7,160 free 7,160
+                    - 0.00/0.00%  inflateInit_ malloc 7,160 free 0
+                        - 0.00/0.00%  inflateInit2_ malloc 7,160 free 0
+                            - 0.00/0.00%  zcalloc malloc 7,160 free 0
+                    - 0.00/0.00%  inflateEnd malloc 0 free 7,160
+                        - 0.00/0.00%  zcfree malloc 0 free 7,160
+        - 0.47/0.47%  test_nested_dictionary_compression() malloc 16,468,792 free 16,468,792
+            - 0.08/0.08%  nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > malloc 2,897,376 free 2,897,376
+                - 0.02/0.02%  nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > malloc 961,320 free 961,320
+                    - 0.01/0.01%  nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > malloc 609,248 free 609,248
+                        - 0.00/0.00%  nested_dictionary_compress(unsigned char const*, unsigned long, unsigned char*, unsigned long*, std::vector<unsigned char, std::allocator<unsigned char> > malloc 268,136 free 268,136
+                            - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                                - 0.00/0.00%  zcfree malloc 0 free 268,136
+                            - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
+                                - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
+                                    - 0.00/0.00%  zcalloc malloc 268,136 free 0
                         - 0.00/0.00%  deflateEnd malloc 0 free 268,136
                             - 0.00/0.00%  zcfree malloc 0 free 268,136
+                        - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
+                            - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
+                                - 0.00/0.00%  zcalloc malloc 268,136 free 0
+                    - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                        - 0.00/0.00%  zcfree malloc 0 free 268,136
+                    - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
+                        - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
+                            - 0.00/0.00%  zcalloc malloc 268,136 free 0
+                - 0.00/0.00%  deflateEnd malloc 0 free 268,136
+                    - 0.00/0.00%  zcfree malloc 0 free 268,136
+                - 0.00/0.00%  deflateInit_ malloc 268,136 free 0
+                    - 0.00/0.00%  deflateInit2_ malloc 268,136 free 0
+                        - 0.00/0.00%  zcalloc malloc 268,136 free 0
+            - 0.00/0.00%  create_compression_dictionary(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char,...> malloc 184 free 0

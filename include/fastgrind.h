@@ -137,8 +137,10 @@ MEM_NO_INSTRUMENT static const char *demangleFunc(const char *mangled)
     if (!mangled)
         return mangled;
 
-    struct protect {
-        ~protect() {
+    struct protect
+    {
+        ~protect()
+        {
             cache.clear();
         }
         std::unordered_map<const char *, const char *> cache;
@@ -152,10 +154,21 @@ MEM_NO_INSTRUMENT static const char *demangleFunc(const char *mangled)
         if (it != p.cache.end())
             return it->second;
     }
+
     int status = 0;
     char *tmp = abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
-    const char *ret = (status == 0 && tmp) ? strdup(tmp) : mangled;
-    free(tmp);
+    const char *ret = nullptr;
+
+    if (status == 0 && tmp)
+    {
+        ret = strdup(tmp);
+        free(tmp);
+    }
+    else
+    {
+        ret = mangled;
+    }
+
     {
         std::lock_guard<std::mutex> g(p.lk);
         p.cache[mangled] = ret;
@@ -165,8 +178,10 @@ MEM_NO_INSTRUMENT static const char *demangleFunc(const char *mangled)
 
 MEM_NO_INSTRUMENT static const char *tryAddr2lineResolve(void *addr)
 {
-    struct protect {
-        ~protect() {
+    struct protect
+    {
+        ~protect()
+        {
             exe_path_initialized = false;
             memset(exe_path, 0, sizeof(exe_path));
         }
@@ -248,7 +263,6 @@ MEM_NO_INSTRUMENT static std::string beautifySymbolName(const char *symbol)
 
     if (name.find("lambda") != std::string::npos)
     {
-
         size_t pos = name.find("::");
         if (pos != std::string::npos)
         {
@@ -351,6 +365,30 @@ MEM_NO_INSTRUMENT static const char *enhancedSymbolResolve(void *addr)
             std::string beautified = beautifySymbolName(result);
             free((void *) result);
             result = strdup(beautified.c_str());
+        }
+    }
+
+    if (!result)
+    {
+        try
+        {
+            if (addr && ((uintptr_t) addr % sizeof(void *)) == 0)
+            {
+                void **potential_func_ptr = static_cast<void **>(addr);
+                void *func_addr = *potential_func_ptr;
+
+                Dl_info ptr_info;
+                if (dladdr(func_addr, &ptr_info) && ptr_info.dli_sname)
+                {
+                    const char *demangled = demangleFunc(ptr_info.dli_sname);
+                    std::string beautified = beautifySymbolName(demangled);
+                    std::string indirect_info = memFormat("*(%s)", beautified.c_str());
+                    result = strdup(indirect_info.c_str());
+                }
+            }
+        }
+        catch (...)
+        {
         }
     }
 
@@ -939,7 +977,8 @@ class memGlobalInfo
                 if (!entry)
                     break;
 
-                const char *resolved = enhancedSymbolResolve((void *) entry);
+                void *func_addr = reinterpret_cast<void *>(const_cast<char *>(entry));
+                const char *resolved = enhancedSymbolResolve(func_addr);
                 arr[i] = resolved;
             }
         }

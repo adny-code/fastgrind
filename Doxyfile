@@ -9,8 +9,8 @@ OUTPUT_DIRECTORY       = docs
 CREATE_SUBDIRS         = NO
 
 # Input
-INPUT                  = include test README.md
-FILE_PATTERNS          = *.h *.hpp *.c *.cpp *.md
+INPUT                  = include demo testcase README.md
+FILE_PATTERNS          = *.h *.hpp *.c *.cpp *.md *.sh
 RECURSIVE              = YES
 EXCLUDE_SYMLINKS       = YES
 

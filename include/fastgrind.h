@@ -7,7 +7,7 @@
  * syscalls) to build per-thread, per-time-slice statistics. Captured data is
  * organized by synthetic frames (derived from the active function call stack)
  * and can be exported as a hierarchical JSON tree suitable for visualization.
- *
+ * @details
  * Usage pattern:
  *   1. Include this header in one translation unit (typically a .cpp).
  *   2. Link with --wrap symbols (GNU ld) or provide alternative malloc impls as
@@ -17,18 +17,20 @@
  *   4. At process end (static destruction) memGlobalInfo automatically dumps
  *      human readable and JSON formatted results (fastgrind.json).
  *
- * Thread safety: Per-thread accumulation is stored in thread local structures
+ * @note Thread safety: Per-thread accumulation is stored in thread local structures
  * and periodically merged into a global, mutex-protected container on thread
  * teardown (TLS dtor) or on demand. Allocation hooks avoid recursion using a
  * thread local guard flag.
  *
- * Limitations:
+ * @warning Limitations:
  *  - When a block of memory is allocated and released in different function stack
  *    frames, it will be recorded truthfully, resulting in the memory allocated and
  *    released in those function stack frames being mismatched.
- *  - Export happens at destruction of memGlobalInfo singleton; call dump()
- *    earlier if needed.
  *  - Export JSON file overwrites previous content.
+ *
+ * @author
+ * For any advice or questions, please contact us:
+ *  - email: zfzmalloc@gmail.com
  *
  * @copyright
  * See LICENSE for details.
@@ -37,6 +39,7 @@
 #define FAST_GRIND_H
 
 #include <atomic>
+#include <cmath>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -44,7 +47,6 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include <cmath>
 
 #include <assert.h>
 #include <errno.h>
@@ -164,15 +166,19 @@ template <typename... Args> static std::string memFormat(const char *fstr, Args.
 struct memFrame
 {
     /**
-     * @brief Empty constructor for memFrame.
-     *
+     * @brief Default constructor for memFrame.
+     * @details Initializes all counters to zero.
      */
     MEM_NO_INSTRUMENT memFrame() : mallocBytes(0), freeBytes(0), funcId(0), frameId(0)
     {
     }
 
     /**
-     * @brief Construct a new mem Frame object
+     * @brief Construct a new memFrame object with specified values.
+     * @param mallocBytes Total bytes allocated in this frame
+     * @param freeBytes Total bytes freed in this frame
+     * @param funcId Function identifier for this frame
+     * @param frameId Stack frame identifier
      */
     MEM_NO_INSTRUMENT memFrame(size_t mallocBytes, size_t freeBytes, size_t funcId, size_t frameId)
         : mallocBytes(mallocBytes), freeBytes(freeBytes), funcId(funcId), frameId(frameId)
@@ -234,10 +240,10 @@ struct memFrame
         return *this;
     }
 
-    size_t mallocBytes;
-    size_t freeBytes;
-    size_t funcId;
-    size_t frameId;
+    size_t mallocBytes; ///< Total bytes allocated during this frame's lifetime
+    size_t freeBytes;   ///< Total bytes freed during this frame's lifetime
+    size_t funcId;      ///< Unique identifier for the function
+    size_t frameId;     ///< Unique identifier for the call stack frame
 };
 
 /**
@@ -293,9 +299,9 @@ class memTimer
     }
 
   protected:
-    bool _exit = false;
-    std::thread *_thread = nullptr;
-    std::atomic<size_t> _tick;
+    bool _exit = false;             ///< Flag to signal timer thread to exit
+    std::thread *_thread = nullptr; ///< Background timer thread
+    std::atomic<size_t> _tick;      ///< Current tick count in milliseconds
 };
 
 /**
@@ -309,11 +315,15 @@ class memTimer
 class memNode
 {
   public:
+    /** @brief Default constructor creating an unnamed node. */
     MEM_NO_INSTRUMENT memNode()
     {
     }
 
-    /** @brief Construct named node. */
+    /**
+     * @brief Construct named node.
+     * @param name Function name associated with this node (pointer assumed stable)
+     */
     MEM_NO_INSTRUMENT memNode(const char *name) : _name(name)
     {
     }
@@ -389,7 +399,10 @@ class memNode
 
     /**
      * @brief Produce a human-readable multi-line string of the subtree.
+     * @param tm Total malloc bytes across all nodes (for percentage calculation)
+     * @param tf Total free bytes across all nodes (for percentage calculation)
      * @param indent Current indentation level (spaces are 4 * indent).
+     * @return Formatted string representation of this node and its children
      */
     MEM_NO_INSTRUMENT std::string str(unsigned long tm, unsigned long tf, unsigned indent = 0) const
     {
@@ -439,13 +452,13 @@ class memNode
     }
 
   protected:
-    const char *_name = nullptr;
+    const char *_name = nullptr; ///< Function name pointer (stable during process lifetime)
 
     //! @note Child map key is raw function name pointer (assumed stable during process lifetime).
-    std::map<const char *, memNode> _childs;
+    std::map<const char *, memNode> _childs; ///< Child nodes representing deeper call stack levels
 
-    size_t _mallocBytes = 0;
-    size_t _freeBytes = 0;
+    size_t _mallocBytes = 0; ///< Total bytes allocated in this subtree
+    size_t _freeBytes = 0;   ///< Total bytes freed in this subtree
 };
 
 class memLocalInfo;
@@ -943,11 +956,19 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
 class fastgrind
 {
   public:
+    /**
+     * @brief Construct a fastgrind probe and push function onto call stack.
+     * @param name Function name to push onto the logical call stack
+     */
     MEM_NO_INSTRUMENT fastgrind(const char *name)
     {
         if (__FAST_GRIND_STATUS)
             memStack::instance().push(name);
     }
+
+    /**
+     * @brief Destructor automatically pops function from call stack.
+     */
     MEM_NO_INSTRUMENT ~fastgrind()
     {
         if (__FAST_GRIND_STATUS)
@@ -2385,7 +2406,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
-    (void) sz;
+        (void) sz;
     }
 
     // override operator delete[](void *p, size_t sz, std::align_val_t al)
@@ -2420,7 +2441,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
-    (void) sz;
+        (void) sz;
     }
 
     // override operator delete(void *p, size_t sz, const std::nothrow_t &)
@@ -2451,7 +2472,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
-    (void) sz;
+        (void) sz;
     }
 
     // override operator delete[](void *p, size_t sz, const std::nothrow_t &)
@@ -2482,7 +2503,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
-    (void) sz;
+        (void) sz;
     }
 
     // override operator new(std::size_t size, std::align_val_t al, const std::nothrow_t &)
@@ -2719,7 +2740,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
-    (void) sz;
+        (void) sz;
     }
 
     // override operator delete[](void *p, size_t sz, std::align_val_t al, const std::nothrow_t &)
@@ -2756,7 +2777,7 @@ extern "C"
     #else
         __real_free(p);
     #endif
-    (void) sz;
+        (void) sz;
     }
 
 #endif

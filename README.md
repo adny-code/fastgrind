@@ -334,8 +334,15 @@ Structured JSON format containing:
 - Complete call stack information
 - Function-level allocation breakdown
 
+**Per-time frame, per-thread, per function recorder**:
 
+- Single thread
 
+![json_single_thread](rsc/json_single_thread.png)
+
+- Multi thread
+
+![json_multi_thread](rsc/json_multi_thread.png)
 
 #### **fastgrind.text**
 Human-readable report with:
@@ -344,24 +351,32 @@ Human-readable report with:
 - Call stack traces
 - Allocation/deallocation patterns
 
+**Perf-like report**
 
-
-
+![text_zlib](rsc/text_zlib.png)
 
 #### **Visualization**
+Use /tools/fastgrind.py to generate interactive visual line chart
 
+It will call matplotlib to draw line chart, and generate `fastgrind.html` in case without matplotlib
 
+Use web browser to open `fastgrind.html` can get same line chart
 
+**Usage**
 
+```python
+python fastgrind.py fastgrind.json
+or 
+python fastgrind.py     # auto search fastgrind.json in current folder
+```
 
+- **matplot**
 
+![matplot_plot](rsc/json_plot.png)
 
+- **html**
 
-
-
-
-
-
+![html_plt](rsc/json_html.png)
 
 
 ## Demonstrations and Examples
@@ -441,7 +456,7 @@ cd build/testcase/benchmark_box_grouping
 
 ## Contributing and Support
 
-For questions, bug reports, or contributions:
+For questions, bug reports, or contributions, please contact us:
 - **Email**: zfzmalloc@gmail.com
 - **GitHub**: https://github.com/adny-code/fastgrind
 - **Issues**: Report bugs and feature requests via GitHub Issues

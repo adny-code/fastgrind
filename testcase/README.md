@@ -1,6 +1,6 @@
 # Fastgrind Test Cases
 
-This directory contains comprehensive test cases for the **Fastgrind** memory profiler. Each test case validates different aspects of memory allocation tracking, instrumentation capabilities, and compatibility with various programming scenarios.
+This directory contains several test cases for the **Fastgrind** memory profiler. Each test case validates different aspects of memory allocation tracking, instrumentation capabilities, and compatibility with various programming scenarios.
 
 
 ## Building Test Cases
@@ -14,7 +14,7 @@ All test cases are managed by the top-level CMake.
 
 **Purpose**: Performance benchmarking and memory allocation patterns testing.
 
-**Description**: This test case implements a spatial data structure (memory box grouping) that performs intensive memory allocations and deallocations. It's designed to benchmark Fastgrind's overhead compared to raw execution and Valgrind.
+**Description**: This test case implements a geometric algorithms that performs memory allocations and deallocations. It's designed to benchmark Fastgrind's overhead compared to raw execution and Valgrind.
 
 **Key Features**:
 - Single-threaded and multi-threaded(default 16 threads) memory allocation patterns
@@ -45,6 +45,9 @@ cd build/testcase/benchmark_box_grouping
 - Namespace and package dependency validation
 - Memory allocation in complex C++ constructs
 - Template instantiation and memory tracking
+
+**Note**:
+Weak support for template metaprogramming and anonymous functions in summary report
 
 **Build Target**: `cpp_feature_test`
 
@@ -131,5 +134,5 @@ cd build/testcase/multi_pkg_compile
 
 When Fastgrind-instrumented tests are executed, they generate:
 
-- `fastgrind.json` - Machine-readable JSON format containing detailed memory allocation tracking
-- `fastgrind.text` - Human-readable text report with memory usage summary
+- `fastgrind.json` - JSON format containing detailed memory allocation tracking (per time step, per thread, per function)
+- `fastgrind.text` - Perf-like report with memory usage summary

@@ -26,6 +26,7 @@
  *  - When a block of memory is allocated and released in different function stack
  *    frames, it will be recorded truthfully, resulting in the memory allocated and
  *    released in those function stack frames being mismatched.
+ *  - Weak support for template metaprogramming and anonymous functions in summary report.
  *  - Export files overwrite previous content.
  *
  * @author

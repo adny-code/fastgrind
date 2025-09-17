@@ -424,17 +424,11 @@ cd build/testcase/benchmark_box_grouping
 ./run_valgrind.sh        # Valgrind comparison
 ```
 
+**Benchmark compare**:
 
+- By testcase/benchmark_box_grouping (test pattern minimized to 64)
 
-
-
-
-
-
-
-
-
-
+![benchmark_plot](rsc/benchmark.png)
 
 ### Feature Validation
 - **Modern C++ Features** (`cpp_feature_test/`)

@@ -49,7 +49,7 @@ The `fastgrind.h` header provides a single-file solution for memory profiling wi
 
 #### **Memory Allocation Interception**
 
-`For more details, please check testcase/README.md`
+For more details, please check `testcase/README.md`
 
 - Wraps standard allocation functions (`malloc`, `calloc`, `realloc`, `free`)
 - Intercepts C++ operators (`new`, `new[]`, `delete`, `delete[]`, including nothrow variants)
@@ -60,7 +60,7 @@ The `fastgrind.h` header provides a single-file solution for memory profiling wi
 
 The library provides two distinct approaches for function instrumentation:
 
-`For more details, please check demo/README.md`
+For more details, please check  `demo/README.md`
 
 ##### **Manual Instrumentation Call Stack Management**
 - **RAII-style Probes**: Use `FAST_GRIND` macro for explicit stack frame tracking
@@ -115,9 +115,9 @@ void myFunction() {
 #define FAST_GRIND fastgrind __fg(__FUNCTION__)
 ```
 
-### Usage Patterns
+### Usage
 
-`For more details, please check demo/README.md`
+For more details, please check `demo/README.md`
 
 #### **Manual Instrumentation**
 ```cpp
@@ -140,9 +140,9 @@ int main() {
 }
 ```
 
-#### **Atuo Instrumentation**
+#### **Auto Instrumentation**
 
-**Include fastgrind.h in any one of source code**, and with compile options, All functions outside the exclude file are automatically instrumented
+Include **fastgrind.h** in any one of source code, and with compile options, All functions outside the exclude file are automatically instrumented
 
 
 ### Scope of Application
@@ -156,39 +156,9 @@ Fastgrind is particularly well-suited for:
 - **Large-Scale C++ Projects**: Multi-package compilation and linking support
 - **Third-party Library Integration**: Non-intrusive instrumentation of external dependencies
 
-Fastgrind limitations:
+### Limitations
  - When a block of memory is allocated and released in different function stack frames, it will be recorded truthfully, resulting in the memory allocated and released in those function stack frames being mismatched
  - Weak support for template metaprogramming and anonymous functions in summary report
-
-## Instrumentation Approaches
-
-`For more details, please check demo/README.md`
-
-### Manual Instrumentation
-
-**Philosophy**: Explicit developer control with simplified compilation.
-
-**Characteristics**:
-- ✅ **Simple Build Configuration**: Minimal compiler flags and straightforward linking
-- ✅ **Selective Instrumentation**: Fine-grained control over what gets tracked
-- ✅ **Lower Runtime Overhead**: Only instruments explicitly marked functions
-- ❌ **Code Modification Required**: Must add `FAST_GRIND` macros to source code
-- ❌ **Manual Maintenance**: Requires updates when adding new functions
-
-**Best For**: Performance-critical applications, selective profiling, simple build environments
-
-### Automatic Instrumentation  
-
-**Philosophy**: Compiler-driven comprehensive coverage without code changes.
-
-**Characteristics**:
-- ✅ **No Code Changes**: Automatic insertion of instrumentation calls
-- ✅ **Comprehensive Coverage**: Instruments all functions automatically
-- ✅ **Maintenance-Free**: No manual updates required for new code
-- ❌ **Complex Build Configuration**: Advanced compiler flags and exclusion lists
-- ❌ **Higher Runtime Overhead**: Instruments all functions indiscriminately
-
-**Best For**: Development environments, comprehensive analysis, automated testing pipelines
 
 ## Build and Compilation
 
@@ -323,9 +293,7 @@ Demonstrated in `demo/` directory:
 
 ## Output and Analysis
 
-### Generated Files
-
-When a Fastgrind-instrumented application exits, two files are automatically generated:
+​	When a Fastgrind-instrumented application exits, two files are automatically generated:
 
 #### **fastgrind.json**
 Structured JSON format containing:
@@ -412,7 +380,7 @@ mkdir build && cd build && cmake .. && make && ./app
 
 The `testcase/` directory contains comprehensive validation suites:
 
-### Performance Benchmarking (`benchmark_box_grouping/`)
+### Benchmark
 - **Raw Execution**: Baseline performance without instrumentation
 - **Fastgrind Execution**: Measure instrumentation overhead
 - **Valgrind Comparison**: Performance comparison with Valgrind
@@ -426,33 +394,37 @@ cd build/testcase/benchmark_box_grouping
 
 
 
-
-
-
-
-
-
-
-
-
-
 ### Feature Validation
+
 - **Modern C++ Features** (`cpp_feature_test/`)
+
 - **Allocator Compatibility** (`glibc_je_tc_availabe/`)  
+
 - **Multi-Package Compilation** (`multi_pkg_compile/`)
+
 - **Third-Party Integration** (`thirdparty_*/`)
+
+  
 
 ### Third-party Test
 - **leveldb** (`thirdparty_leveldb_test`)
+
 - **zlib** (`thirdparty_zlib_test`)
+
+  
 
 
 ## Limitations and Considerations
 
 - **Cross-Frame Allocation**: Memory allocated in one function and freed in another will show mismatched statistics
+
 - **Template Complexity**: Complex template metaprogramming may show generic names in reports
+
 - **File Overwriting**: Output files overwrite previous content on each run
+
 - **System Dependencies**: Requires GNU ld for `--wrap` functionality
+
+  
 
 ## Contributing and Support
 

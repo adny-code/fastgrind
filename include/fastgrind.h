@@ -22,7 +22,7 @@
  * teardown (TLS dtor) or on demand. Allocation hooks avoid recursion using a
  * thread local guard flag.
  *
- * @warning Limitations:
+ * @warning Notes:
  *  - When a block of memory is allocated and released in different function stack
  *    frames, it will be recorded truthfully, resulting in the memory allocated and
  *    released in those function stack frames being mismatched.

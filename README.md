@@ -106,13 +106,18 @@ void myFunction() {
 #### **Configuration Macros**
 
 ```cpp
-#define FAST_GRIND_STATUS 1           // Enable/disable profiling globally
+// Not defined, if needed, define it in compile flags
 #define FASTGRIND_INSTRUMENT          // Enable automatic instrumentation
 #define FASTGRIND_JE_MALLOC           // Use jemalloc allocator
 #define FASTGRIND_TC_MALLOC           // Use tcmalloc allocator
 
 // Primary instrumentation macro
 #define FAST_GRIND fastgrind __fg(__FUNCTION__)
+
+// Defined, could be modified in fastgrind.h
+#define FAST_GRIND_STATUS 1           // Enable/disable profiling globally
+#define __MEM_MAX_STACK_DEPTH 64      // Default tracking stack depth
+#define __MEM_SAMPLE_INTERVAL_MS 500  // Default time frame (ms)
 ```
 
 ### Usage Patterns

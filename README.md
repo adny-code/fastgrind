@@ -102,7 +102,7 @@ For example:
 [FASTGRIND] saved: fastgrind.json (size=65952 bytes)
 ```
 
-For more file detail, please check: [Output and Analysis](#output-and-analysis)
+**For more file detail**, please check: [Output and Analysis](#output-and-analysis)
 
 ##### **Common Features (Both Approaches)**
 - **Configurable Depth**: Adjustable call stack capture depth (default: 64 frames)

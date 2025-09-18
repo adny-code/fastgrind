@@ -90,6 +90,20 @@ void myFunction() {
 }
 ```
 
+#####  **Call Stack Report**
+If fastgrind is integrated into the project code, two files will be generated after the program ends
+
+For example:
+
+```bash
+[Grouping] multi thread test: 509 ms
+[FASTGRIND] Start summary memory info
+[FASTGRIND] saved: fastgrind.text (size=2335 bytes)
+[FASTGRIND] saved: fastgrind.json (size=65952 bytes)
+```
+
+**For more file detail**, please check: [Output and Analysis](#output-and-analysis)
+
 ##### **Common Features (Both Approaches)**
 - **Configurable Depth**: Adjustable call stack capture depth (default: 64 frames)
 - **Symbol Resolution**: Function name extraction from call addresses
@@ -106,13 +120,18 @@ void myFunction() {
 #### **Configuration Macros**
 
 ```cpp
-#define FAST_GRIND_STATUS 1           // Enable/disable profiling globally
+// Not defined, if needed, define it in compile flags
 #define FASTGRIND_INSTRUMENT          // Enable automatic instrumentation
 #define FASTGRIND_JE_MALLOC           // Use jemalloc allocator
 #define FASTGRIND_TC_MALLOC           // Use tcmalloc allocator
 
 // Primary instrumentation macro
 #define FAST_GRIND fastgrind __fg(__FUNCTION__)
+
+// Defined, could be modified in fastgrind.h
+#define FAST_GRIND_STATUS 1           // Enable/disable profiling globally
+#define __MEM_MAX_STACK_DEPTH 64      // Default tracking stack depth
+#define __MEM_SAMPLE_INTERVAL_MS 500  // Default time frame (ms)
 ```
 
 ### Usage
@@ -295,6 +314,20 @@ Demonstrated in `demo/` directory:
 
 ​	When a Fastgrind-instrumented application exits, two files are automatically generated:
 
+- fastgrind.text
+- fastgrind.json
+
+#### **fastgrind.text**
+Human-readable report with:
+- Memory usage summary
+- Top memory-consuming functions
+- Call stack traces
+- Allocation/deallocation patterns
+
+**Perf-like report**
+
+![text_zlib](rsc/text_zlib.png)
+
 #### **fastgrind.json**
 Structured JSON format containing:
 - Time-sliced memory usage statistics  
@@ -311,17 +344,6 @@ Structured JSON format containing:
 - Multi thread
 
 ![json_multi_thread](rsc/json_multi_thread.png)
-
-#### **fastgrind.text**
-Human-readable report with:
-- Memory usage summary
-- Top memory-consuming functions
-- Call stack traces
-- Allocation/deallocation patterns
-
-**Perf-like report**
-
-![text_zlib](rsc/text_zlib.png)
 
 #### **Visualization**
 Use /tools/fastgrind.py to generate interactive visual line chart

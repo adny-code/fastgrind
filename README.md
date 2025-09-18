@@ -90,6 +90,20 @@ void myFunction() {
 }
 ```
 
+#####  **Call Stack Report**
+If fastgrind is integrated into the project code, two files will be generated after the program ends
+
+For example:
+
+```bash
+[Grouping] multi thread test: 509 ms
+[FASTGRIND] Start summary memory info
+[FASTGRIND] saved: fastgrind.text (size=2335 bytes)
+[FASTGRIND] saved: fastgrind.json (size=65952 bytes)
+```
+
+For more file detail, please check: [Output and Analysis](#output-and-analysis)
+
 ##### **Common Features (Both Approaches)**
 - **Configurable Depth**: Adjustable call stack capture depth (default: 64 frames)
 - **Symbol Resolution**: Function name extraction from call addresses

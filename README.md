@@ -346,6 +346,20 @@ Demonstrated in `demo/` directory:
 
 When a Fastgrind-instrumented application exits, two files are automatically generated:
 
+- fastgrind.text
+- fastgrind.json
+
+#### **fastgrind.text**
+Human-readable report with:
+- Memory usage summary
+- Top memory-consuming functions
+- Call stack traces
+- Allocation/deallocation patterns
+
+**Perf-like report**
+
+![text_zlib](rsc/text_zlib.png)
+
 #### **fastgrind.json**
 Structured JSON format containing:
 - Time-sliced memory usage statistics  
@@ -362,17 +376,6 @@ Structured JSON format containing:
 - Multi thread
 
 ![json_multi_thread](rsc/json_multi_thread.png)
-
-#### **fastgrind.text**
-Human-readable report with:
-- Memory usage summary
-- Top memory-consuming functions
-- Call stack traces
-- Allocation/deallocation patterns
-
-**Perf-like report**
-
-![text_zlib](rsc/text_zlib.png)
 
 #### **Visualization**
 Use /tools/fastgrind.py to generate interactive visual line chart

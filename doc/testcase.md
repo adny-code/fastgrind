@@ -2,10 +2,16 @@
 
 This directory contains several test cases for the **Fastgrind** memory profiler. Each test case validates different aspects of memory allocation tracking, instrumentation capabilities, and compatibility with various programming scenarios.
 
-
 ## Building Test Cases
 
 All test cases are managed by the top-level CMake.
+
+```bash
+mkdir build
+cd build
+cmake ..
+make
+```
 
 
 ## Test Case Overview

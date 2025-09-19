@@ -4,35 +4,30 @@
 
 **Fastgrind** is a head-only, lightweight, fast, thread safe, valgrind-like memory profiler designed for real-time memory allocation tracking and call stack analysis in C++ applications. Fastgrind provides comprehensive memory usage insights through both automatic and manual instrumentation approaches.
 
-### Key Capabilities
-- 🔍 **Memory Allocation Tracking**: Monitor malloc/free, new/delete, and POSIX memory functions
-- 📊 **Call Stack Analysis**: Capture and analyze function call chains with configurable depth (default: 64 frames)
-- 🧵 **Thread-Safe Operation**: Per-thread local tracking with global aggregation
-- ⏱️ **Time-Based Aggregation**: Memory usage statistics organized by time slices
-- 🔧 **Multiple Allocator Support**: Compatible with glibc, jemalloc, and tcmalloc
-- 📈 **Performance Benchmarking**: Compare overhead against Valgrind
-- � **Modern C++ Support**: Full compatibility with C++11/14/17 features
-
 ## Repository Structure
 
 ```
 fastgrind/
 ├── include/fastgrind.h           # Core code (head only)
 |
-├── demo/                         # Instrumentation examples
+├── demo/
 │   ├── manual_instrument/        # Manual instrumentation demos
 │   ├── auto_instrument/          # Automatic instrumentation demos  
-|   ├── build_all_demo.sh         # Build all individual demo
-|   └── README.md                 # Description of demo and auto/manual instrument
+|   └── build_all_demo.sh         # Build all individual demo
 |
-├── testcase/                     # Feature validation and benchmarks
+├── testcase/
 │   ├── benchmark_box_grouping/   # Performance benchmarking
 │   ├── cpp_feature_test/         # Modern C++ feature test
 │   ├── glibc_je_tc_availabe/     # Allocator compatibility test
 │   ├── multi_pkg_compile/        # Multi-package compilation test
 |   ├── thirdparty_leveldb_test/  # Third-party open source library test (https://github.com/google/leveldb)
-|   ├── thirdparty_zlib_test      # Third-party open source library test (https://zlib.net)
-|   └── README.md                 # Description of testcase and support features
+|   └── thirdparty_zlib_test      # Third-party open source library test (https://zlib.net)
+|
+├── doc/
+|   ├── demo.md                   # Description of demo
+|   ├── feature_list.md           # Description of fastgrind's feature
+|   ├── querstion_list.md         # Description of problems and solutions in using fastgrind
+|   └── testcase.md               # Description of testcase
 |
 ├── tools/fastgrind.py            # Visualize utilities (python fastgrind.py fastgrind.json)
 |
@@ -41,78 +36,78 @@ fastgrind/
 └── README.md                     # Description of repository
 ```
 
-## Fastgrind.h Library
+## Quick Start
 
-### Core Functionality
-
-The `fastgrind.h` header provides a single-file solution for memory profiling with the following key features:
-
-#### **Memory Allocation Interception**
-
-For more details, please check `testcase/README.md`
-
-- Wraps standard allocation functions (`malloc`, `calloc`, `realloc`, `free`)
-- Intercepts C++ operators (`new`, `new[]`, `delete`, `delete[]`, including nothrow variants)
-- Supports POSIX memory functions (`posix_memalign`, `memalign`, `valloc`)
-- Compatible with aligned memory allocation functions (C++17)
-
-#### **Call Stack Management**
-
-The library provides two distinct approaches for function instrumentation:
-
-For more details, please check  `demo/README.md`
-
-##### **Manual Instrumentation Call Stack Management**
-- **RAII-style Probes**: Use `FAST_GRIND` macro for explicit stack frame tracking
-- **Selective Instrumentation**: Developers manually place macros in the beginning of functions of interest
-- **Explicit Control**: Fine-grained control over which functions appear in call stacks
-- **Low Overhead**: Only tracks explicitly marked functions, minimizing performance impact
-- **Simple Configuration**: No complex compiler flags or exclusion lists required
-
-```cpp
-void myFunction() {
-    __FASTGRIND__::FAST_GRIND;  // Explicit call stack tracking
-    // Function implementation
-}
-```
-
-##### **Automatic Instrumentation Call Stack Management**  
-- **Compiler-Driven Tracking**: Automatic insertion of instrumentation calls by compiler
-- **Comprehensive Coverage**: All functions automatically included in call stack tracking
-- **Symbol Resolution**: Automatic function name extraction from call addresses using runtime symbol lookup
-- **Advanced Filtering**: System header exclusion lists prevent tracking unwanted functions
-- **Complex Configuration**: Requires advanced compiler flags and exclusion patterns
-
-```cpp
-// With -DFASTGRIND_INSTRUMENT flag, all functions automatically tracked
-void myFunction() {
-    // No manual macro needed - automatically instrumented
-}
-```
-
-#####  **Call Stack Report**
-If fastgrind is integrated into the project code, two files will be generated after the program ends
-
-For example:
+### Complie testcase
 
 ```bash
-[Grouping] multi thread test: 509 ms
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+```
+
+### Run testcase
+
+```bash
+cd build/testcase/benchmark_box_grouping
+./benchmark_raw
+./benchmark_fastgrind
+./run_valgrind.sh
+
+cd build/testcase/cpp_feature_test
+./cpp_feature_test
+
+...
+
+cd build/testcase/multi_pkg_compile
+./multi_pkg_main
+```
+
+### Call Stack Report
+Two report file will be generated when program exits
+
+```bash
 [FASTGRIND] Start summary memory info
 [FASTGRIND] saved: fastgrind.text (size=2335 bytes)
 [FASTGRIND] saved: fastgrind.json (size=65952 bytes)
 ```
-
 **For more file detail**, please check: [Output and Analysis](#output-and-analysis)
 
-##### **Common Features (Both Approaches)**
-- **Configurable Depth**: Adjustable call stack capture depth (default: 64 frames)
-- **Symbol Resolution**: Function name extraction from call addresses
-- **Cross-Platform Support**: Works on various Unix-like systems
 
-#### **Thread-Safe Architecture**
-- **Per-Thread Local Storage**: Minimizes contention with thread-local accumulators
-- **Global Aggregation**: Periodic merging into mutex-protected global container
-- **Recursion Protection**: Thread-local guards prevent instrumentation recursion
+## Using In Your Project
+
+**Additional compile flags are needed in manual or auto instrumentation**
+
+**For detail compile & link options**, please check: doc/compile.md
+
+### **Manual Instrumentation**
+```cpp
+#include "fastgrind.h"
+
+using namespace __FASTGRIND__;
+
+void processData() {
+    FAST_GRIND;                       // Enable call stack tracking for this function
+    
+    int* data = new int[1000];
+    // ... process data ...
+    delete[] data;
+}
+
+int main() {
+    FAST_GRIND;                       // Enable call stack tracking for this function
+    processData();
+    return 0;
+}
+```
+
+### **Auto Instrumentation**
+
+Include **fastgrind.h** in any one of source code, and with compile options, All functions outside the exclude file are automatically instrumented
+
+
+
+
 
 
 ### API Reference
@@ -134,36 +129,6 @@ For example:
 #define __MEM_SAMPLE_INTERVAL_MS 500  // Default time frame (ms)
 ```
 
-### Usage
-
-For more details, please check `demo/README.md`
-
-#### **Manual Instrumentation**
-```cpp
-#include "fastgrind.h"
-
-using namespace __FASTGRIND__;
-
-void processData() {
-    FAST_GRIND;                       // Enable call stack tracking for this function
-    
-    int* data = new int[1000];        // Tracked allocation
-    // ... process data ...
-    delete[] data;                    // Tracked deallocation
-}
-
-int main() {
-    FAST_GRIND;
-    processData();
-    return 0;                         // Output files generated at program exit
-}
-```
-
-#### **Auto Instrumentation**
-
-Include **fastgrind.h** in any one of source code, and with compile options, All functions outside the exclude file are automatically instrumented
-
-
 ### Scope of Application
 
 Fastgrind is particularly well-suited for:
@@ -180,18 +145,6 @@ Fastgrind is particularly well-suited for:
  - Weak support for template metaprogramming and anonymous functions in summary report
 
 ## Build and Compilation
-
-### Quick Start
-
-```bash
-# Configure and build
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-
-# Install system-wide (optional)
-sudo make install
-```
 
 ### Manual Instrumentation Setup
 

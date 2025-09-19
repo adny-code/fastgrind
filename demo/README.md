@@ -33,31 +33,73 @@ Or navigate to individual demo directories and build them separately.
 - **Lower complexity**: Straightforward build configuration
 
 **Compilation Options**:
-- **Compiler flags**: Standard flags (`-O3 -g -Wall -Wextra -std=c++11`)
-- **Include paths**: `-I${REPO_ROOT}/include`
-- **No special defines**: No automatic instrumentation macros required
+- **Compiler flags**: Basic options
+
+```bash
+g++ -O3 -Wall -Wextra -std=c++11 \
+    -I/path/to/fastgrind/include \
+    source_files...
+    # -DFASTGRIND_JE_MALLOC (if use jemalloc)
+    # -DFASTGRIND_TC_MALLOC (if use tcmalloc)
+```
 
 **Linker Options**:
-- **Wrap flags**: Symbol wrapping for memory allocators
+- **Wrap flags**: Symbol wrapping for memory allocators (Lists all supported below)
+
   ```bash
-  -Wl,--wrap=malloc
-  -Wl,--wrap=calloc
-  -Wl,--wrap=realloc
-  -Wl,--wrap=free
-  -Wl,--wrap=_Znwm                  # operator new
-  -Wl,--wrap=_Znam                  # operator new[]
-  -Wl,--wrap=_ZdlPv                 # operator delete
-  -Wl,--wrap=_ZdaPv                 # operator delete[]
-  -Wl,--wrap=_ZnwmRKSt9nothrow_t    # nothrow new
-  -Wl,--wrap=_ZnamRKSt9nothrow_t    # nothrow new[]
-  -Wl,--wrap=_ZdlPvRKSt9nothrow_t   # nothrow delete
-  -Wl,--wrap=_ZdaPvRKSt9nothrow_t   # nothrow delete[]
-  -Wl,--wrap=valloc
-  -Wl,--wrap=memalign
-  -Wl,--wrap=posix_memalign
-    ...
-  -Wl,--wrap=_ZdlPvmSt11align_val_tRKSt9nothrow_t
-  -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
+  # C standard library memory allocation functions
+  -Wl,--wrap=malloc                 # Standard memory allocation
+  -Wl,--wrap=calloc                 # Zero-initialized memory allocation
+  -Wl,--wrap=realloc                # Memory reallocation
+  -Wl,--wrap=free                   # Memory deallocation
+  
+  # C++ standard operator new/delete (basic versions)
+  -Wl,--wrap=_Znwm                  # operator new(size_t)
+  -Wl,--wrap=_Znam                  # operator new[](size_t)
+  -Wl,--wrap=_ZdlPv                 # operator delete(void*)
+  -Wl,--wrap=_ZdaPv                 # operator delete[](void*)
+  
+  # C++ nothrow operator new/delete
+  -Wl,--wrap=_ZnwmRKSt9nothrow_t    # operator new(size_t, nothrow)
+  -Wl,--wrap=_ZnamRKSt9nothrow_t    # operator new[](size_t, nothrow)
+  -Wl,--wrap=_ZdlPvRKSt9nothrow_t   # operator delete(void*, nothrow)
+  -Wl,--wrap=_ZdaPvRKSt9nothrow_t   # operator delete[](void*, nothrow)
+  
+  # POSIX and Linux-specific memory allocation functions
+  -Wl,--wrap=valloc                 # Page-aligned memory allocation
+  -Wl,--wrap=pvalloc                # Page-aligned allocation (multiple of page size)
+  -Wl,--wrap=memalign               # Aligned memory allocation
+  -Wl,--wrap=posix_memalign         # POSIX aligned memory allocation
+  -Wl,--wrap=reallocarray           # Array reallocation with overflow check
+  -Wl,--wrap=aligned_alloc          # C11 aligned allocation
+  
+  # C++ sized delete operators (C++14)
+  -Wl,--wrap=_ZdaPvm                # operator delete[](void*, size_t)
+  -Wl,--wrap=_ZdlPvm                # operator delete(void*, size_t)
+  
+  # C++ aligned allocation operators (C++17)
+  -Wl,--wrap=_ZnwmSt11align_val_t   # operator new(size_t, align_val_t)
+  -Wl,--wrap=_ZnamSt11align_val_t   # operator new[](size_t, align_val_t)
+  -Wl,--wrap=_ZdlPvSt11align_val_t  # operator delete(void*, align_val_t)
+  -Wl,--wrap=_ZdaPvSt11align_val_t  # operator delete[](void*, align_val_t)
+  
+  # C++ sized aligned delete operators (C++17)
+  -Wl,--wrap=_ZdlPvmSt11align_val_t # operator delete(void*, size_t, align_val_t)
+  -Wl,--wrap=_ZdaPvmSt11align_val_t # operator delete[](void*, size_t, align_val_t)
+  
+  # C++ nothrow sized delete operators
+  -Wl,--wrap=_ZdlPvmRKSt9nothrow_t  # operator delete(void*, size_t, nothrow)
+  -Wl,--wrap=_ZdaPvmRKSt9nothrow_t  # operator delete[](void*, size_t, nothrow)
+  
+  # C++ nothrow aligned allocation operators (C++17)
+  -Wl,--wrap=_ZnwmSt11align_val_tRKSt9nothrow_t    # operator new(size_t, align_val_t, nothrow)
+  -Wl,--wrap=_ZnamSt11align_val_tRKSt9nothrow_t    # operator new[](size_t, align_val_t, nothrow)
+  -Wl,--wrap=_ZdlPvSt11align_val_tRKSt9nothrow_t   # operator delete(void*, align_val_t, nothrow)
+  -Wl,--wrap=_ZdaPvSt11align_val_tRKSt9nothrow_t   # operator delete[](void*, align_val_t, nothrow)
+  
+  # C++ nothrow sized aligned delete operators
+  -Wl,--wrap=_ZdlPvmSt11align_val_tRKSt9nothrow_t  # operator delete(void*, size_t, align_val_t, nothrow)
+  -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t  # operator delete[](void*, size_t, align_val_t, nothrow)
   ```
 
 ### Automatic Instrumentation (`auto_instrument/`)
@@ -72,32 +114,29 @@ Or navigate to individual demo directories and build them separately.
 
 **Compilation Options**:
 - **Compiler flags**: Enhanced flags with instrumentation
-  ```bash
-  -O3 -g -Wall -Wextra -std=c++11 -DFASTGRIND_INSTRUMENT
-  ```
-- **Instrumentation defines**: `FASTGRIND_INSTRUMENT` macro enables automatic mode
-- **Export symbols**: `-Wl,--export-dynamic` for runtime symbol resolution
 
-**Advanced Features**:
-- **Instrumentation exclusion**: Sophisticated exclusion lists for system headers
-- **Function filtering**: Selective instrumentation based on file patterns
-- **Compiler integration**: Deep integration with compiler instrumentation passes
-
-**Exclusion Patterns** (CMake example):
-```cmake
-set(INSTRUMENT_EXCLUDE_FILES
-    /usr/include/c++/
-    /usr/include/x86_64-linux-gnu/c++/
-    /usr/lib/gcc/
-    /usr/include/x86_64-linux-gnu/
-    /usr/include/linux/
-    /usr/include/asm
-    /usr/include/asm-generic
-    /usr/include/sys/
-    /usr/include/bits/
-    /usr/include/gnu/
-    # ... additional system paths
+```bash
+EXCLUDE_FILE_LISTS=(
+    /usr/include/
+    /usr/lib/
+    /usr/local/
+    fastgrind.h
 )
+EXCLUDE_FILE_LISTS=$(IFS=,; echo "${EXCLUDE_FILE_LISTS[*]}")
+
+INSTRUMENT_FLAGS=(
+  -finstrument-functions
+  -finstrument-functions-exclude-file-list=${EXCLUDE_FILE_LISTS}
+)
+
+g++ -O3 -Wall -Wextra -std=c++11 \
+    ${INSTRUMENT_FLAGS[@]} \            # exclude instrument lists
+    -DFASTGRIND_INSTRUMENT \            # define FASTGRIND_INSTRUMENT for auto instrument
+    -Wl,--export-dynamic \              # export symbol
+    -I/path/to/fastgrind/include \
+    source_files...
+    # -DFASTGRIND_JE_MALLOC (if use jemalloc)
+    # -DFASTGRIND_TC_MALLOC (if use tcmalloc)
 ```
 
 ## Build System Examples

@@ -196,6 +196,8 @@ g++ -O3 -Wall -Wextra -std=c++11 \
 ```
 
 #### **Linker Options**
+`For all wrap flags, please check demo/README.md::Linker Options:`
+
 ```bash
 # Essential wrap flags for memory function interception
 -Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=realloc -Wl,--wrap=free \
@@ -211,13 +213,10 @@ other_wrap_flags...
 #### **Compiler Flags**
 ```bash
 EXCLUDE_FILE_LISTS=(
-    /usr/include/c++/
-    /usr/include/x86_64-linux-gnu/c++/
-    /usr/lib/gcc/
-    /usr/include/x86_64-linux-gnu/
-    /usr/include/linux/
-    other_path...
-    ${REPO_ROOT}/third_party/
+    /usr/include/
+    /usr/lib/
+    /usr/local/
+    fastgrind.h
 )
 EXCLUDE_FILE_LISTS=$(IFS=,; echo "${EXCLUDE_FILE_LISTS[*]}")  # remove space
 
@@ -237,14 +236,7 @@ g++ -O3 -Wall -Wextra -std=c++11 \
 ```
 
 #### **Linker Options**
-```bash
-# Essential wrap flags for memory function interception
--Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=realloc -Wl,--wrap=free \
--Wl,--wrap=_Znwm -Wl,--wrap=_Znam -Wl,--wrap=_ZdlPv -Wl,--wrap=_ZdaPv \
--Wl,--wrap=posix_memalign -Wl,--wrap=memalign -Wl,--wrap=valloc \
-other_wrap_flags...
--Wl,--wrap=_ZdlPvmSt11align_val_tRKSt9nothrow_t -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
-```
+**Same as Manual Instrumentation:**[Manual Instrumentation opts](#linker-options)
 
 
 ## Supported Features and Compatibility

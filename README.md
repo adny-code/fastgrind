@@ -2,16 +2,7 @@
 
 ## Overview
 
-**Fastgrind** is a head-only, lightweight, fast, thread safe, valgrind-like memory profiler designed for real-time memory allocation tracking and call stack analysis in C++ applications. Fastgrind provides comprehensive memory usage insights through both automatic and manual instrumentation approaches.
-
-### Key Capabilities
-- 🔍 **Memory Allocation Tracking**: Monitor malloc/free, new/delete, and POSIX memory functions
-- 📊 **Call Stack Analysis**: Capture and analyze function call chains with configurable depth (default: 64 frames)
-- 🧵 **Thread-Safe Operation**: Per-thread local tracking with global aggregation
-- ⏱️ **Time-Based Aggregation**: Memory usage statistics organized by time slices
-- 🔧 **Multiple Allocator Support**: Compatible with glibc, jemalloc, and tcmalloc
-- 📈 **Performance Benchmarking**: Compare overhead against Valgrind
-- � **Modern C++ Support**: Full compatibility with C++11/14/17 features
+**Fastgrind** is a head-only, lightweight, fast, thread safe, valgrind-like memory profiler designed for runtime memory allocation tracking and call stack analysis in C++ applications. Fastgrind provides comprehensive memory usage insights through both automatic and manual instrumentation approaches.
 
 ## Repository Structure
 
@@ -41,13 +32,12 @@ fastgrind/
 └── README.md                     # Description of repository
 ```
 
-## Fastgrind.h Library
 
-### Core Functionality
+### **Core Functionality**
 
-The `fastgrind.h` header provides a single-file solution for memory profiling with the following key features:
+	The `fastgrind.h` header provides a single-file solution for memory profiling with the following key features:
 
-#### **Memory Allocation Interception**
+### **Memory Allocation Interception**
 
 For more details, please check `testcase/README.md`
 
@@ -63,11 +53,8 @@ The library provides two distinct approaches for function instrumentation:
 For more details, please check  `demo/README.md`
 
 ##### **Manual Instrumentation Call Stack Management**
-- **RAII-style Probes**: Use `FAST_GRIND` macro for explicit stack frame tracking
-- **Selective Instrumentation**: Developers manually place macros in the beginning of functions of interest
-- **Explicit Control**: Fine-grained control over which functions appear in call stacks
-- **Low Overhead**: Only tracks explicitly marked functions, minimizing performance impact
-- **Simple Configuration**: No complex compiler flags or exclusion lists required
+
+​	Use `FAST_GRIND` macro for explicit stack frame tracking
 
 ```cpp
 void myFunction() {
@@ -179,6 +166,10 @@ Fastgrind is particularly well-suited for:
  - When a block of memory is allocated and released in different function stack frames, it will be recorded truthfully, resulting in the memory allocated and released in those function stack frames being mismatched
  - Weak support for template metaprogramming and anonymous functions in summary report
 
+### Configuration
+
+- The default max callstack depth is 64. You can modify macro __MEM_MAX_STACK_DEPTH to increase this limition.
+
 ## Build and Compilation
 
 ### Quick Start
@@ -215,6 +206,7 @@ other_wrap_flags...
 ```
 
 ### Automatic Instrumentation Setup
+	Here is a example to setup Makefile
 
 #### **Compiler Flags**
 ```bash
@@ -312,23 +304,14 @@ Demonstrated in `demo/` directory:
 
 ## Output and Analysis
 
-​	When a Fastgrind-instrumented application exits, two files are automatically generated:
+​	When a Fastgrind-instrumented application exits, two files are automatically generated: `fastgrind.text` and `fastgrind.json` 
 
-- fastgrind.text
-- fastgrind.json
-
-#### **fastgrind.text**
-Human-readable report with:
-- Memory usage summary
-- Top memory-consuming functions
-- Call stack traces
-- Allocation/deallocation patterns
-
-**Perf-like report**
+### **fastgrind.text**
+​	This is a linux perf like report
 
 ![text_zlib](rsc/text_zlib.png)
 
-#### **fastgrind.json**
+### **fastgrind.json**
 Structured JSON format containing:
 - Time-sliced memory usage statistics  
 - Per-thread memory allocation details
@@ -345,8 +328,8 @@ Structured JSON format containing:
 
 ![json_multi_thread](rsc/json_multi_thread.png)
 
-#### **Visualization**
-Use /tools/fastgrind.py to generate interactive visual line chart
+## **Visualization**
+Use tools/fastgrind.py to generate interactive visual line chart
 
 It will call matplotlib to draw line chart, and generate `fastgrind.html` in case without matplotlib
 

@@ -5,12 +5,10 @@
 
 Tcmalloc and jemalloc override malloc/free through global symbols, so they can directly replace the default malloc/free at link time, without the need for -Wl,--wrap options. However, this will cause malloc/free in the static library to be unable to be replaced.
 
-To monitor static library, we chose to use -Wl,--wrap options.
+To monitor static library, we choose to use -Wl,--wrap options.
 
 
 ### Why not turn on sys calls (mmap\brk...)
-
-
 
 
 

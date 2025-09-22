@@ -2,6 +2,16 @@
 
 This is an introduction document about the **demo/**
 
+## Quick Start
+
+Build all demos at once:
+```bash
+cd demo
+./build_all_demo.sh
+```
+Or navigate to individual demo directories and build them separately.
+
+
 ## Demo Overview
 
 The demos are organized into two main categories based on instrumentation approach:
@@ -10,15 +20,6 @@ The demos are organized into two main categories based on instrumentation approa
 - **`auto_instrument/`** - Automatic instrumentation examples with more complex compilation options
 
 Each subdirectory contains independent compilation examples using different build systems (bash, CMake, Makefile).
-
-## Quick Start
-
-Build all demos at once:
-```bash
-./build_all_demo.sh
-```
-
-Or navigate to individual demo directories and build them separately.
 
 
 ## Build System Examples

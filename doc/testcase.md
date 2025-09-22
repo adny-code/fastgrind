@@ -1,11 +1,12 @@
 # Fastgrind Test Cases
 
-This directory contains several test cases for the **Fastgrind** memory profiler. Each test case validates different aspects of memory allocation tracking, instrumentation capabilities, and compatibility with various programming scenarios.
+This is an introduction document about the **testcase/**
 
-## Building Test Cases
+## Quick Start
 
-All test cases are managed by the top-level CMake.
+All test cases are managed by the top-level CMake
 
+Build all testcase at once:
 ```bash
 mkdir build
 cd build
@@ -13,8 +14,15 @@ cmake ..
 make
 ```
 
-
 ## Test Case Overview
+
+- **Benchmark with valgrind** (`benchmark_box_grouping/`)
+- **Modern C++ Features** (`cpp_feature_test/`)
+- **Allocator Compatibility** (`glibc_je_tc_availabe/`)  
+- **Multi-Package Compilation** (`multi_pkg_compile/`)
+- **Thirdparty leveldb** (`thirdparty_leveldb_test`)
+- **Thirdparty zlib** (`thirdparty_zlib_test`)
+
 
 ### 1. benchmark_box_grouping/
 
@@ -142,39 +150,3 @@ When Fastgrind-instrumented tests are executed, they generate:
 
 - `fastgrind.json` - JSON format containing detailed memory allocation tracking (per time step, per thread, per function)
 - `fastgrind.text` - Perf-like report with memory usage summary
-
-
-## Benchmarking and Validation
-
-The `testcase/` directory contains comprehensive validation suites:
-
-### Benchmark
-- **Raw Execution**: Baseline performance without instrumentation
-- **Fastgrind Execution**: Measure instrumentation overhead
-- **Valgrind Comparison**: Performance comparison with Valgrind
-
-```bash
-cd build/testcase/benchmark_box_grouping
-./benchmark_raw          # Baseline
-./benchmark_fastgrind    # With Fastgrind
-./run_valgrind.sh        # Valgrind comparison
-```
-
-
-
-### Feature Validation
-
-- **Modern C++ Features** (`cpp_feature_test/`)
-
-- **Allocator Compatibility** (`glibc_je_tc_availabe/`)  
-
-- **Multi-Package Compilation** (`multi_pkg_compile/`)
-
-- **Third-Party Integration** (`thirdparty_*/`)
-
-  
-
-### Third-party Test
-- **leveldb** (`thirdparty_leveldb_test`)
-
-- **zlib** (`thirdparty_zlib_test`)

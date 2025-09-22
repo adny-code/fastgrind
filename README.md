@@ -154,12 +154,12 @@ python fastgrind.py     # auto search fastgrind.json in current folder
 
 - **html**
 
-![html_plt](doc/rsc/json_html.png)
+![html_plot](doc/rsc/json_html.png)
 
 
 ## Limitations and Considerations
 
-- **Cross-Frame Allocation**: Memory allocated in one function and freed in another will show mismatched statistics
+- **Cross-Frame Allocation**: Memory allocated in one function and freed in another will be recorded truthfully, resulting in those function stack frames freed less or more then allocated.
 - **Template Complexity**: Complex template metaprogramming may show generic names in reports
 - **File Overwriting**: Output files overwrite previous content on each run
 - **System Dependencies**: Requires GNU ld for `--wrap` functionality

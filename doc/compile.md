@@ -1,5 +1,7 @@
 # Fastgrind Compile & Link Options
 
+This is an introduction document about how to compile **fastgrind.h** in your project
+
 ## Manual Instrumentation
 
 **Description**: Manual instrumentation requires developers to explicitly add `__FASTGRIND__::FAST_GRIND` in source code but offers simpler compilation configuration.
@@ -74,7 +76,7 @@ g++ -O3 -Wall -Wextra -std=c++11 \
   )
   ```
 
-**Example**: demo/manual_instrument/simple_demo/build.sh [Manual Instrumentation Example](../demo/manual_instrument/simple_demo/build.sh)
+**Example**: [demo/manual_instrument/simple_demo/build.sh](../demo/manual_instrument/simple_demo/build.sh)
 
 
 ## Auto Instrumentation
@@ -111,7 +113,7 @@ g++ -O3 -Wall -Wextra -std=c++11 \
 
 ### Link Options:
 
-Same as Manual Instrumentation::Link Options [Link Options](#link-options)
+Same as [manual instrumentation's link options](#link-options)
 
 
 ## Key Differences Summary

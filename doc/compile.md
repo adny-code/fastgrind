@@ -1,13 +1,10 @@
 # Fastgrind Compile & Link Options
 
+## Manual Instrumentation
 
+**Description**: Manual instrumentation requires developers to explicitly add `__FASTGRIND__::FAST_GRIND` in source code but offers simpler compilation configuration.
 
-
-## Build and Compilation
-
-### Manual Instrumentation Setup
-
-#### **Compiler Flags**
+### Compile Options:
 ```bash
 g++ -O3 -Wall -Wextra -std=c++11 \
     -I/path/to/fastgrind/include \
@@ -16,22 +13,75 @@ g++ -O3 -Wall -Wextra -std=c++11 \
     # -DFASTGRIND_TC_MALLOC (if use tcmalloc)
 ```
 
-#### **Linker Options**
-`For all wrap flags, please check demo/README.md::Linker Options:`
+### Link Options:
+- **Wrap flags**: Symbol wrapping for memory allocators (Lists all supported below)
 
-```bash
-# Essential wrap flags for memory function interception
--Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=realloc -Wl,--wrap=free \
--Wl,--wrap=_Znwm -Wl,--wrap=_Znam -Wl,--wrap=_ZdlPv -Wl,--wrap=_ZdaPv \
--Wl,--wrap=posix_memalign -Wl,--wrap=memalign -Wl,--wrap=valloc \
-other_wrap_flags...
--Wl,--wrap=_ZdlPvmSt11align_val_tRKSt9nothrow_t -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
-```
+  ```bash
+  WRAP_FLAGS=(
+  # C standard library memory allocation functions
+  -Wl,--wrap=malloc                 # Standard memory allocation
+  -Wl,--wrap=calloc                 # Zero-initialized memory allocation
+  -Wl,--wrap=realloc                # Memory reallocation
+  -Wl,--wrap=free                   # Memory deallocation
+  
+  # C++ standard operator new/delete (basic versions)
+  -Wl,--wrap=_Znwm                  # operator new(size_t)
+  -Wl,--wrap=_Znam                  # operator new[](size_t)
+  -Wl,--wrap=_ZdlPv                 # operator delete(void*)
+  -Wl,--wrap=_ZdaPv                 # operator delete[](void*)
+  
+  # C++ nothrow operator new/delete
+  -Wl,--wrap=_ZnwmRKSt9nothrow_t    # operator new(size_t, nothrow)
+  -Wl,--wrap=_ZnamRKSt9nothrow_t    # operator new[](size_t, nothrow)
+  -Wl,--wrap=_ZdlPvRKSt9nothrow_t   # operator delete(void*, nothrow)
+  -Wl,--wrap=_ZdaPvRKSt9nothrow_t   # operator delete[](void*, nothrow)
+  
+  # POSIX and Linux-specific memory allocation functions
+  -Wl,--wrap=valloc                 # Page-aligned memory allocation
+  -Wl,--wrap=pvalloc                # Page-aligned allocation (multiple of page size)
+  -Wl,--wrap=memalign               # Aligned memory allocation
+  -Wl,--wrap=posix_memalign         # POSIX aligned memory allocation
+  -Wl,--wrap=reallocarray           # Array reallocation with overflow check
+  -Wl,--wrap=aligned_alloc          # C11 aligned allocation
+  
+  # C++ sized delete operators (C++14)
+  -Wl,--wrap=_ZdaPvm                # operator delete[](void*, size_t)
+  -Wl,--wrap=_ZdlPvm                # operator delete(void*, size_t)
+  
+  # C++ aligned allocation operators (C++17)
+  -Wl,--wrap=_ZnwmSt11align_val_t   # operator new(size_t, align_val_t)
+  -Wl,--wrap=_ZnamSt11align_val_t   # operator new[](size_t, align_val_t)
+  -Wl,--wrap=_ZdlPvSt11align_val_t  # operator delete(void*, align_val_t)
+  -Wl,--wrap=_ZdaPvSt11align_val_t  # operator delete[](void*, align_val_t)
+  
+  # C++ sized aligned delete operators (C++17)
+  -Wl,--wrap=_ZdlPvmSt11align_val_t # operator delete(void*, size_t, align_val_t)
+  -Wl,--wrap=_ZdaPvmSt11align_val_t # operator delete[](void*, size_t, align_val_t)
+  
+  # C++ nothrow sized delete operators
+  -Wl,--wrap=_ZdlPvmRKSt9nothrow_t  # operator delete(void*, size_t, nothrow)
+  -Wl,--wrap=_ZdaPvmRKSt9nothrow_t  # operator delete[](void*, size_t, nothrow)
+  
+  # C++ nothrow aligned allocation operators (C++17)
+  -Wl,--wrap=_ZnwmSt11align_val_tRKSt9nothrow_t    # operator new(size_t, align_val_t, nothrow)
+  -Wl,--wrap=_ZnamSt11align_val_tRKSt9nothrow_t    # operator new[](size_t, align_val_t, nothrow)
+  -Wl,--wrap=_ZdlPvSt11align_val_tRKSt9nothrow_t   # operator delete(void*, align_val_t, nothrow)
+  -Wl,--wrap=_ZdaPvSt11align_val_tRKSt9nothrow_t   # operator delete[](void*, align_val_t, nothrow)
+  
+  # C++ nothrow sized aligned delete operators
+  -Wl,--wrap=_ZdlPvmSt11align_val_tRKSt9nothrow_t  # operator delete(void*, size_t, align_val_t, nothrow)
+  -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t  # operator delete[](void*, size_t, align_val_t, nothrow)
+  )
+  ```
 
-### Automatic Instrumentation Setup
-    Here is a example to setup Makefile
+**Example**: demo/manual_instrument/simple_demo/build.sh [Manual Instrumentation Example](../demo/manual_instrument/simple_demo/build.sh)
 
-#### **Compiler Flags**
+
+## Auto Instrumentation
+
+**Description**: Automatic instrument functions outside the exclude file, but requires more complex compilation configuration.
+
+### Compile Options:
 ```bash
 EXCLUDE_FILE_LISTS=(
     /usr/include/
@@ -39,22 +89,40 @@ EXCLUDE_FILE_LISTS=(
     /usr/local/
     fastgrind.h
 )
-EXCLUDE_FILE_LISTS=$(IFS=,; echo "${EXCLUDE_FILE_LISTS[*]}")  # remove space
+EXCLUDE_FILE_LISTS=$(IFS=,; echo "${EXCLUDE_FILE_LISTS[*]}")
 
 INSTRUMENT_FLAGS=(
   -finstrument-functions
   -finstrument-functions-exclude-file-list=${EXCLUDE_FILE_LISTS}
 )
 
+# "${INSTRUMENT_FLAGS[@]}": exclude instrument lists
+# -DFASTGRIND_INSTRUMENT:   define FASTGRIND_INSTRUMENT for auto instrument
+# -Wl,--export-dynamic:     export symbol
 g++ -O3 -Wall -Wextra -std=c++11 \
-    ${INSTRUMENT_FLAGS[@]} \            # exclude instrument lists
-    -DFASTGRIND_INSTRUMENT \            # define FASTGRIND_INSTRUMENT for auto instrument
-    -Wl,--export-dynamic \              # export symbol
+    "${INSTRUMENT_FLAGS[@]}" \
+    -DFASTGRIND_INSTRUMENT \
+    -Wl,--export-dynamic \
     -I/path/to/fastgrind/include \
     source_files...
     # -DFASTGRIND_JE_MALLOC (if use jemalloc)
     # -DFASTGRIND_TC_MALLOC (if use tcmalloc)
 ```
 
-#### **Linker Options**
-**Same as Manual Instrumentation:**[Manual Instrumentation opts](#linker-options)
+### Link Options:
+
+Same as Manual Instrumentation::Link Options [Link Options](#link-options)
+
+
+## Key Differences Summary
+
+| Aspect | Manual Instrumentation | Automatic Instrumentation |
+|--------|------------------------|----------------------------|
+| **Code Changes** | Required (manual API calls) | Just include "fastgrind.h" |
+| **Compilation Complexity** | Simple | Complex |
+| **Compiler Flags** | Standard | Enhanced with defines |
+| **Linker Options** | Basic wrap flags | Export-dynamic + wrap flags |
+| **Exclusion Lists** | Not needed | Extensive system exclusions |
+| **Setup Effort** | Low (simple build) | High (complex configuration) |
+| **Runtime Overhead** | Lower (selective) | Higher (comprehensive) |
+| **Maintenance** | Manual updates needed | Automatic coverage |

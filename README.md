@@ -79,7 +79,7 @@ Two report file will be generated when program exits
 
 **Additional compile flags are needed in manual or auto instrumentation**
 
-**For detail compile & link options**, please check: [Integrate and Compile](doc/compile.md)
+**For detail compile & link options**, please check: [doc/compile.md](doc/compile.md)
 
 ### **Manual Instrumentation**
 ```cpp

@@ -83,3 +83,12 @@ Demonstrated in `demo/` directory:
 - ✅ **GNU Make**: Traditional Makefile-based builds
 - ✅ **Bash Scripts**: Simple script-based compilation
 - ✅ **Multi-Package Projects**: Static library compilation and linking
+
+
+## Benchmark With Valgrind
+
+Much Faster than valgrind, especially in multi thread applications.
+
+Adjusting the testcase/benchmark_box_grouping, produces the following results:
+
+![benchmark](rsc/benchmark.png)

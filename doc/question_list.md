@@ -17,4 +17,6 @@
 - **malloc/free function undefined**: Ensure all wrap flags are properly specified
 - **malloc/free function multi defined**: Ensure all wrap flags are properly specified
 
-## Using Questions
+## Runtime Questions
+
+- **Coredump**: Check -finstrument-functions-exclude-file-list={}, add all system header folder in exclude list 

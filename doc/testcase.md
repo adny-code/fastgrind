@@ -142,3 +142,39 @@ When Fastgrind-instrumented tests are executed, they generate:
 
 - `fastgrind.json` - JSON format containing detailed memory allocation tracking (per time step, per thread, per function)
 - `fastgrind.text` - Perf-like report with memory usage summary
+
+
+## Benchmarking and Validation
+
+The `testcase/` directory contains comprehensive validation suites:
+
+### Benchmark
+- **Raw Execution**: Baseline performance without instrumentation
+- **Fastgrind Execution**: Measure instrumentation overhead
+- **Valgrind Comparison**: Performance comparison with Valgrind
+
+```bash
+cd build/testcase/benchmark_box_grouping
+./benchmark_raw          # Baseline
+./benchmark_fastgrind    # With Fastgrind
+./run_valgrind.sh        # Valgrind comparison
+```
+
+
+
+### Feature Validation
+
+- **Modern C++ Features** (`cpp_feature_test/`)
+
+- **Allocator Compatibility** (`glibc_je_tc_availabe/`)  
+
+- **Multi-Package Compilation** (`multi_pkg_compile/`)
+
+- **Third-Party Integration** (`thirdparty_*/`)
+
+  
+
+### Third-party Test
+- **leveldb** (`thirdparty_leveldb_test`)
+
+- **zlib** (`thirdparty_zlib_test`)

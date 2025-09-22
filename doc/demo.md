@@ -259,3 +259,34 @@ When Fastgrind-instrumented demos are executed, they generate:
 - **System header conflicts**: Verify exclusion lists in automatic instrumentation
 - **Compilation failures**: Check that `FASTGRIND_INSTRUMENT` is defined for automatic mode
 - **TCMalloc/JEMalloc conflicts**： Add `-DFASTGRIND_TC_MALLOC` or `-DFASTGRIND_JE_MALLOC` flags
+
+
+
+## Demonstrations and Examples
+
+The `demo/` directory provides comprehensive examples for both instrumentation approaches:
+
+### Available Demos
+
+#### **Simple Examples**
+- `manual_instrument/simple_demo/` - Basic single-file manual instrumentation
+- `auto_instrument/simple_demo/` - Basic single-file automatic instrumentation
+
+#### **Build System Examples**
+- `compile_with_bash/` - Bash script-based multi-package compilation
+- `compile_with_cmake/` - CMake-based modern build configuration  
+- `compile_with_makefile/` - GNU Make traditional build approach
+
+### Quick Demo Execution
+
+```bash
+# Build all demos
+./demo/build_all_demo.sh
+
+# Or run individual demos
+cd demo/manual_instrument/simple_demo
+./build.sh && ./build/app
+
+cd demo/auto_instrument/compile_with_cmake
+mkdir build && cd build && cmake .. && make && ./app
+```

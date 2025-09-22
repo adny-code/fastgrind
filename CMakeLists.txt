@@ -78,7 +78,9 @@ set(INSTRUMENT_EXCLUDE_FILES
     /usr/include/
     /usr/lib/
     /usr/local/
+    /opt/local/
     fastgrind.h
+    # other third-party headers can be added here
 )
 list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
 

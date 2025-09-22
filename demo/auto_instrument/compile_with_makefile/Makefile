@@ -63,38 +63,13 @@ WRAP_FLAGS = \
 	-Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
 
 # Multi-line (no added spaces) using backslash-newline so the value is identical to the previous single line.
-EXCLUDE_FILE_LISTS ?= /usr/include/c++/,\
-/usr/include/x86_64-linux-gnu/c++/,\
-/usr/lib/gcc/,\
-/usr/include/x86_64-linux-gnu/,\
-/usr/include/linux/,\
-/usr/include/asm,\
-/usr/include/asm-generic,\
-/usr/include/sys/,\
-/usr/include/bits/,\
-/usr/include/gnu/,\
-/usr/include/glib-2.0/,\
-/usr/lib/x86_64-linux-gnu/glib-2.0/include/,\
-/usr/include/c++/v1,\
-/usr/lib/clang/,\
-/usr/local/include/,\
-fastgrind.h,\
-/usr/include/boost/,\
-/usr/include/eigen3/,\
-/usr/include/openssl/,\
-/usr/include/libunwind/,\
-/usr/include/jemalloc/,\
-/usr/include/tcmalloc/,\
-/usr/include/gperftools/,\
-/usr/include/google/,\
-/usr/include/valgrind/,\
-/usr/include/cuda/,\
-/usr/local/cuda/include/,\
-/opt/local/include/,\
-$(REPO_ROOT)/third_party/,\
-$(REPO_ROOT)/extern/,\
-$(REPO_ROOT)/vendor/,\
-$(REPO_ROOT)/include/
+EXCLUDE_FILE_LISTS ?= /usr/include/,\
+/usr/lib/,\
+/usr/local/,\
+/opt/local/,\
+fastgrind.h
+# other third-party headers can be added here
+
 # Remove any spaces introduced by newline folding to keep a pure comma list.
 empty :=
 space := $(empty) $(empty)

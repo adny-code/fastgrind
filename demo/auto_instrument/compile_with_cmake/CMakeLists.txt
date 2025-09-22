@@ -33,39 +33,12 @@ include_directories(
 # Instrumentation exclusion list & helper interface
 # -----------------------------------------------------------------------------
 set(INSTRUMENT_EXCLUDE_FILES
-    # Must be excluded
-    /usr/include/c++/
-    /usr/include/x86_64-linux-gnu/c++/
-    /usr/lib/gcc/
-    /usr/include/x86_64-linux-gnu/
-    /usr/include/linux/
-    /usr/include/asm
-    /usr/include/asm-generic
-    /usr/include/sys/
-    /usr/include/bits/
-    /usr/include/gnu/
-    /usr/include/glib-2.0/
-    /usr/lib/x86_64-linux-gnu/glib-2.0/include/
-    /usr/include/c++/v1
-    /usr/lib/clang/
-    /usr/local/include/
-    # Third-Party, should be excluded
+    /usr/include/
+    /usr/lib/
+    /usr/local/
+    /opt/local/
     fastgrind.h
-    /usr/include/boost/
-    /usr/include/eigen3/
-    /usr/include/openssl/
-    /usr/include/libunwind/
-    /usr/include/jemalloc/
-    /usr/include/gperftools/
-    /usr/include/google/
-    /usr/include/valgrind/
-    /usr/include/cuda/
-    /usr/local/cuda/include/
-    /opt/local/include/
-    ${REPO_INCLUDE_DIR}/third_party/
-    ${REPO_INCLUDE_DIR}/extern/
-    ${REPO_INCLUDE_DIR}/vendor/
-    ${REPO_INCLUDE_DIR}/include/
+    # other third-party headers can be added here
 )
 list(JOIN INSTRUMENT_EXCLUDE_FILES "," INSTRUMENT_EXCLUDE_FILES_JOINED)
 set(FASTGRIND_INSTRUMENT_OPTS -finstrument-functions -finstrument-functions-exclude-file-list=${INSTRUMENT_EXCLUDE_FILES_JOINED})

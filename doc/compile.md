@@ -115,6 +115,7 @@ g++ -O3 -Wall -Wextra -std=c++11 \
 
 Same as [manual instrumentation's link options](#link-options)
 
+**Example**: [demo/auto_instrument/simple_demo/build.sh](../demo/auto_instrument/simple_demo/build.sh)
 
 ## Key Differences Summary
 

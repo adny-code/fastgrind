@@ -71,7 +71,12 @@ def _walk_node(node: Any, names: set):
 
 
 def load_json(path: str | Path):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    try:
+        text = Path(path).read_text(encoding="utf-8", errors="replace")
+        return json.loads(text)
+    except Exception as e:
+        print(f"Failed to load JSON from {path}: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def build_structure(path: str | Path) -> AggType:

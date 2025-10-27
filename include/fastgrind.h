@@ -99,7 +99,10 @@ namespace __FASTGRIND__
 /** @def __MEM_MAX_STACK_DEPTH
  *  @brief Maximum depth of the logical probe call stack that will be captured.
  */
+#ifndef __MEM_MAX_STACK_DEPTH
 #define __MEM_MAX_STACK_DEPTH 64
+#else
+#endif
 
 /** @def __MEM_SAMPLE_INTERVAL_MS
  *  @brief Sampling granularity (milliseconds) for the internal timer tick.

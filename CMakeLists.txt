@@ -109,8 +109,8 @@ add_subdirectory(testcase/cpp_feature_test)
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 find_package(ftxui REQUIRED)
-add_executable(fastgrind-tui tools/fastgrind-tui/main.cpp)
-target_link_libraries(fastgrind-tui
+add_executable(fastgrind-report tools/fastgrind-report/main.cpp)
+target_link_libraries(fastgrind-report
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom
   PRIVATE ftxui::component

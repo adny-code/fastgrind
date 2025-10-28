@@ -12,6 +12,24 @@
 
 using namespace __FASTGRIND__;
 
+struct memData
+{
+    memSerializerMap<const char *, memSerializeString> names;
+    memSerializerMap<size_t, memSerializerMap<size_t, memNode>> datas;
+
+    const char *getName(const char *nameId) const
+    {
+        if (names.find(nameId) != names.end())
+        {
+            return names.at(nameId).c_str();
+        }
+        else
+        {
+            return nameId;
+        }
+    }
+};
+
 std::vector<char> readFile(const std::string &filename)
 {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
@@ -32,12 +50,11 @@ std::vector<char> readFile(const std::string &filename)
     return buffer;
 }
 
-bool loadData(const std::string &path, memSerializerMap<const char *, memSerializeString> &names,
-              memSerializerMap<size_t, memSerializerMap<size_t, memNode>> &datas)
+bool loadData(const std::string &path, memData &data)
 {
     std::vector<char> buffers = readFile(path);
     size_t pos = 0;
-    if (!names.unserialize(buffers, pos) || !datas.unserialize(buffers, pos))
+    if (!data.names.unserialize(buffers, pos) || !data.datas.unserialize(buffers, pos))
     {
         return false;
     }

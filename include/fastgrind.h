@@ -363,7 +363,7 @@ template <typename T> class memDataSerializer : public memSerializer
         }
 
         _val.resize(size);
-        for (char *pt = (char*)_val.data(); pt < _val.data() + size; ++pt)
+        for (char *pt = (char *) _val.data(); pt < _val.data() + size; ++pt)
         {
             if (!memVarSerializer<char>(*pt).unserialize(buffer, pos))
                 return false;
@@ -543,6 +543,23 @@ class memNode : public memSerializer
         }
     }
 
+    MEM_NO_INSTRUMENT void add(const memNode &node, bool checkName = true)
+    {
+        if (checkName)
+            assert(_name == node.name());
+
+        _mallocBytes += node._mallocBytes;
+        _freeBytes += node._freeBytes;
+
+        for (auto it = node.childs().begin(); it != node.childs().end(); ++it)
+        {
+            const auto &name = it->first;
+            const auto &subNode = it->second;
+            _childs[name]._name = name;
+            _childs[name].add(subNode);
+        }
+    }
+
     /** @return Mutable reference to child node map keyed by function name pointer. */
     MEM_NO_INSTRUMENT std::map<const char *, memNode> &childs()
     {
@@ -632,6 +649,16 @@ class memNode : public memSerializer
         return _name;
     }
 
+    size_t mallocBytes() const
+    {
+        return _mallocBytes;
+    }
+
+    size_t freeBytes() const
+    {
+        return _freeBytes;
+    }
+
   protected:
     const char *_name = nullptr; ///< Function name pointer (stable during process lifetime)
 
@@ -664,7 +691,8 @@ class memGlobalInfo
 
     MEM_NO_INSTRUMENT ~memGlobalInfo()
     {
-        if (__FAST_GRIND_STATUS) {
+        if (__FAST_GRIND_STATUS)
+        {
             callStackTrans();
             dump();
         }

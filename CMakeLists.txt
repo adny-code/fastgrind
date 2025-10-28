@@ -14,6 +14,7 @@ set(CMAKE_INSTALL_PREFIX "/usr/local" CACHE PATH "Install prefix")
 
 include(GNUInstallDirs)
 
+
 # Public include directory for all targets in this project
 add_library(fastgrind_includes INTERFACE)
 target_include_directories(fastgrind_includes INTERFACE ${CMAKE_SOURCE_DIR}/include)
@@ -110,6 +111,9 @@ install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 find_package(ftxui REQUIRED)
 add_executable(fastgrind-report tools/fastgrind-report/main.cpp)
+target_include_directories(fastgrind-report PRIVATE include)
+target_compile_options(fastgrind-report PRIVATE -D__FAST_GRIND_STATUS=0)
+target_link_options(fastgrind-report PRIVATE ${WRAP_FLAGS})
 target_link_libraries(fastgrind-report
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom

@@ -100,7 +100,7 @@ namespace __FASTGRIND__
  *  @brief Maximum depth of the logical probe call stack that will be captured.
  */
 #ifndef __MEM_MAX_STACK_DEPTH
-#define __MEM_MAX_STACK_DEPTH 64
+    #define __MEM_MAX_STACK_DEPTH 64
 #else
 #endif
 
@@ -112,11 +112,14 @@ namespace __FASTGRIND__
 /** @def __FAST_GRIND_STATUS
  *  @brief Global enable switch (set to 0 at compile time to disable probing at runtime with minimal overhead).
  */
-#define __FAST_GRIND_STATUS 1
+#ifndef __FAST_GRIND_STATUS
+    #define __FAST_GRIND_STATUS 1
+#endif
 
 // #define __MEM_DEBUG_INFO 1
 
 /** @brief Output filename for exported JSON statistics. */
+constexpr const char *__MEM_PATH_BINARY_RESULT = "fastgrind.data";
 constexpr const char *__MEM_PATH_JSON_RESULT = "fastgrind.json";
 constexpr const char *__MEM_PATH_TEXT_RESULT = "fastgrind.text";
 
@@ -289,6 +292,170 @@ class memTimer
     std::atomic<size_t> _tick;      ///< Current tick count in milliseconds
 };
 
+class memSerializer
+{
+  public:
+    virtual void serialize(std::vector<char> &buffer) const = 0;
+    virtual bool unserialize(const std::vector<char> &buffer, size_t &pos) = 0;
+};
+
+template <typename T> class memVarSerializer : public memSerializer
+{
+  public:
+    memVarSerializer(T &val) : _val(val)
+    {
+    }
+
+    void serialize(std::vector<char> &buffer) const override
+    {
+        size_t offset = buffer.size();
+        buffer.resize(buffer.size() + sizeof(T));
+        auto pt = (typename std::remove_const<T>::type *) (buffer.data() + offset);
+        *pt = _val;
+    }
+
+    bool unserialize(const std::vector<char> &buffer, size_t &pos) override
+    {
+        if (pos + sizeof(T) > buffer.size())
+        {
+            return false;
+        }
+
+        if (std::is_const<T>::value)
+        {
+            printf("[error] unserializer cannot handle const value\n");
+            return false;
+        }
+        else
+        {
+            T *ps = (T *) (buffer.data() + pos);
+            (typename std::remove_const<T>::type &) (_val) = *ps;
+            pos += sizeof(T);
+            return true;
+        }
+    }
+
+  protected:
+    T &_val;
+};
+
+template <typename T> class memDataSerializer : public memSerializer
+{
+  public:
+    memDataSerializer(T &val) : _val(val)
+    {
+    }
+
+    void serialize(std::vector<char> &buffer) const override
+    {
+        size_t size = _val.size();
+        memVarSerializer<const size_t>(size).serialize(buffer);
+        for (const char *ps = _val.data(); ps < _val.data() + _val.size(); ++ps)
+            memVarSerializer<const char>(*ps).serialize(buffer);
+    }
+
+    bool unserialize(const std::vector<char> &buffer, size_t &pos) override
+    {
+        size_t size = 0;
+        if (!memVarSerializer<size_t>(size).unserialize(buffer, pos))
+        {
+            return false;
+        }
+
+        _val.resize(size);
+        for (char *pt = (char*)_val.data(); pt < _val.data() + size; ++pt)
+        {
+            if (!memVarSerializer<char>(*pt).unserialize(buffer, pos))
+                return false;
+        }
+
+        return true;
+    }
+
+  protected:
+    T &_val;
+};
+
+class memSerializeString : public std::string, public memDataSerializer<std::string>
+{
+  public:
+    memSerializeString() : memDataSerializer((std::string &) *this)
+    {
+    }
+    memSerializeString(const char *str) : std::string(str), memDataSerializer((std::string &) *this)
+    {
+    }
+};
+
+template <typename K, typename V> class memSerializerMap : public std::map<K, V>, public memSerializer
+{
+  public:
+    void serialize(std::vector<char> &buffer) const override
+    {
+        size_t count = std::map<K, V>::size();
+        memVarSerializer<const size_t>(count).serialize(buffer);
+        for (auto it = std::map<K, V>::begin(); it != std::map<K, V>::end(); ++it)
+        {
+            const auto &k = it->first;
+            const auto &v = it->second;
+            if constexpr (std::is_class<K>::value)
+            {
+                k.serialize(buffer);
+            }
+            else
+            {
+                memVarSerializer<const K>(k).serialize(buffer);
+            }
+
+            if constexpr (std::is_class<V>::value)
+            {
+                v.serialize(buffer);
+            }
+            else
+            {
+                memVarSerializer<const V>(v).serialize(buffer);
+            }
+        }
+    }
+
+    bool unserialize(const std::vector<char> &buffer, size_t &pos) override
+    {
+        size_t count = 0;
+        if (!memVarSerializer<size_t>(count).unserialize(buffer, pos))
+        {
+            return false;
+        }
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            K k;
+            V v;
+
+            if constexpr (std::is_class<K>::value)
+            {
+                k.unserialize(buffer, pos);
+            }
+            else
+            {
+                memVarSerializer<K>(k).unserialize(buffer, pos);
+            }
+
+            if constexpr (std::is_class<V>::value)
+            {
+                v.unserialize(buffer, pos);
+            }
+            else
+            {
+                memVarSerializer<V>(v).unserialize(buffer, pos);
+            }
+
+            std::map<K, V>::emplace(k, v);
+        }
+
+        return true;
+    }
+};
+
 /**
  * @class memNode
  * @brief Node in a hierarchical call tree accumulating memory statistics.
@@ -297,7 +464,7 @@ class memTimer
  * and contains aggregated malloc / free byte counts plus child nodes for deeper
  * call stack levels.
  */
-class memNode
+class memNode : public memSerializer
 {
   public:
     /** @brief Default constructor creating an unnamed node. */
@@ -436,11 +603,40 @@ class memNode
         }
     }
 
+    void serialize(std::vector<char> &buffer) const override
+    {
+        memVarSerializer<const char *const>(_name).serialize(buffer);
+        memVarSerializer<const size_t>(_mallocBytes).serialize(buffer);
+        memVarSerializer<const size_t>(_freeBytes).serialize(buffer);
+        _childs.serialize(buffer);
+    }
+
+    bool unserialize(const std::vector<char> &buffer, size_t &pos) override
+    {
+        if (memVarSerializer<const char *>(_name).unserialize(buffer, pos) &&
+            memVarSerializer<size_t>(_mallocBytes).unserialize(buffer, pos) &&
+            memVarSerializer<size_t>(_freeBytes).unserialize(buffer, pos) && _childs.unserialize(buffer, pos))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    const memSerializerMap<const char *, memNode> &childs() const
+    {
+        return _childs;
+    }
+
+    const char *name() const
+    {
+        return _name;
+    }
+
   protected:
     const char *_name = nullptr; ///< Function name pointer (stable during process lifetime)
 
     //! @note Child map key is raw function name pointer (assumed stable during process lifetime).
-    std::map<const char *, memNode> _childs; ///< Child nodes representing deeper call stack levels
+    memSerializerMap<const char *, memNode> _childs; ///< Child nodes representing deeper call stack levels
 
     size_t _mallocBytes = 0; ///< Total bytes allocated in this subtree
     size_t _freeBytes = 0;   ///< Total bytes freed in this subtree
@@ -468,8 +664,10 @@ class memGlobalInfo
 
     MEM_NO_INSTRUMENT ~memGlobalInfo()
     {
-        callStackTrans();
-        dump();
+        if (__FAST_GRIND_STATUS) {
+            callStackTrans();
+            dump();
+        }
     }
 
     /** @brief Access singleton instance (lazy constructed). */
@@ -522,20 +720,15 @@ class memGlobalInfo
 
         info.dump();
 
+        exportBinary();
         exportJson();
 
         fflush(stdout);
     }
 
   protected:
-    /** @brief Export hierarchical statistics to JSON file (pretty-printed). */
-    MEM_NO_INSTRUMENT void exportJson() const
+    MEM_NO_INSTRUMENT void buildHierResults(memSerializerMap<size_t, memSerializerMap<size_t, memNode>> &datas) const
     {
-        FILE *file = fopen(__MEM_PATH_JSON_RESULT, "wb");
-        if (!file)
-            return;
-
-        std::map<size_t, std::map<size_t, memNode>> datas;
         for (auto it = _frames.begin(); it != _frames.end(); ++it)
         {
             const auto &tid = it->first;
@@ -550,6 +743,51 @@ class memGlobalInfo
                 }
             }
         }
+    }
+
+    MEM_NO_INSTRUMENT void collectNames(const memNode &node,
+                                        memSerializerMap<const char *, memSerializeString> &names) const
+    {
+        names.emplace(node.name(), node.name() ? node.name() : "(null)");
+        for (auto it = node.childs().begin(); it != node.childs().end(); ++it)
+        {
+            names.emplace(it->first, it->first ? it->first : "(null)");
+            collectNames(it->second, names);
+        }
+    }
+
+    /** @brief Export hierarchical statistics to JSON file (pretty-printed). */
+    MEM_NO_INSTRUMENT void exportBinary() const
+    {
+        FILE *file = fopen(__MEM_PATH_BINARY_RESULT, "wb");
+        if (!file)
+            return;
+
+        memSerializerMap<const char *, memSerializeString> names;
+        memSerializerMap<size_t, memSerializerMap<size_t, memNode>> datas;
+        buildHierResults(datas);
+        for (auto it = datas.begin(); it != datas.end(); ++it)
+            for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+                collectNames(it2->second, names);
+
+        std::vector<char> buffer;
+        names.serialize(buffer);
+        datas.serialize(buffer);
+
+        fwrite(buffer.data(), 1, buffer.size(), file);
+        fclose(file);
+        printf("[FASTGRIND] saved: %s (size=%zu bytes)\n", __MEM_PATH_BINARY_RESULT, buffer.size());
+    }
+
+    /** @brief Export hierarchical statistics to JSON file (pretty-printed). */
+    MEM_NO_INSTRUMENT void exportJson() const
+    {
+        FILE *file = fopen(__MEM_PATH_JSON_RESULT, "wb");
+        if (!file)
+            return;
+
+        memSerializerMap<size_t, memSerializerMap<size_t, memNode>> datas;
+        buildHierResults(datas);
 
         std::string compact = "{";
         bool firstOutput = true;

@@ -15,20 +15,26 @@ int main()
     using namespace ftxui;
     auto screen = ScreenInteractive::Fullscreen();
 
-    std::map<size_t, std::unordered_map<size_t, std::unordered_map<size_t, memFrame>>> frames;
-    if (!loadData("fastgrind.json", frames))
+    memSerializerMap<const char *, memSerializeString> names;
+    memSerializerMap<size_t, memSerializerMap<size_t, memNode>> datas;
+    if (!loadData(__MEM_PATH_BINARY_RESULT, names, datas))
     {
         printf("[error] fail to fastgrind.json\n");
         return 1;
     }
+    else
+    {
+        printf("[info] loaded data from '%s'\n", __MEM_PATH_BINARY_RESULT);
+    }
 
     std::shared_ptr<ComponentBase> mainWidget;
-    if (frames.empty())
+    if (datas.empty())
     {
         // no data
         mainWidget = Renderer([&]() {
-            return vbox({paragraph("No sample in fastgrind.json"), paragraph("Press any key to exit")}) | border |
-                   vcenter | center;
+            return vbox({paragraph(strFormat("No sample in %s", __MEM_PATH_BINARY_RESULT)),
+                         paragraph("Press any key to exit")}) |
+                   border | vcenter | center;
         });
 
         mainWidget |= CatchEvent([&](Event event) -> bool {

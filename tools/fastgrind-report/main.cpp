@@ -15,6 +15,13 @@
 using namespace ::ftxui;
 
 bool show = false;
+std::vector<std::string> uiTopBar{"[stack view]", "[curve view]"};
+int uiTopBarSelected = 0;
+int uiMouseX = 0;
+int uiMouseY = 0;
+
+int uiCurveWidth = 10;
+int uiCurveHeight = 10;
 
 Component uiCollapsible(ConstStringRef label, Component child, Ref<bool> show)
 {
@@ -90,6 +97,93 @@ Component buildHierUINode(const memData &data, const memNode &root, const memNod
                          show);
 }
 
+std::shared_ptr<ComponentBase> showNoData(ScreenInteractive &screen)
+{
+    std::shared_ptr<ComponentBase> widget;
+    widget = Renderer([&]() {
+        return vbox({paragraph(strFormat("No sample in %s", __MEM_PATH_BINARY_RESULT)),
+                     paragraph("Press any key to exit")}) |
+               border | vcenter | center;
+    });
+
+    widget |= CatchEvent([&](Event event) -> bool {
+        // press any key or mouse to exit
+        if (event.is_character())
+        {
+            screen.Exit();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    });
+
+    return widget;
+}
+
+auto buildUiCurveView(const memData &data)
+{
+    return Container::Vertical({Renderer([&] {
+               auto terminal = Terminal::Size();
+               int w = 2 * terminal.dimx - 2;
+               int h = 4 * terminal.dimy - 4;
+               auto c = Canvas(w, h);
+               unsigned n = w + 1;
+               std::string header = "Memory usage curve(time/KB)";
+               c.DrawText(terminal.dimx - header.size(), 0, header);
+
+               c.DrawText(0, 0, strFormat("cursor(%d, %d)", uiMouseX, uiMouseY));
+
+               c.DrawPointLine(5, h - 5, 5, 5, Color::Black);
+               c.DrawText(5, 5, "▲");
+
+               c.DrawPointLine(5, h - 5, w - 5, h - 5, Color::Black);
+               c.DrawText(w - 5, h - 5, "▶");
+
+               c.DrawPointLine(uiMouseX, 10, uiMouseX, h - 10, Color::GrayLight);
+               c.DrawPointLine(7, uiMouseY, w - 7, uiMouseY, Color::GrayLight);
+               c.DrawText(uiMouseX + 2, uiMouseY + 4, strFormat("(%d ,%d)", uiMouseX, uiMouseY));
+
+#if 0
+               c.DrawPointLine(1, 1, w - 1, 1, Color::Black);
+               c.DrawPointLine(1, 1, 1, h - 1, Color::Black);
+               c.DrawPointLine(w - 1, 1, w - 1, h - 1, Color::Black);
+               c.DrawPointLine(1, h - 1, w - 1, h - 1, Color::Black);
+#endif
+        //    for (int y = 25; y < h; y += 25)
+        //    {
+        //        int margin = 0;
+        //        c.DrawPointLine(margin, y, w - margin, y, Color::GrayLight);
+        //    }
+
+#if 1
+               std::vector<int> ys(n);
+               for (int x = 0; x < n; x++)
+               {
+                   float dx = float(x - /*uiMouseX*/ 0);
+                   float dy = 50.f;
+                   ys[x] = int(dy + 20 * cos(dx * 0.14) + 10 * sin(dx * 0.42));
+               }
+               for (int x = 1; x < n - 1; x++)
+               {
+                   c.DrawPointLine(x, ys[x], x + 1, ys[x + 1]);
+               }
+
+#endif
+
+               return canvas(std::move(c));
+           })}) |
+           CatchEvent([&](Event e) {
+               if (e.is_mouse())
+               {
+                   uiMouseX = (e.mouse().x - 1) * 2;
+                   uiMouseY = (e.mouse().y - 1) * 4;
+               }
+               return false;
+           });
+}
+
 int main()
 {
     using namespace ftxui;
@@ -114,37 +208,26 @@ int main()
             root.add(node, false);
         }
     }
+    auto terminal = Terminal::Size();
+    printf("[info] size %d %d\n", terminal.dimx, terminal.dimy);
 
     std::shared_ptr<ComponentBase> mainWidget;
     if (data.datas.empty())
     {
-        // no data
-        mainWidget = Renderer([&]() {
-            return vbox({paragraph(strFormat("No sample in %s", __MEM_PATH_BINARY_RESULT)),
-                         paragraph("Press any key to exit")}) |
-                   border | vcenter | center;
-        });
-
-        mainWidget |= CatchEvent([&](Event event) -> bool {
-            // press any key or mouse to exit
-            if (event.is_character())
-            {
-                screen.Exit();
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        });
+        mainWidget = showNoData(screen);
     }
     else
     {
-        mainWidget = Container::Vertical({Renderer([&] {
-                                              return text(strFormat("fastgrind samples")) | bgcolor(Color::Blue) |
-                                                     color(Color::White) | bold;
-                                          }),
-                                          buildHierUINode(data, root, root)});
+        auto uiStackView = Container::Vertical({Renderer([&]() {
+                                                    return text(strFormat("fastgrind samples")) | bgcolor(Color::Blue) |
+                                                           color(Color::White) | bold;
+                                                }),
+                                                buildHierUINode(data, root, root) | vscroll_indicator | frame});
+        auto uiCurveView = buildUiCurveView(data);
+
+        mainWidget =
+            Container::Vertical({Toggle(&uiTopBar, &uiTopBarSelected) | bgcolor(Color::Blue) | color(Color::White),
+                                 Container::Tab({uiStackView, uiCurveView}, &uiTopBarSelected)});
     }
 
     screen.Loop(mainWidget);

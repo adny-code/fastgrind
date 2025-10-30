@@ -7,10 +7,10 @@
 #include <cstdio>
 #include <iostream>
 
-#include <map>
-
 #include "data.h"
 #include "utils.h"
+#include <map>
+#include <set>
 
 using namespace ::ftxui;
 
@@ -61,40 +61,50 @@ Component buildHierUINode(const memData &data, const memNode &root, const memNod
                                   100.f * node.mallocBytes() / root.mallocBytes(),
                                   100.f * node.freeBytes() / root.freeBytes());
     label += strFormat(" %s", data.getName(node.name()));
-    label += strFormat(" [+%lu, -%lu]", node.mallocBytes(), node.freeBytes());
+    label += strFormat(" [+%s, -%s]",
+                       comma(std::to_string(node.mallocBytes())).c_str(),
+                       comma(std::to_string(node.freeBytes())).c_str());
 
-    std::vector<const memNode *> subNodes;
-    for (const auto &[nameId, subNode] : node.childs())
-        subNodes.push_back(&subNode);
-
-    std::sort(subNodes.begin(), subNodes.end(), [](const memNode *a, const memNode *b) -> bool {
-        if (a->mallocBytes() == b->mallocBytes())
-        {
-            return a->freeBytes() > b->freeBytes();
-        }
-        else
-        {
-            return a->mallocBytes() > b->mallocBytes();
-        }
-    });
-
-    std::vector<Component> childs;
-    for (const auto &subNode : subNodes)
+    if (node.childs().empty())
     {
-        childs.emplace_back(buildHierUINode(data, root, *subNode));
+        return Renderer([&, label] { return text(std::string("  ") + label); });
     }
+    else
+    {
 
-    Component vlayout = Container::Vertical(childs);
+        std::vector<const memNode *> subNodes;
+        for (const auto &[nameId, subNode] : node.childs())
+            subNodes.push_back(&subNode);
 
-    return uiCollapsible(label,
-                         Renderer(vlayout,
-                                  [vlayout] {
-                                      return hbox({
-                                          text(" "),
-                                          vlayout->Render(),
-                                      });
-                                  }),
-                         show);
+        std::sort(subNodes.begin(), subNodes.end(), [](const memNode *a, const memNode *b) -> bool {
+            if (a->mallocBytes() == b->mallocBytes())
+            {
+                return a->freeBytes() > b->freeBytes();
+            }
+            else
+            {
+                return a->mallocBytes() > b->mallocBytes();
+            }
+        });
+
+        std::vector<Component> childs;
+        for (const auto &subNode : subNodes)
+        {
+            childs.emplace_back(buildHierUINode(data, root, *subNode));
+        }
+
+        Component vlayout = Container::Vertical(childs);
+
+        return uiCollapsible(label,
+                             Renderer(vlayout,
+                                      [vlayout] {
+                                          return hbox({
+                                              text(" "),
+                                              vlayout->Render(),
+                                          });
+                                      }),
+                             show);
+    }
 }
 
 std::shared_ptr<ComponentBase> showNoData(ScreenInteractive &screen)
@@ -122,7 +132,115 @@ std::shared_ptr<ComponentBase> showNoData(ScreenInteractive &screen)
     return widget;
 }
 
-auto buildUiCurveView(const memData &data)
+template <typename T> class XYData
+{
+  public:
+    void add(const T &x, const T &y)
+    {
+        _datas.emplace_back(std::make_pair(x, y));
+    }
+
+    std::pair<T, T> leftBottom() const
+    {
+        T x = std::numeric_limits<T>::max();
+        T y = std::numeric_limits<T>::max();
+        for (const auto &pp : _datas)
+        {
+            x = pp.first < x ? pp.first : x;
+            y = pp.second < y ? pp.second : y;
+        }
+
+        return {x, y};
+    }
+
+    std::pair<T, T> size() const
+    {
+        T xl = std::numeric_limits<T>::max();
+        T xr = std::numeric_limits<T>::min();
+        T yb = std::numeric_limits<T>::max();
+        T yt = std::numeric_limits<T>::min();
+        for (const auto &pp : _datas)
+        {
+            xl = pp.first < xl ? pp.first : xl;
+            yb = pp.second < yb ? pp.second : yb;
+            xr = pp.first > xr ? pp.first : xr;
+            yt = pp.second > yt ? pp.second : yt;
+        }
+
+        assert(yt - yb > 0);
+
+        return {xr - xl, yt - yb};
+    }
+
+    void swap(std::vector<std::pair<T, T>> &data)
+    {
+        _datas.swap(data);
+    }
+
+    long trans(bool isX, long v) const
+    {
+        return isX ? v * scalerX - offsetX : v * scalerY - offsetY;
+    }
+
+    long rtrans(bool isX, long v) const
+    {
+        return isX ? double(v + offsetX) / scalerX : double(v + offsetY) / scalerY;
+    }
+
+    void trans(const std::pair<T, T> &nanchor, const std::pair<T, T> &nsize, std::vector<std::pair<T, T>> &out)
+    {
+        auto sanchor = leftBottom();
+        auto ssize = size();
+        scalerX = double(nsize.first) / ssize.first;
+        scalerY = double(nsize.second) / ssize.second;
+        offsetX = 1;
+        offsetY = scalerY * sanchor.second;
+
+        std::map<T, std::set<T>> tmp;
+        for (const auto &pp : _datas)
+        {
+            T newX = pp.first * scalerX;
+            T newY = pp.second * scalerY - offsetY;
+            tmp[newX].insert(newY);
+        }
+
+        if (tmp.size() >= 2)
+        {
+            for (const auto &[x, l] : tmp)
+            {
+                if (l.size() >= 2)
+                {
+                    out.emplace_back(std::make_pair(x, *l.begin()));
+                }
+
+                out.emplace_back(std::make_pair(x, *l.rbegin()));
+            }
+        }
+    }
+
+    long getY(long x) const
+    {
+        for (const auto &pp : _datas)
+        {
+            if (pp.first >= x)
+            {
+                return pp.second;
+            }
+        }
+
+        return -1;
+    }
+
+    long offsetX = 0;
+    long offsetY = 0;
+    double scalerX = 1.f;
+    double scalerY = 1.f;
+
+  protected:
+    std::vector<std::pair<T, T>> _datas;
+};
+
+auto buildUiCurveView(const memData &data, const std::map<size_t, size_t> &xys)
 {
     return Container::Vertical({Renderer([&] {
                auto terminal = Terminal::Size();
@@ -133,6 +251,13 @@ auto buildUiCurveView(const memData &data)
                std::string header = "Memory usage curve(time/KB)";
                c.DrawText(terminal.dimx - header.size(), 0, header);
 
+               XYData<long> s2p;
+               for (const auto &pp : xys)
+                   s2p.add(pp.first, pp.second);
+
+               std::vector<std::pair<long, long>> pxys;
+               s2p.trans(std::pair<long, long>(5, 5), std::pair<long, long>(w - 10, h - 10), pxys);
+
                c.DrawText(0, 0, strFormat("cursor(%d, %d)", uiMouseX, uiMouseY));
 
                c.DrawPointLine(5, h - 5, 5, 5, Color::Black);
@@ -141,36 +266,46 @@ auto buildUiCurveView(const memData &data)
                c.DrawPointLine(5, h - 5, w - 5, h - 5, Color::Black);
                c.DrawText(w - 5, h - 5, "▶");
 
+               c.DrawText(
+                   uiMouseX + 2,
+                   uiMouseY + 4,
+                   strFormat("(%ld ,%ld)", s2p.rtrans(true, uiMouseX - 5), s2p.getY(s2p.rtrans(true, uiMouseX - 5))));
+
                c.DrawPointLine(uiMouseX, 10, uiMouseX, h - 10, Color::GrayLight);
-               c.DrawPointLine(7, uiMouseY, w - 7, uiMouseY, Color::GrayLight);
-               c.DrawText(uiMouseX + 2, uiMouseY + 4, strFormat("(%d ,%d)", uiMouseX, uiMouseY));
+               c.DrawPointLine(7,
+                               h - 10 - s2p.trans(false, s2p.getY(s2p.rtrans(true, uiMouseX - 5))),
+                               w - 7,
+                               h - 10 - s2p.trans(false, s2p.getY(s2p.rtrans(true, uiMouseX - 5))),
+                               Color::GrayLight);
 
 #if 0
+                // show border
                c.DrawPointLine(1, 1, w - 1, 1, Color::Black);
                c.DrawPointLine(1, 1, 1, h - 1, Color::Black);
                c.DrawPointLine(w - 1, 1, w - 1, h - 1, Color::Black);
                c.DrawPointLine(1, h - 1, w - 1, h - 1, Color::Black);
 #endif
-        //    for (int y = 25; y < h; y += 25)
-        //    {
-        //        int margin = 0;
-        //        c.DrawPointLine(margin, y, w - margin, y, Color::GrayLight);
-        //    }
 
-#if 1
-               std::vector<int> ys(n);
-               for (int x = 0; x < n; x++)
-               {
-                   float dx = float(x - /*uiMouseX*/ 0);
-                   float dy = 50.f;
-                   ys[x] = int(dy + 20 * cos(dx * 0.14) + 10 * sin(dx * 0.42));
-               }
-               for (int x = 1; x < n - 1; x++)
-               {
-                   c.DrawPointLine(x, ys[x], x + 1, ys[x + 1]);
-               }
+               auto y0 = s2p.trans(false, 0);
+               printf("y0 %ld", y0);
+               c.DrawPointLine(5, h - 10 - y0, w - 1, h - 10 - y0, Color::Blue1);
 
-#endif
+               if (pxys.size() >= 2)
+               {
+                   auto it = pxys.begin();
+                   int x0 = it->first;
+                   int y0 = it->second;
+                   ++it;
+                   do
+                   {
+                       int x1 = it->first;
+                       int y1 = it->second;
+
+                       c.DrawPointLine(x0 + 5, h - 10 - y0, x1 + 5, h - 10 - y1, Color::Black);
+                       x0 = x1;
+                       y0 = y1;
+                   } while (++it != pxys.end());
+               }
 
                return canvas(std::move(c));
            })}) |
@@ -182,6 +317,38 @@ auto buildUiCurveView(const memData &data)
                }
                return false;
            });
+}
+
+std::map<size_t, size_t> getPeakMemory(const memData &data)
+{
+    const auto &datas = data.datas;
+    if (datas.empty())
+    {
+        return {};
+    }
+
+    // key is tick, second is cur used memory
+    std::map<size_t, size_t> xy;
+    auto it = datas.begin();
+    long usedMemory = 0;
+    long freeMemory = 0;
+    do
+    {
+        const auto &tick = it->first;
+        const auto &threads = it->second;
+
+        usedMemory -= freeMemory;
+        freeMemory = 0;
+
+        for (const auto &[tid, node] : threads)
+        {
+            freeMemory += node.freeBytes();
+            usedMemory += node.mallocBytes();
+        }
+
+        xy.emplace(tick, usedMemory);
+    } while (++it != datas.end());
+    return xy;
 }
 
 int main()
@@ -211,6 +378,8 @@ int main()
     auto terminal = Terminal::Size();
     printf("[info] size %d %d\n", terminal.dimx, terminal.dimy);
 
+    auto memoryData = getPeakMemory(data);
+
     std::shared_ptr<ComponentBase> mainWidget;
     if (data.datas.empty())
     {
@@ -223,7 +392,7 @@ int main()
                                                            color(Color::White) | bold;
                                                 }),
                                                 buildHierUINode(data, root, root) | vscroll_indicator | frame});
-        auto uiCurveView = buildUiCurveView(data);
+        auto uiCurveView = buildUiCurveView(data, memoryData);
 
         mainWidget =
             Container::Vertical({Toggle(&uiTopBar, &uiTopBarSelected) | bgcolor(Color::Blue) | color(Color::White),

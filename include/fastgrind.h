@@ -767,6 +767,18 @@ class memStack
     /** @brief Push function name onto stack and update frame id hash. */
     MEM_NO_INSTRUMENT void push(const char *v)
     {
+        if (_offset >= __MEM_MAX_STACK_DEPTH) {
+            static bool warned_stack = false;
+            if (!warned_stack) {
+                fprintf(stderr, "[FASTGRIND] WARNING: Call stack depth exceeded %d\n", __MEM_MAX_STACK_DEPTH);
+                warned_stack = true;
+            }
+
+            return;
+        }
+
+        assert(_offset < __MEM_MAX_STACK_DEPTH);
+
         _stack[_offset++] = v;
         _stackId += size_t(v);
     }
@@ -774,6 +786,9 @@ class memStack
     /** @brief Pop top of stack (must not be empty). */
     MEM_NO_INSTRUMENT const char *pop()
     {
+        if (_offset == 0)
+            return nullptr;
+
         auto v = _stack[--_offset];
         _stackId -= size_t(v);
         return v;
@@ -816,7 +831,7 @@ class memStack
     size_t _stackId = 0;
 };
 
-static thread_local size_t tid = syscall(SYS_gettid);
+static thread_local long tid = syscall(SYS_gettid);
 
 /**
  * @class memLocalInfo
@@ -858,9 +873,18 @@ class memLocalInfo : public std::unordered_map<size_t /*frameId*/, std::unordere
         if (!memGlobalInfo::instance())
             return;
 
+        if (tid == -1) {
+            static bool warned_tid = false;
+            if (!warned_tid) {
+                fprintf(stderr, "[FASTGRIND] WARNING: Thread ID error: %ld\n", tid);
+                warned_tid = true;
+            }
+        }
+
+        size_t stid = size_t(tid);
         std::lock_guard<std::mutex> lg(memGlobalInfo::instance()->_lk);
 
-        memGlobalInfo::instance()->_frames[tid] = _frames;
+        memGlobalInfo::instance()->_frames[stid] = _frames;
 
         for (auto it = _callstacks.begin(); it != _callstacks.end(); ++it)
             memGlobalInfo::instance()->_callstacks[it->first] = it->second;

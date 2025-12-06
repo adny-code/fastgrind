@@ -40,6 +40,7 @@
 #ifndef FAST_GRIND_H
 #define FAST_GRIND_H
 
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <functional>

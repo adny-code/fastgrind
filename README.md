@@ -9,29 +9,29 @@
 ```
 fastgrind/
 ├── include/fastgrind.h           # Core code (head only)
-|
+│
 ├── demo/
 │   ├── manual_instrument/        # Manual instrumentation demos
 │   ├── auto_instrument/          # Automatic instrumentation demos  
-|   └── build_all_demo.sh         # Build all individual demo
-|
+│   └── build_all_demo.sh         # Build all individual demo
+│
 ├── testcase/
 │   ├── benchmark_box_grouping/   # Performance benchmarking
 │   ├── cpp_feature_test/         # Modern C++ feature test
 │   ├── glibc_je_tc_availabe/     # Allocator compatibility test
 │   ├── multi_pkg_compile/        # Multi-package compilation test
-|   ├── thirdparty_leveldb_test/  # Third-party open source library test (https://github.com/google/leveldb)
-|   └── thirdparty_zlib_test      # Third-party open source library test (https://zlib.net)
-|
+│   ├── thirdparty_leveldb_test/  # Third-party open source library test (https://github.com/google/leveldb)
+│   └── thirdparty_zlib_test      # Third-party open source library test (https://zlib.net)
+│
 ├── doc/
-|   ├── compile.md                # Description of integrate and compile
-|   ├── demo.md                   # Description of demo
-|   ├── feature_list.md           # Description of fastgrind's feature
-|   ├── querstion_list.md         # Description of problems and solutions in using fastgrind
-|   └── testcase.md               # Description of testcase
-|
+│   ├── compile.md                # Description of integrate and compile
+│   ├── demo.md                   # Description of demo
+│   ├── feature_list.md           # Description of fastgrind's feature
+│   ├── querstion_list.md         # Description of problems and solutions in using fastgrind
+│   └── testcase.md               # Description of testcase
+│
 ├── tools/fastgrind.py            # Visualize utilities (python fastgrind.py fastgrind.json)
-|
+│
 ├── CMakeList.txt                 # Top Cmake for testcase
 ├── Doxyfile                      # Doxyfile to generate manual
 └── README.md                     # Description of repository

@@ -48,3 +48,4 @@ docs/
 *.js
 *.html
 *.md5
+.github/

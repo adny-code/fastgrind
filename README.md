@@ -77,7 +77,44 @@ Two report file will be generated when program exits
 
 ## Using In Your Project
 
-**Additional compile flags are needed in manual or auto instrumentation**
+For CMake consumers, the recommended path is to use the exported interface targets instead of copying compiler and linker flags by hand.
+
+### **Recommended CMake Integration**
+
+#### 1. Installed package: `find_package`
+
+```cmake
+find_package(fastgrind CONFIG REQUIRED)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE fastgrind::manual)
+# Or: fastgrind::auto
+```
+
+Use this when fastgrind is already installed.
+
+#### 2. Download at configure time: `FetchContent`
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+    fastgrind
+    GIT_REPOSITORY https://github.com/adny-code/fastgrind.git
+    GIT_TAG main
+)
+
+set(FASTGRIND_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(FASTGRIND_INSTALL OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(fastgrind)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE fastgrind::auto)
+```
+
+Use this when you want CMake to download fastgrind automatically.
+
 
 **For detail compile & link options**, please check: [doc/compile.md](doc/compile.md)
 

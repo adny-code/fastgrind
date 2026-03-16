@@ -2,6 +2,39 @@
 
 This is an introduction document about how to compile **fastgrind.h** in your project
 
+## Recommended CMake Integration
+
+If your project already uses CMake, prefer the exported interface targets instead of manually copying compiler and linker flags.
+
+### Installed package
+
+```cmake
+find_package(fastgrind CONFIG REQUIRED)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE fastgrind::manual)
+# or fastgrind::auto
+```
+
+### Vendored package
+
+```cmake
+set(FASTGRIND_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(FASTGRIND_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory(external/fastgrind)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE fastgrind::auto)
+```
+
+### Target meanings
+
+- `fastgrind::manual`: include path + allocation wrap flags
+- `fastgrind::auto`: everything in `fastgrind::manual` plus `FASTGRIND_INSTRUMENT`, `-finstrument-functions`, exclude-file list, and `-Wl,--export-dynamic`
+- Allocator selection still uses your own target compile definitions such as `FASTGRIND_JE_MALLOC` or `FASTGRIND_TC_MALLOC`
+
+Automatic mode still requires including `fastgrind.h` in at least one translation unit.
+
 ## Manual Instrumentation
 
 **Description**: Manual instrumentation requires developers to explicitly add `__FASTGRIND__::FAST_GRIND` in source code but offers simpler compilation configuration.

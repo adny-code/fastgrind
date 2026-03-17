@@ -57,3 +57,4 @@ docs/
 *.html
 *.md5
 .github/
+.claude/

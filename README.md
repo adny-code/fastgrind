@@ -79,6 +79,23 @@ Two report file will be generated when program exits
 
 For CMake consumers, the recommended path is to use the exported interface targets instead of copying compiler and linker flags by hand.
 
+### Install fastgrind
+
+Build and install fastgrind to any prefix before using `find_package`. The example below installs into `$HOME/.local` so no system-wide write access is required.
+
+```bash
+cmake -S . -B build -DFASTGRIND_BUILD_TESTS=OFF -DFASTGRIND_INSTALL=ON
+cmake --build build -j$(nproc)
+cmake --install build --prefix "$HOME/.local"
+```
+
+Then point your consumer project at that prefix when configuring it:
+
+```bash
+cmake -S . -B build -DCMAKE_PREFIX_PATH="$HOME/.local"
+cmake --build build -j$(nproc)
+```
+
 ### **Recommended CMake Integration**
 
 #### 1. Installed package: `find_package`
@@ -91,7 +108,7 @@ target_link_libraries(my_app PRIVATE fastgrind::manual)
 # Or: fastgrind::auto
 ```
 
-Use this when fastgrind is already installed.
+Use this when fastgrind is already installed. If it is not installed into a standard prefix, configure your app with `-DCMAKE_PREFIX_PATH=/path/to/prefix`.
 
 #### 2. Download at configure time: `FetchContent`
 

@@ -95,6 +95,9 @@ class SeriesResponse:
     split: str
 
 
+METRIC_OPTIONS = ("malloc", "free", "net", "live")
+
+
 def _format_bytes(value: int) -> str:
     units = ["B", "KiB", "MiB", "GiB", "TiB"]
     size = float(value)
@@ -109,6 +112,16 @@ def _format_value(value: float) -> str:
     if abs(value - round(value)) < 1e-9:
         return f"{int(round(value)):,}"
     return f"{value:,.2f}"
+
+
+def _tick_axis_label() -> str:
+    return "Tick (ms)"
+
+
+def _metric_axis_label(metric: str) -> str:
+    if metric == "memory":
+        return "Memory (bytes)"
+    return f"{metric} (bytes)"
 
 
 def _align_down(value: int, interval: int) -> int:
@@ -137,6 +150,18 @@ def _parse_csv_ints(raw: str | None) -> list[int]:
         if not chunk:
             continue
         values.append(int(chunk))
+    return values
+
+
+def _parse_csv_strings(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    values: list[str] = []
+    for chunk in raw.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        values.append(chunk)
     return values
 
 
@@ -748,23 +773,27 @@ class FastgrindQueryEngine:
         thread_ids: Sequence[int] | None = None,
         function_ids: Sequence[int] | None = None,
         metric: str = "live",
+        metrics: Sequence[str] | None = None,
         scope: str = "inclusive",
     ) -> Path:
         output_path = Path(output)
         start_tick, end_tick = self._normalize_window(start_ms, end_ms)
-        series = self.query_series(
+        selected_metrics = self._normalize_metrics(metrics, default=metric)
+        series = self.query_multi_series(
             thread_ids=thread_ids,
             function_ids=function_ids,
             start_ms=start_tick,
             end_ms=end_tick,
-            metric=metric,
+            metrics=selected_metrics,
             scope=scope,
             split="auto",
             resolution=400,
         )
-        top = self.top_functions(start_tick, end_tick, thread_ids=thread_ids, limit=12, metric="net", scope="exclusive")
+        primary_metric = self._primary_metric(selected_metrics)
+        top_metric = "net" if primary_metric == "live" else primary_metric
+        top = self.top_functions(start_tick, end_tick, thread_ids=thread_ids, limit=12, metric=top_metric, scope="exclusive")
         focus_thread = (thread_ids or self._all_thread_ids[:1])[:1]
-        stack_text = self.stack_breakdown(focus_thread[0], start_tick, end_tick, metric="net") if focus_thread else ""
+        stack_text = self.stack_breakdown(focus_thread[0], start_tick, end_tick, metric=top_metric) if focus_thread else ""
 
         html = generate_snapshot_html(
             title=f"fastgrind snapshot: {self.reader.path.name}",
@@ -783,21 +812,24 @@ class FastgrindQueryEngine:
         start_ms: int | None = None,
         end_ms: int | None = None,
         metric: str = "malloc",
+        metrics: Sequence[str] | None = None,
         scope: str = "inclusive",
         resolution: int | None = None,
     ) -> dict[str, Any]:
         selected_threads = self._normalize_thread_ids(thread_ids)
-        series = self.query_series(
+        selected_metrics = self._normalize_metrics(metrics, default=metric)
+        series = self.query_multi_series(
             thread_ids=selected_threads,
             function_ids=function_ids,
             start_ms=start_ms,
             end_ms=end_ms,
-            metric=metric,
+            metrics=selected_metrics,
             scope=scope,
             split="auto",
             resolution=resolution,
         )
-        top_metric = "net" if metric == "live" else metric
+        primary_metric = self._primary_metric(selected_metrics)
+        top_metric = "net" if primary_metric == "live" else primary_metric
         top = self.top_functions(
             start_ms=start_ms,
             end_ms=end_ms,
@@ -808,12 +840,92 @@ class FastgrindQueryEngine:
         )
         focus_thread = selected_threads[0] if selected_threads else (self._all_thread_ids[0] if self._all_thread_ids else None)
         stack_text = self.stack_breakdown(focus_thread, start_ms, end_ms, metric=top_metric) if focus_thread else ""
-        return {"series": series, "top": top, "focus_thread": focus_thread, "stack_text": stack_text}
+        return {
+            "series": series,
+            "top": top,
+            "focus_thread": focus_thread,
+            "stack_text": stack_text,
+            "selected_metrics": list(selected_metrics),
+            "primary_metric": primary_metric,
+        }
+
+    def query_multi_series(
+        self,
+        thread_ids: Sequence[int] | None = None,
+        function_ids: Sequence[int] | None = None,
+        start_ms: int | None = None,
+        end_ms: int | None = None,
+        metrics: Sequence[str] | None = None,
+        scope: str = "inclusive",
+        split: str = "auto",
+        resolution: int | None = None,
+    ) -> SeriesResponse:
+        selected_metrics = self._normalize_metrics(metrics)
+        if len(selected_metrics) == 1:
+            return self.query_series(
+                thread_ids=thread_ids,
+                function_ids=function_ids,
+                start_ms=start_ms,
+                end_ms=end_ms,
+                metric=selected_metrics[0],
+                scope=scope,
+                split=split,
+                resolution=resolution,
+            )
+
+        responses = [
+            self.query_series(
+                thread_ids=thread_ids,
+                function_ids=function_ids,
+                start_ms=start_ms,
+                end_ms=end_ms,
+                metric=metric_name,
+                scope=scope,
+                split=split,
+                resolution=resolution,
+            )
+            for metric_name in selected_metrics
+        ]
+
+        merged_series: dict[str, list[float]] = {}
+        for metric_name, response in zip(selected_metrics, responses):
+            for label, values in response.series.items():
+                merged_label = metric_name if label == "Total" and len(response.series) == 1 else f"{metric_name}::{label}"
+                merged_series[merged_label] = values
+
+        return SeriesResponse(
+            ticks=responses[0].ticks,
+            series=merged_series,
+            metric="memory",
+            scope=responses[0].scope,
+            split=responses[0].split,
+        )
 
     def _normalize_thread_ids(self, thread_ids: Sequence[int] | None) -> tuple[int, ...]:
         if not thread_ids:
             return tuple(self._all_thread_ids)
         return tuple(sorted({int(thread_id) for thread_id in thread_ids}))
+
+    def _normalize_metrics(self, metrics: Sequence[str] | None, default: str = "live") -> tuple[str, ...]:
+        seen: set[str] = set()
+        normalized: list[str] = []
+        raw_metrics = metrics if metrics is not None else (default,)
+        for metric_name in raw_metrics:
+            name = str(metric_name).strip().casefold()
+            if name not in METRIC_OPTIONS or name in seen:
+                continue
+            seen.add(name)
+            normalized.append(name)
+        if normalized:
+            return tuple(normalized)
+        return (default,)
+
+    def _primary_metric(self, metrics: Sequence[str]) -> str:
+        selected = set(metrics)
+        for metric_name in ("net", "live", "malloc", "free"):
+            if metric_name in selected:
+                return metric_name
+        return metrics[0] if metrics else "net"
 
     def _normalize_function_ids(self, function_ids: Sequence[int] | None) -> tuple[int, ...]:
         if not function_ids:
@@ -1072,7 +1184,7 @@ def generate_snapshot_html(
       <div id=\"plot\"></div>
     </div>
     <div class=\"panel\">
-      <h3>Top Functions</h3>
+            <h3>Top Funciton (by net in viewing window)</h3>
       <table>
         <thead><tr><th>Function</th><th>Value</th></tr></thead>
         <tbody>{top_html}</tbody>
@@ -1085,8 +1197,8 @@ def generate_snapshot_html(
     const traces = {json.dumps(traces)};
     Plotly.newPlot('plot', traces, {{
       title: {json.dumps(title)},
-      xaxis: {{ title: 'Tick (ms)' }},
-      yaxis: {{ title: {json.dumps(series.metric)} }},
+            xaxis: {{ title: {json.dumps(_tick_axis_label())} }},
+            yaxis: {{ title: {json.dumps(_metric_axis_label(series.metric))} }},
       hovermode: 'closest'
     }}, {{responsive: true}});
   </script>
@@ -1110,6 +1222,7 @@ def generate_dynamic_html_page() -> str:
     .controls { display: grid; gap: 10px; }
     select, input, button { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccbfa9; border-radius: 10px; background: white; }
     select[multiple] { min-height: 180px; }
+    .metric-select { min-height: 120px !important; }
     .inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     #plot { width: 100%; height: 720px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -1138,8 +1251,8 @@ def generate_dynamic_html_page() -> str:
         </div>
         <div class=\"inline\">
           <div>
-            <label>Metric</label>
-            <select id=\"metricSel\">
+                        <label>Metrics</label>
+                        <select id="metricSel" class="metric-select" multiple size="4">
               <option value=\"malloc\">malloc</option>
               <option value=\"free\">free</option>
               <option value=\"net\">net</option>
@@ -1171,7 +1284,7 @@ def generate_dynamic_html_page() -> str:
       <div id=\"plot\"></div>
     </div>
     <div class=\"panel\">
-      <h3>Top Functions</h3>
+            <h3>Top Funciton (by net in viewing window)</h3>
       <table>
         <thead><tr><th>Function</th><th>Value</th></tr></thead>
         <tbody id=\"topBody\"></tbody>
@@ -1203,6 +1316,27 @@ def generate_dynamic_html_page() -> str:
       }
       return search.toString();
     }
+
+        function metricAxisLabel(metric) {
+            if (metric === 'memory') {
+                return 'Memory (bytes)';
+            }
+            return `${metric} (bytes)`;
+        }
+
+        function selectedMetrics() {
+            const metricSel = document.getElementById('metricSel');
+            const values = selectedValues(metricSel);
+            if (values.length > 0) {
+                return values;
+            }
+            const fallback = Array.from(metricSel.options).find(option => option.value === 'live');
+            if (fallback) {
+                fallback.selected = true;
+                return ['live'];
+            }
+            return [];
+        }
 
     function renderTop(rows) {
       const body = document.getElementById('topBody');
@@ -1251,7 +1385,7 @@ def generate_dynamic_html_page() -> str:
         functions: selectedValues(document.getElementById('funcSel')).join(','),
         start: document.getElementById('startInput').value,
         end: document.getElementById('endInput').value,
-        value: document.getElementById('metricSel').value,
+                metrics: selectedMetrics().join(','),
         scope: document.getElementById('scopeSel').value,
         split: 'auto',
         resolution: '500'
@@ -1265,8 +1399,8 @@ def generate_dynamic_html_page() -> str:
       }));
       Plotly.newPlot('plot', traces, {
         title: 'Memory vs Tick',
-        xaxis: { title: 'Tick (ms)' },
-        yaxis: { title: payload.metric },
+                xaxis: { title: 'Tick (ms)' },
+                yaxis: { title: metricAxisLabel(payload.metric) },
         hovermode: 'closest'
       }, { responsive: true });
       await updateWindowDetails();
@@ -1429,12 +1563,12 @@ class FastgrindHtmlServer:
                     return
 
                 if parsed.path == "/api/series":
-                    response = engine.query_series(
+                    response = engine.query_multi_series(
                         thread_ids=_parse_csv_ints(params.get("threads", [""])[0]),
                         function_ids=_parse_csv_ints(params.get("functions", [""])[0]),
                         start_ms=int(params["start"][0]) if "start" in params else None,
                         end_ms=int(params["end"][0]) if "end" in params else None,
-                        metric=params.get("value", ["malloc"])[0],
+                        metrics=_parse_csv_strings(params.get("metrics", [params.get("value", ["malloc"])[0]])[0]),
                         scope=params.get("scope", ["inclusive"])[0],
                         split=params.get("split", ["auto"])[0],
                         resolution=int(params["resolution"][0]) if "resolution" in params else None,
@@ -1526,7 +1660,9 @@ class FastgrindDesktopUI:
         self.function_index_by_id: dict[int, int] = {}
         self.top_function_ids: dict[str, int] = {}
 
-        self.metric_var = tk.StringVar(value="live")
+        self.metric_vars = {
+            metric_name: tk.BooleanVar(value=(metric_name == "live")) for metric_name in METRIC_OPTIONS
+        }
         self.scope_var = tk.StringVar(value="inclusive")
         self.search_var = tk.StringVar(value="")
         default_start, default_end = engine.default_window()
@@ -1578,8 +1714,16 @@ class FastgrindDesktopUI:
 
         controls = self.ttk.Frame(center)
         controls.pack(fill=self.tk.X)
-        self.ttk.Label(controls, text="Metric").grid(row=0, column=0, sticky="w")
-        self.ttk.Combobox(controls, textvariable=self.metric_var, values=["malloc", "free", "net", "live"], state="readonly", width=12).grid(row=1, column=0, sticky="we", padx=(0, 8))
+        self.ttk.Label(controls, text="Metrics").grid(row=0, column=0, sticky="w")
+        metric_frame = self.ttk.Frame(controls)
+        metric_frame.grid(row=1, column=0, sticky="w", padx=(0, 8))
+        for index, metric_name in enumerate(METRIC_OPTIONS):
+            self.ttk.Checkbutton(
+                metric_frame,
+                text=metric_name,
+                variable=self.metric_vars[metric_name],
+                command=lambda changed_metric=metric_name: self._on_metric_toggle(changed_metric),
+            ).grid(row=index // 2, column=index % 2, sticky="w", padx=(0, 10))
 
         self.ttk.Label(controls, text="Scope").grid(row=0, column=1, sticky="w")
         self.ttk.Combobox(controls, textvariable=self.scope_var, values=["inclusive", "exclusive"], state="readonly", width=12).grid(row=1, column=1, sticky="we", padx=(0, 8))
@@ -1611,7 +1755,7 @@ class FastgrindDesktopUI:
             props=dict(alpha=0.2, facecolor="#d46a1f"),
         )
 
-        self.ttk.Label(right, text="Top Functions").pack(anchor="w")
+        self.ttk.Label(right, text="Top Funciton (by net in viewing window)").pack(anchor="w")
         self.top_tree = self.ttk.Treeview(right, columns=("value",), show="tree headings", height=20)
         self.top_tree.heading("#0", text="Function")
         self.top_tree.heading("value", text="Value")
@@ -1643,6 +1787,16 @@ class FastgrindDesktopUI:
         indices = self.function_list.curselection()
         return [self.function_options[index]["function_id"] for index in indices]
 
+    def _selected_metrics(self) -> list[str]:
+        return [metric_name for metric_name in METRIC_OPTIONS if self.metric_vars[metric_name].get()]
+
+    def _on_metric_toggle(self, changed_metric: str) -> None:
+        if self._selected_metrics():
+            self._plot_current()
+            return
+        self.metric_vars[changed_metric].set(True)
+        self.status_var.set("At least one metric must remain selected")
+
     def _refresh_functions(self) -> None:
         selected = set(self._selected_functions())
         self.function_options = self.engine.list_functions(
@@ -1660,17 +1814,27 @@ class FastgrindDesktopUI:
                 self.function_list.selection_set(index)
 
     def _draw_initial_overview(self) -> None:
-        response = self.engine.query_series(metric="live", scope="inclusive", split="total", resolution=320)
+        response = self._build_overview_response(self._selected_metrics())
         self._render_overview(response)
         self._plot_current()
+
+    def _build_overview_response(self, metrics: Sequence[str]) -> SeriesResponse:
+        return self.engine.query_multi_series(
+            metrics=metrics,
+            scope="inclusive",
+            split="total",
+            resolution=320,
+        )
 
     def _render_overview(self, response: SeriesResponse) -> None:
         self.overview_ax.clear()
         for label, values in response.series.items():
             self.overview_ax.plot(response.ticks, values, label=label)
-        self.overview_ax.set_title("Overview")
-        self.overview_ax.set_ylabel(response.metric)
+        self.overview_ax.set_title("Overview (Total)")
+        self.overview_ax.set_ylabel(_metric_axis_label(response.metric))
         self.overview_ax.grid(True, linestyle="--", alpha=0.25)
+        if 1 < len(response.series) <= 12:
+            self.overview_ax.legend(loc="upper right", fontsize="small")
         self.canvas.draw_idle()
 
     def _plot_current(self) -> None:
@@ -1681,19 +1845,31 @@ class FastgrindDesktopUI:
             self.messagebox.showerror("Invalid window", "Start and end must be integers")
             return
 
+        selected_metrics = self._selected_metrics()
+        if not selected_metrics:
+            self.messagebox.showerror("Invalid metrics", "Select at least one metric")
+            return
+
         self._submit_job(
             "plot",
-            lambda: self.engine.query_bundle(
-                thread_ids=self._selected_threads(),
-                function_ids=self._selected_functions(),
-                start_ms=start_ms,
-                end_ms=end_ms,
-                metric=self.metric_var.get(),
-                scope=self.scope_var.get(),
-                resolution=600,
-            ),
-            self._render_detail_bundle,
+            lambda: {
+                "overview": self._build_overview_response(selected_metrics),
+                "detail": self.engine.query_bundle(
+                    thread_ids=self._selected_threads(),
+                    function_ids=self._selected_functions(),
+                    start_ms=start_ms,
+                    end_ms=end_ms,
+                    metrics=selected_metrics,
+                    scope=self.scope_var.get(),
+                    resolution=600,
+                ),
+            },
+            self._render_plot_bundle,
         )
+
+    def _render_plot_bundle(self, payload: dict[str, Any]) -> None:
+        self._render_overview(payload["overview"])
+        self._render_detail_bundle(payload["detail"])
 
     def _render_detail_bundle(self, payload: dict[str, Any]) -> None:
         response: SeriesResponse = payload["series"]
@@ -1701,8 +1877,8 @@ class FastgrindDesktopUI:
         for label, values in response.series.items():
             self.detail_ax.plot(response.ticks, values, marker="o", label=label)
         self.detail_ax.set_title("Detail")
-        self.detail_ax.set_xlabel("Tick (ms)")
-        self.detail_ax.set_ylabel(response.metric)
+        self.detail_ax.set_xlabel(_tick_axis_label())
+        self.detail_ax.set_ylabel(_metric_axis_label(response.metric))
         self.detail_ax.grid(True, linestyle="--", alpha=0.25)
         if len(response.series) <= 12:
             self.detail_ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.16), ncol=3, fontsize="small")
@@ -1715,7 +1891,9 @@ class FastgrindDesktopUI:
 
         self.stack_text.delete("1.0", self.tk.END)
         self.stack_text.insert(self.tk.END, payload["stack_text"])
-        self.status_var.set(f"Rendered {len(response.series)} series across {len(response.ticks)} ticks")
+        self.status_var.set(
+            f"Rendered {len(response.series)} series across {len(response.ticks)} ticks for {', '.join(payload.get('selected_metrics', []))}"
+        )
         self.canvas.draw_idle()
 
     def _on_span_select(self, xmin: float, xmax: float) -> None:
@@ -1806,7 +1984,7 @@ class FastgrindDesktopUI:
             end_ms=int(self.end_var.get()),
             thread_ids=self._selected_threads(),
             function_ids=self._selected_functions(),
-            metric=self.metric_var.get(),
+            metrics=self._selected_metrics(),
             scope=self.scope_var.get(),
         )
         self.status_var.set(f"Saved {output}")

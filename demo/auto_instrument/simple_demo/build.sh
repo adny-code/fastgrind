@@ -77,4 +77,4 @@ echo "[LINK ] app"
 ${CXX} -pthread -o "${BUILD_DIR}/app" "${BUILD_DIR}/main.o" "${WRAP_FLAGS[@]}" "${LINK_FLAGS[@]}"
 
 echo "[DONE ] Executable: ${BUILD_DIR}/app"
-echo "Run: ${BUILD_DIR}/app (a fastgrind.json will be generated on exit)"
+echo "Run: ${BUILD_DIR}/app (a fastgrind.fgb will be generated on exit)"

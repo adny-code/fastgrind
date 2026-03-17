@@ -6,7 +6,7 @@
  * memory allocation/deallocation (malloc/new family, and optionally low level
  * syscalls) to build per-thread, per-time-slice statistics. Captured data is
  * organized by synthetic frames (derived from the active function call stack)
- * and can be exported two files (fastgrind.json/fastgrind.text) for analysis.
+ * and can be exported two files (fastgrind.fgb/fastgrind.text) for analysis.
  * @details
  * Usage pattern:
  *   1. Include this header in one translation unit (typically a .cpp).
@@ -15,7 +15,7 @@
  *   3. Annotate functions of interest with FAST_GRIND macro (or rely on global
  *      interception) to push/pop symbolic stack entries.
  *   4. At process end (static destruction) memGlobalInfo automatically dumps
- *      human readable results (fastgrind.json/fastgrind.text).
+ *      human readable results (fastgrind.fgb/fastgrind.text).
  *
  * @note Thread safety: Per-thread accumulation is stored in thread local structures
  * and periodically merged into a global, mutex-protected container on thread
@@ -40,12 +40,14 @@
 #ifndef FAST_GRIND_H
 #define FAST_GRIND_H
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cmath>
 #include <functional>
 #include <map>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -54,6 +56,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <malloc.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -117,8 +121,8 @@ namespace __FASTGRIND__
 
 // #define __MEM_DEBUG_INFO 1
 
-/** @brief Output filename for exported JSON statistics. */
-constexpr const char *__MEM_PATH_JSON_RESULT = "fastgrind.json";
+/** @brief Output filename for exported binary statistics. */
+constexpr const char *__MEM_PATH_BINARY_RESULT = "fastgrind.fgb";
 constexpr const char *__MEM_PATH_TEXT_RESULT = "fastgrind.text";
 
 #define MEM_NO_INSTRUMENT __attribute__((no_instrument_function))
@@ -134,6 +138,139 @@ template <typename... Args> static std::string memFormat(const char *fstr, Args.
     std::string out(bytes);
     delete[] bytes;
     return out;
+}
+
+enum memFgbSectionType : uint32_t
+{
+    MEM_FGB_SECTION_FUNCTION_TABLE = 1,
+    MEM_FGB_SECTION_STACK_TABLE = 2,
+    MEM_FGB_SECTION_THREAD_TABLE = 3,
+    MEM_FGB_SECTION_THREAD_FUNCTION_DIRECTORY = 4,
+    MEM_FGB_SECTION_FUNCTION_STACK_POSTINGS = 5,
+    MEM_FGB_SECTION_TICK_DATA = 6,
+    MEM_FGB_SECTION_TICK_DIRECTORY = 7,
+};
+
+enum memFgbSectionFlags : uint32_t
+{
+    MEM_FGB_SECTION_FLAG_NONE = 0,
+    MEM_FGB_SECTION_FLAG_CRC32 = 1u << 0,
+};
+
+enum memFgbStackFlags : uint16_t
+{
+    MEM_FGB_STACK_FLAG_NONE = 0,
+    MEM_FGB_STACK_FLAG_LEAF = 1u << 0,
+};
+
+struct memFgbSectionInfo
+{
+    uint32_t type = 0;
+    uint32_t flags = MEM_FGB_SECTION_FLAG_NONE;
+    uint64_t offset = 0;
+    uint64_t length = 0;
+    uint32_t crc32 = 0;
+};
+
+MEM_NO_INSTRUMENT static void memAppendBytes(std::vector<unsigned char> &out, const void *data, size_t size)
+{
+    if (!data || size == 0)
+        return;
+
+    const auto *bytes = static_cast<const unsigned char *>(data);
+    out.insert(out.end(), bytes, bytes + size);
+}
+
+MEM_NO_INSTRUMENT static void memAppendU16LE(std::vector<unsigned char> &out, uint16_t value)
+{
+    out.push_back(static_cast<unsigned char>(value & 0xffu));
+    out.push_back(static_cast<unsigned char>((value >> 8) & 0xffu));
+}
+
+MEM_NO_INSTRUMENT static void memAppendU32LE(std::vector<unsigned char> &out, uint32_t value)
+{
+    out.push_back(static_cast<unsigned char>(value & 0xffu));
+    out.push_back(static_cast<unsigned char>((value >> 8) & 0xffu));
+    out.push_back(static_cast<unsigned char>((value >> 16) & 0xffu));
+    out.push_back(static_cast<unsigned char>((value >> 24) & 0xffu));
+}
+
+MEM_NO_INSTRUMENT static void memAppendU64LE(std::vector<unsigned char> &out, uint64_t value)
+{
+    for (unsigned shift = 0; shift < 64; shift += 8)
+        out.push_back(static_cast<unsigned char>((value >> shift) & 0xffu));
+}
+
+MEM_NO_INSTRUMENT static uint32_t memCrc32Update(uint32_t crc, const unsigned char *data, size_t size)
+{
+    static uint32_t table[256] = {0};
+    static bool initialized = false;
+
+    if (!initialized)
+    {
+        for (uint32_t i = 0; i < 256; ++i)
+        {
+            uint32_t value = i;
+            for (unsigned bit = 0; bit < 8; ++bit)
+                value = (value & 1u) ? (0xedb88320u ^ (value >> 1)) : (value >> 1);
+
+            table[i] = value;
+        }
+        initialized = true;
+    }
+
+    crc = ~crc;
+    for (size_t i = 0; i < size; ++i)
+        crc = table[(crc ^ data[i]) & 0xffu] ^ (crc >> 8);
+
+    return ~crc;
+}
+
+MEM_NO_INSTRUMENT static uint32_t memCrc32(const std::vector<unsigned char> &data)
+{
+    if (data.empty())
+        return 0;
+
+    return memCrc32Update(0, data.data(), data.size());
+}
+
+MEM_NO_INSTRUMENT static bool memWriteRaw(FILE *file, const void *data, size_t size, uint32_t *crc32 = nullptr)
+{
+    if (!file)
+        return false;
+
+    if (size > 0 && fwrite(data, 1, size, file) != size)
+        return false;
+
+    if (crc32 && data && size > 0)
+        *crc32 = memCrc32Update(*crc32, static_cast<const unsigned char *>(data), size);
+
+    return true;
+}
+
+MEM_NO_INSTRUMENT static bool memWriteU16LE(FILE *file, uint16_t value, uint32_t *crc32 = nullptr)
+{
+    unsigned char bytes[2] = {static_cast<unsigned char>(value & 0xffu),
+                              static_cast<unsigned char>((value >> 8) & 0xffu)};
+    return memWriteRaw(file, bytes, sizeof(bytes), crc32);
+}
+
+MEM_NO_INSTRUMENT static bool memWriteU32LE(FILE *file, uint32_t value, uint32_t *crc32 = nullptr)
+{
+    unsigned char bytes[4] = {static_cast<unsigned char>(value & 0xffu),
+                              static_cast<unsigned char>((value >> 8) & 0xffu),
+                              static_cast<unsigned char>((value >> 16) & 0xffu),
+                              static_cast<unsigned char>((value >> 24) & 0xffu)};
+    return memWriteRaw(file, bytes, sizeof(bytes), crc32);
+}
+
+MEM_NO_INSTRUMENT static bool memWriteU64LE(FILE *file, uint64_t value, uint32_t *crc32 = nullptr)
+{
+    unsigned char bytes[8] = {0};
+    for (unsigned i = 0; i < 8; ++i)
+        bytes[i] = static_cast<unsigned char>((value >> (i * 8)) & 0xffu);
+
+    return memWriteRaw(file, bytes, sizeof(bytes), crc32);
 }
 
 #if defined(FASTGRIND_INSTRUMENT)
@@ -454,7 +591,7 @@ class memLocalInfo;
  *
  * Maintains thread->frameId->tick->memFrame structures and a mapping from
  * frameId to captured call stacks (array of function name pointers). Responsible
- * for dumping textual and JSON reports. Thread-local data merges into this
+ * for dumping textual and binary reports. Thread-local data merges into this
  * structure under mutex protection.
  */
 class memGlobalInfo
@@ -496,8 +633,8 @@ class memGlobalInfo
     }
 
     /**
-     * @brief Dump aggregated statistics and call tree to stdout and export JSON.
-     * @note Safe to call multiple times; JSON file is overwritten.
+     * @brief Dump aggregated statistics and call tree to stdout and export binary trace.
+     * @note Safe to call multiple times; the binary file is overwritten.
      */
     MEM_NO_INSTRUMENT void dump() const
     {
@@ -523,156 +660,396 @@ class memGlobalInfo
 
         info.dump();
 
-        exportJson();
+        exportBinary();
 
         fflush(stdout);
     }
 
   protected:
-    /** @brief Export hierarchical statistics to JSON file (pretty-printed). */
-    MEM_NO_INSTRUMENT void exportJson() const
+    /** @brief Export sparse profiling data to a binary trace file. */
+    MEM_NO_INSTRUMENT void exportBinary() const
     {
-        FILE *file = fopen(__MEM_PATH_JSON_RESULT, "wb");
+        struct memFgbStackNode
+        {
+            uint32_t nodeId = 0;
+            uint32_t parentNodeId = 0;
+            uint32_t functionId = 0;
+            uint16_t depth = 0;
+            uint16_t flags = MEM_FGB_STACK_FLAG_NONE;
+        };
+
+        struct memFgbThreadInfo
+        {
+            uint64_t threadId = 0;
+            uint64_t firstTickMs = 0;
+            uint64_t lastTickMs = 0;
+            uint64_t totalMallocBytes = 0;
+            uint64_t totalFreeBytes = 0;
+            bool hasData = false;
+            std::set<uint32_t> functionIds;
+        };
+
+        struct memFgbFrameRecord
+        {
+            uint32_t leafNodeId = 0;
+            uint64_t mallocBytes = 0;
+            uint64_t freeBytes = 0;
+        };
+
+        struct memFgbTickDirectoryEntry
+        {
+            uint64_t tickMs = 0;
+            uint64_t fileOffset = 0;
+            uint32_t threadBlockCount = 0;
+        };
+
+        constexpr uint16_t headerBytes = 96;
+        constexpr uint32_t sectionCount = 7;
+        constexpr uint32_t sectionEntryBytes = 32;
+
+        std::set<std::string> uniqueFunctions;
+        for (const auto &entry : _callstacks)
+        {
+            const auto &callstack = entry.second;
+            for (size_t i = 0; i < __MEM_MAX_STACK_DEPTH; ++i)
+            {
+                const char *name = callstack[i];
+                if (!name)
+                    break;
+
+                uniqueFunctions.emplace(name);
+            }
+        }
+
+        std::vector<std::string> functionNames(uniqueFunctions.begin(), uniqueFunctions.end());
+        std::map<std::string, uint32_t> functionIds;
+        for (size_t i = 0; i < functionNames.size(); ++i)
+            functionIds[functionNames[i]] = static_cast<uint32_t>(i + 1);
+
+        std::map<size_t, std::vector<uint32_t>> frameStacks;
+        for (const auto &entry : _callstacks)
+        {
+            std::vector<uint32_t> stackIds;
+            const auto &callstack = entry.second;
+            for (size_t i = 0; i < __MEM_MAX_STACK_DEPTH; ++i)
+            {
+                const char *name = callstack[i];
+                if (!name)
+                    break;
+
+                stackIds.push_back(functionIds.at(std::string(name)));
+            }
+            frameStacks.emplace(entry.first, std::move(stackIds));
+        }
+
+        std::vector<std::pair<size_t, std::vector<uint32_t>>> orderedFrameStacks(frameStacks.begin(), frameStacks.end());
+        std::sort(
+            orderedFrameStacks.begin(), orderedFrameStacks.end(),
+            [](const std::pair<size_t, std::vector<uint32_t>> &lhs,
+               const std::pair<size_t, std::vector<uint32_t>> &rhs) {
+                if (lhs.second != rhs.second)
+                    return lhs.second < rhs.second;
+
+                return lhs.first < rhs.first;
+            });
+
+        std::vector<memFgbStackNode> stackNodes;
+        stackNodes.push_back(memFgbStackNode());
+
+        std::map<uint32_t, std::map<uint32_t, uint32_t>> trieChildren;
+        std::map<size_t, uint32_t> frameLeafNodes;
+        std::map<uint32_t, std::set<uint32_t>> functionLeafSets;
+
+        for (const auto &entry : orderedFrameStacks)
+        {
+            uint32_t parentNodeId = 0;
+            uint16_t depth = 0;
+            std::set<uint32_t> ancestryFunctions;
+
+            for (uint32_t functionId : entry.second)
+            {
+                ++depth;
+                ancestryFunctions.emplace(functionId);
+
+                auto &childMap = trieChildren[parentNodeId];
+                auto found = childMap.find(functionId);
+                if (found == childMap.end())
+                {
+                    uint32_t nodeId = static_cast<uint32_t>(stackNodes.size());
+                    stackNodes.push_back(memFgbStackNode{nodeId, parentNodeId, functionId, depth, MEM_FGB_STACK_FLAG_NONE});
+                    childMap[functionId] = nodeId;
+                    parentNodeId = nodeId;
+                }
+                else
+                {
+                    parentNodeId = found->second;
+                }
+            }
+
+            stackNodes[parentNodeId].flags = static_cast<uint16_t>(stackNodes[parentNodeId].flags | MEM_FGB_STACK_FLAG_LEAF);
+            frameLeafNodes[entry.first] = parentNodeId;
+            for (uint32_t functionId : ancestryFunctions)
+                functionLeafSets[functionId].insert(parentNodeId);
+        }
+
+        std::map<uint64_t, memFgbThreadInfo> threads;
+        std::map<uint64_t, std::map<uint64_t, std::vector<memFgbFrameRecord>>> tickData;
+        uint64_t maxTickMs = 0;
+
+        for (const auto &threadEntry : _frames)
+        {
+            uint64_t threadId = static_cast<uint64_t>(threadEntry.first);
+            auto &threadInfo = threads[threadId];
+            threadInfo.threadId = threadId;
+
+            for (const auto &frameEntry : threadEntry.second)
+            {
+                size_t frameId = frameEntry.first;
+                if (frameLeafNodes.find(frameId) == frameLeafNodes.end() || frameStacks.find(frameId) == frameStacks.end())
+                    continue;
+
+                const uint32_t leafNodeId = frameLeafNodes.at(frameId);
+                const auto &stackIds = frameStacks.at(frameId);
+                threadInfo.functionIds.insert(stackIds.begin(), stackIds.end());
+
+                for (const auto &tickEntry : frameEntry.second)
+                {
+                    uint64_t tickMs = static_cast<uint64_t>(tickEntry.first);
+                    const auto &frame = tickEntry.second;
+
+                    tickData[tickMs][threadId].push_back(memFgbFrameRecord{leafNodeId, static_cast<uint64_t>(frame.mallocBytes),
+                                                                           static_cast<uint64_t>(frame.freeBytes)});
+
+                    threadInfo.totalMallocBytes += static_cast<uint64_t>(frame.mallocBytes);
+                    threadInfo.totalFreeBytes += static_cast<uint64_t>(frame.freeBytes);
+
+                    if (!threadInfo.hasData)
+                    {
+                        threadInfo.firstTickMs = tickMs;
+                        threadInfo.lastTickMs = tickMs;
+                        threadInfo.hasData = true;
+                    }
+                    else
+                    {
+                        if (tickMs < threadInfo.firstTickMs)
+                            threadInfo.firstTickMs = tickMs;
+                        if (tickMs > threadInfo.lastTickMs)
+                            threadInfo.lastTickMs = tickMs;
+                    }
+
+                    if (tickMs > maxTickMs)
+                        maxTickMs = tickMs;
+                }
+            }
+        }
+
+        std::vector<unsigned char> functionSection;
+        for (const auto &functionName : functionNames)
+        {
+            memAppendU32LE(functionSection, static_cast<uint32_t>(functionName.size()));
+            memAppendBytes(functionSection, functionName.data(), functionName.size());
+        }
+
+        std::vector<unsigned char> stackSection;
+        for (const auto &node : stackNodes)
+        {
+            memAppendU32LE(stackSection, node.nodeId);
+            memAppendU32LE(stackSection, node.parentNodeId);
+            memAppendU32LE(stackSection, node.functionId);
+            memAppendU16LE(stackSection, node.depth);
+            memAppendU16LE(stackSection, node.flags);
+        }
+
+        uint32_t activeThreadCount = 0;
+        for (const auto &threadEntry : threads)
+        {
+            if (threadEntry.second.hasData)
+                ++activeThreadCount;
+        }
+
+        std::vector<unsigned char> threadSection;
+        std::vector<unsigned char> threadFunctionSection;
+        memAppendU32LE(threadFunctionSection, activeThreadCount);
+        for (const auto &threadEntry : threads)
+        {
+            const auto &threadInfo = threadEntry.second;
+            if (!threadInfo.hasData)
+                continue;
+
+            memAppendU64LE(threadSection, threadInfo.threadId);
+            memAppendU64LE(threadSection, threadInfo.firstTickMs);
+            memAppendU64LE(threadSection, threadInfo.lastTickMs);
+            memAppendU64LE(threadSection, threadInfo.totalMallocBytes);
+            memAppendU64LE(threadSection, threadInfo.totalFreeBytes);
+
+            memAppendU64LE(threadFunctionSection, threadInfo.threadId);
+            memAppendU32LE(threadFunctionSection, static_cast<uint32_t>(threadInfo.functionIds.size()));
+            memAppendU32LE(threadFunctionSection, 0);
+            for (uint32_t functionId : threadInfo.functionIds)
+                memAppendU32LE(threadFunctionSection, functionId);
+        }
+
+        std::vector<unsigned char> functionPostingSection;
+        memAppendU32LE(functionPostingSection, static_cast<uint32_t>(functionNames.size()));
+        for (uint32_t functionId = 1; functionId <= functionNames.size(); ++functionId)
+        {
+            const auto &leafSet = functionLeafSets[functionId];
+            memAppendU32LE(functionPostingSection, functionId);
+            memAppendU32LE(functionPostingSection, static_cast<uint32_t>(leafSet.size()));
+            for (uint32_t leafNodeId : leafSet)
+                memAppendU32LE(functionPostingSection, leafNodeId);
+        }
+
+        const std::string tmpPath = memFormat("%s.tmp", __MEM_PATH_BINARY_RESULT);
+        FILE *file = fopen(tmpPath.c_str(), "wb+");
         if (!file)
+        {
+            fprintf(stderr, "[FASTGRIND] failed to open %s: %s\n", tmpPath.c_str(), strerror(errno));
             return;
+        }
 
-        std::map<size_t, std::map<size_t, memNode>> datas;
-        for (auto it = _frames.begin(); it != _frames.end(); ++it)
+        auto failExport = [&](const char *message) MEM_NO_INSTRUMENT {
+            int savedErrno = errno;
+            fclose(file);
+            remove(tmpPath.c_str());
+            fprintf(stderr, "[FASTGRIND] %s: %s\n", message, strerror(savedErrno));
+        };
+
+        std::vector<unsigned char> headerPadding(headerBytes + sectionCount * sectionEntryBytes, 0);
+        if (!memWriteRaw(file, headerPadding.data(), headerPadding.size()))
         {
-            const auto &tid = it->first;
-            for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+            failExport("failed to reserve binary header space");
+            return;
+        }
+
+        uint64_t fileOffset = static_cast<uint64_t>(headerPadding.size());
+        std::vector<memFgbSectionInfo> sections(sectionCount);
+
+        auto writeSectionBuffer = [&](size_t index, uint32_t type, const std::vector<unsigned char> &buffer) MEM_NO_INSTRUMENT {
+            sections[index].type = type;
+            sections[index].flags = MEM_FGB_SECTION_FLAG_CRC32;
+            sections[index].offset = fileOffset;
+            sections[index].length = static_cast<uint64_t>(buffer.size());
+            sections[index].crc32 = memCrc32(buffer);
+            if (!buffer.empty() && !memWriteRaw(file, buffer.data(), buffer.size()))
+                return false;
+
+            fileOffset += buffer.size();
+            return true;
+        };
+
+        if (!writeSectionBuffer(0, MEM_FGB_SECTION_FUNCTION_TABLE, functionSection) ||
+            !writeSectionBuffer(1, MEM_FGB_SECTION_STACK_TABLE, stackSection) ||
+            !writeSectionBuffer(2, MEM_FGB_SECTION_THREAD_TABLE, threadSection) ||
+            !writeSectionBuffer(3, MEM_FGB_SECTION_THREAD_FUNCTION_DIRECTORY, threadFunctionSection) ||
+            !writeSectionBuffer(4, MEM_FGB_SECTION_FUNCTION_STACK_POSTINGS, functionPostingSection))
+        {
+            failExport("failed to write binary section");
+            return;
+        }
+
+        sections[5].type = MEM_FGB_SECTION_TICK_DATA;
+        sections[5].flags = MEM_FGB_SECTION_FLAG_CRC32;
+        sections[5].offset = fileOffset;
+        uint32_t tickDataCrc = 0;
+        std::vector<memFgbTickDirectoryEntry> tickDirectoryEntries;
+
+        for (const auto &tickEntry : tickData)
+        {
+            tickDirectoryEntries.push_back(
+                memFgbTickDirectoryEntry{tickEntry.first, fileOffset, static_cast<uint32_t>(tickEntry.second.size())});
+
+            for (const auto &threadEntry : tickEntry.second)
             {
-                const auto &frameId = it2->first;
-                const auto &callstack = _callstacks.at(frameId);
-                for (auto it3 = it2->second.begin(); it3 != it2->second.end(); ++it3)
+                if (!memWriteU64LE(file, threadEntry.first, &tickDataCrc) ||
+                    !memWriteU32LE(file, static_cast<uint32_t>(threadEntry.second.size()), &tickDataCrc) ||
+                    !memWriteU32LE(file, 0, &tickDataCrc))
                 {
-                    const auto &tick = it3->first;
-                    datas[tick][tid].add(callstack, it3->second);
+                    failExport("failed to write tick data header");
+                    return;
+                }
+                fileOffset += 16;
+
+                for (const auto &record : threadEntry.second)
+                {
+                    if (!memWriteU32LE(file, record.leafNodeId, &tickDataCrc) || !memWriteU32LE(file, 0, &tickDataCrc) ||
+                        !memWriteU64LE(file, record.mallocBytes, &tickDataCrc) ||
+                        !memWriteU64LE(file, record.freeBytes, &tickDataCrc))
+                    {
+                        failExport("failed to write frame record");
+                        return;
+                    }
+                    fileOffset += 24;
                 }
             }
         }
 
-        std::string compact = "{";
-        bool firstOutput = true;
-        size_t lastTick = 0;
-        for (auto it = datas.begin(); it != datas.end(); ++it)
+        sections[5].length = fileOffset - sections[5].offset;
+        sections[5].crc32 = tickDataCrc;
+
+        std::vector<unsigned char> tickDirectorySection;
+        for (const auto &entry : tickDirectoryEntries)
         {
-            const size_t tick = it->first;
-            if (firstOutput && tick > __MEM_SAMPLE_INTERVAL_MS)
-            {
-                for (size_t fillerTick = __MEM_SAMPLE_INTERVAL_MS; fillerTick < tick;
-                     fillerTick += __MEM_SAMPLE_INTERVAL_MS)
-                {
-                    compact += memFormat("%s\"%lu\": {}", firstOutput ? "" : ", ", fillerTick);
-                    firstOutput = false;
-                    lastTick = fillerTick;
-                }
-            }
-
-            if (!firstOutput)
-            {
-                while (tick > lastTick && (tick - lastTick) > __MEM_SAMPLE_INTERVAL_MS)
-                {
-                    size_t fillerTick = lastTick + __MEM_SAMPLE_INTERVAL_MS;
-                    if (fillerTick >= tick)
-                        break;
-                    compact += memFormat("%s\"%lu\": {}", firstOutput ? "" : ", ", fillerTick);
-                    firstOutput = false;
-                    lastTick = fillerTick;
-                }
-            }
-
-            compact += memFormat("%s\"%lu\": {", firstOutput ? "" : ", ", tick);
-            for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
-            {
-                const auto &tid = it2->first;
-                compact +=
-                    memFormat("%s\"%lu\": %s", it2 != it->second.begin() ? ", " : "", tid, it2->second.json().c_str());
-            }
-            compact += "}";
-            if (firstOutput)
-                firstOutput = false;
-            lastTick = tick;
-        }
-        compact += "}";
-
-        std::string pretty;
-        pretty.reserve(compact.size() * 2);
-        int indent = 0;
-        bool inString = false;
-        char prev = 0;
-
-        auto appendIndent = [&]() MEM_NO_INSTRUMENT { pretty.append(indent, ' '); };
-
-        for (size_t i = 0; i < compact.size(); ++i)
-        {
-            char c = compact[i];
-
-            if (c == '"' && prev != '\\')
-                inString = !inString;
-
-            if (!inString)
-            {
-                switch (c)
-                {
-                case '{':
-                case '[':
-                    if (i + 1 < compact.size() &&
-                        ((c == '{' && compact[i + 1] == '}') || (c == '[' && compact[i + 1] == ']')))
-                    {
-                        pretty += c;
-                        pretty += compact[++i];
-                    }
-                    else
-                    {
-                        pretty += c;
-                        pretty += '\n';
-                        indent += 4;
-                        appendIndent();
-                    }
-                    break;
-                case '}':
-                case ']':
-                    pretty += '\n';
-                    indent -= 4;
-                    if (indent < 0)
-                        indent = 0;
-                    appendIndent();
-                    pretty += c;
-                    break;
-                case ',':
-                    pretty += c;
-                    pretty += '\n';
-                    appendIndent();
-                    while (i + 1 < compact.size() && compact[i + 1] == ' ')
-                        ++i;
-                    break;
-                case ':':
-                    pretty += ": ";
-                    while (i + 1 < compact.size() && compact[i + 1] == ' ')
-                        ++i;
-                    break;
-                default:
-                    if (c == ' ' && !pretty.empty() && pretty.back() == '\n')
-                    {
-                    }
-                    else
-                    {
-                        pretty += c;
-                    }
-                    break;
-                }
-            }
-            else
-            {
-                pretty += c;
-            }
-            prev = c;
+            memAppendU64LE(tickDirectorySection, entry.tickMs);
+            memAppendU64LE(tickDirectorySection, entry.fileOffset);
+            memAppendU32LE(tickDirectorySection, entry.threadBlockCount);
+            memAppendU32LE(tickDirectorySection, 0);
         }
 
-        fwrite(pretty.c_str(), 1, pretty.size(), file);
+        if (!writeSectionBuffer(6, MEM_FGB_SECTION_TICK_DIRECTORY, tickDirectorySection))
+        {
+            failExport("failed to write tick directory section");
+            return;
+        }
+
+        if (fseek(file, 0, SEEK_SET) != 0)
+        {
+            failExport("failed to rewrite binary header");
+            return;
+        }
+
+        if (!memWriteRaw(file, "FGB1", 4) || !memWriteU16LE(file, 1) || !memWriteU16LE(file, 0) ||
+            !memWriteRaw(file, "\x01", 1) || !memWriteRaw(file, "\x00", 1) || !memWriteU16LE(file, headerBytes) ||
+            !memWriteU32LE(file, __MEM_SAMPLE_INTERVAL_MS) || !memWriteU64LE(file, maxTickMs) ||
+            !memWriteU32LE(file, static_cast<uint32_t>(functionNames.size())) ||
+            !memWriteU32LE(file, static_cast<uint32_t>(stackNodes.size())) ||
+            !memWriteU32LE(file, static_cast<uint32_t>(tickDirectoryEntries.size())) ||
+            !memWriteU32LE(file, activeThreadCount) || !memWriteU32LE(file, sectionCount) ||
+            !memWriteU32LE(file, 0) || !memWriteU64LE(file, headerBytes) || !memWriteU64LE(file, sections[0].offset) ||
+            !memWriteU64LE(file, sections[1].offset) || !memWriteU64LE(file, sections[6].offset) ||
+            !memWriteU64LE(file, sections[5].offset) || !memWriteU64LE(file, 0))
+        {
+            failExport("failed to serialize binary header");
+            return;
+        }
+
+        for (const auto &section : sections)
+        {
+            if (!memWriteU32LE(file, section.type) || !memWriteU32LE(file, section.flags) ||
+                !memWriteU64LE(file, section.offset) || !memWriteU64LE(file, section.length) ||
+                !memWriteU32LE(file, section.crc32) || !memWriteU32LE(file, 0))
+            {
+                failExport("failed to serialize section directory");
+                return;
+            }
+        }
+
+        if (fflush(file) != 0)
+        {
+            failExport("failed to flush binary trace file");
+            return;
+        }
+
         fclose(file);
-        printf("[FASTGRIND] saved: %s (size=%zu bytes)\n", __MEM_PATH_JSON_RESULT, pretty.size());
+
+        if (rename(tmpPath.c_str(), __MEM_PATH_BINARY_RESULT) != 0)
+        {
+            remove(tmpPath.c_str());
+            fprintf(stderr, "[FASTGRIND] failed to publish %s: %s\n", __MEM_PATH_BINARY_RESULT, strerror(errno));
+            return;
+        }
+
+        printf("[FASTGRIND] saved: %s (size=%zu bytes)\n", __MEM_PATH_BINARY_RESULT, static_cast<size_t>(fileOffset));
     }
 
     /**

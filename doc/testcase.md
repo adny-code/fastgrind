@@ -126,10 +126,10 @@ cd build/testcase/multi_pkg_compile
 
 **Purpose**: Third-party library integration testing.
 
-**Description**: Contains test results for LevelDB integration, demonstrating Fastgrind's ability to track memory usage in third-party applications.
+**Description**: Contains archived sample output artifacts for a LevelDB integration run. This directory is a reference artifact bundle, not a source-based testcase target.
 
 **Contents**:
-- `fastgrind.json` - JSON format memory tracking results
+- `fastgrind.json` - Legacy JSON sample output kept for reference
 - `fastgrind.text` - Human-readable memory tracking report
 
 
@@ -137,10 +137,10 @@ cd build/testcase/multi_pkg_compile
 
 **Purpose**: Third-party compression library testing.
 
-**Description**: Contains test results for zlib integration, validating memory tracking in in third-party applications.
+**Description**: Contains archived sample output artifacts for a zlib integration run. This directory is a reference artifact bundle, not a source-based testcase target.
 
 **Contents**:
-- `fastgrind.json` - JSON format memory tracking results
+- `fastgrind.json` - Legacy JSON sample output kept for reference
 - `fastgrind.text` - Human-readable memory tracking report
 
 
@@ -148,5 +148,5 @@ cd build/testcase/multi_pkg_compile
 
 When Fastgrind-instrumented tests are executed, they generate:
 
-- `fastgrind.json` - JSON format containing detailed memory allocation tracking (per time step, per thread, per function)
+- `fastgrind.fgb` - Binary trace containing detailed memory allocation tracking (per time step, per thread, per function)
 - `fastgrind.text` - Perf-like report with memory usage summary

@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "python3 ./.claude/hooks/pretool_allow_bash.py",
+        "linux": "python3 ./.claude/hooks/pretool_allow_bash.py",
+        "osx": "python3 ./.claude/hooks/pretool_allow_bash.py",
+        "windows": "py -3 .claude\\hooks\\pretool_allow_bash.py",
+        "timeout": 5
+      }
+    ]
+  }
+}

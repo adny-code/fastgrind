@@ -30,7 +30,7 @@ fastgrind/
 │   ├── querstion_list.md         # Description of problems and solutions in using fastgrind
 │   └── testcase.md               # Description of testcase
 │
-├── tools/fastgrind.py            # Visualize utilities (python fastgrind.py fastgrind.json)
+├── tools/fastgrind.py            # Binary trace tools (python tools/fastgrind.py ui fastgrind.fgb)
 │
 ├── CMakeList.txt                 # Top Cmake for testcase
 ├── Doxyfile                      # Doxyfile to generate manual
@@ -70,7 +70,7 @@ Two report file will be generated when program exits
 ```bash
 [FASTGRIND] Start summary memory info
 [FASTGRIND] saved: fastgrind.text (size=2335 bytes)
-[FASTGRIND] saved: fastgrind.json (size=65952 bytes)
+[FASTGRIND] saved: fastgrind.fgb (size=5601 bytes)
 ```
 **For more file detail**, please check: [Output and Analysis](#output-and-analysis)
 
@@ -145,53 +145,70 @@ Include **fastgrind.h** in any one of source code, and with compile options, All
 
 
 ## Output and Analysis
-​When a Fastgrind-instrumented application exits, two files are automatically generated: `fastgrind.text` and `fastgrind.json` 
+​When a Fastgrind-instrumented application exits, two files are automatically generated: `fastgrind.text` and `fastgrind.fgb` 
 
 ### **fastgrind.text**
 ​This is a linux perf like report
 
 ![text_zlib](doc/rsc/text_zlib.png)
 
-### **fastgrind.json**
-Structured JSON format containing:
+### **fastgrind.fgb**
+Structured binary trace containing:
 - Time-sliced memory usage statistics  
 - Per-thread memory allocation details
 - Complete call stack information
 - Function-level allocation breakdown
 
+Use `python tools/fastgrind.py export-json fastgrind.fgb` only when a compatibility JSON is needed for debugging.
+
 **Per-time frame, per-thread, per function recorder**:
 
 - Single thread
 
-![json_single_thread](doc/rsc/json_single_thread.png)
+![fgb_single_thread](doc/rsc/fgb_single_thread.png)
 
 - Multi thread
 
-![json_multi_thread](doc/rsc/json_multi_thread.png)
+![fgb_multi_thread](doc/rsc/fgb_multi_thread.png)
 
 
 ## Visualization
-Use tools/fastgrind.py to generate interactive visual line chart
+Use `tools/fastgrind.py` as the primary binary trace tool.
 
-It will call matplotlib to draw line chart, and generate `fastgrind.html` in case without matplotlib
+The default workflow is the Python-first UI:
 
-Use web browser to open `fastgrind.html` can get same line chart as matplotlib
+```bash
+python tools/fastgrind.py ui fastgrind.fgb
+```
+
+Other useful commands:
+
+```bash
+python tools/fastgrind.py inspect fastgrind.fgb
+python tools/fastgrind.py html fastgrind.fgb
+python tools/fastgrind.py html fastgrind.fgb --no-browser --port 8000
+python tools/fastgrind.py export-html fastgrind.fgb
+python tools/fastgrind.py export-json fastgrind.fgb
+```
+
+HTML remains available as a secondary workflow. `export-html` writes a compact snapshot instead of embedding the full trace.
+In headless or dependency-limited environments, `ui` will fall back to `html`, and both commands can be kept local with `--no-browser` plus a fixed `--port`.
 
 **Usage**
 
-```python
-python fastgrind.py fastgrind.json
-or 
-python fastgrind.py     # auto search fastgrind.json in current folder
+```bash
+python tools/fastgrind.py ui fastgrind.fgb
+python tools/fastgrind.py ui     # auto search fastgrind.fgb in current folder
+python tools/fastgrind.py ui fastgrind.fgb --no-browser --port 8000
 ```
 
 - **matplot**
 
-![matplot_plot](doc/rsc/json_plot.png)
+![fgb_python_ui](doc/rsc/fgb_plot.png)
 
 - **html**
 
-![html_plot](doc/rsc/json_html.png)
+![fgb_html_viewer](doc/rsc/fgb_html.png)
 
 
 ## Limitations and Considerations

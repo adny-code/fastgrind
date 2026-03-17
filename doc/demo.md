@@ -106,7 +106,7 @@ make
 
 When Fastgrind-instrumented demos are executed, they generate:
 
-- `fastgrind.json` - JSON format containing detailed memory allocation tracking (per time step, per thread, per function)
+- `fastgrind.fgb` - Binary trace containing detailed memory allocation tracking (per time step, per thread, per function)
 - `fastgrind.text` - Perf-like report with memory usage summary
 
 ## Getting Started

@@ -44,6 +44,14 @@ build/
 
 .vscode/
 
+__pycache__/
+*.pyc
+*.pyo
+
+fastgrind.fgb
+fastgrind.json
+fastgrind.text
+
 docs/
 *.js
 *.html

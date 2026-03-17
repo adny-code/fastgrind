@@ -776,7 +776,13 @@ class memGlobalInfo
                 if (found == childMap.end())
                 {
                     uint32_t nodeId = static_cast<uint32_t>(stackNodes.size());
-                    stackNodes.push_back(memFgbStackNode{nodeId, parentNodeId, functionId, depth, MEM_FGB_STACK_FLAG_NONE});
+                    memFgbStackNode stackNode;
+                    stackNode.nodeId = nodeId;
+                    stackNode.parentNodeId = parentNodeId;
+                    stackNode.functionId = functionId;
+                    stackNode.depth = depth;
+                    stackNode.flags = MEM_FGB_STACK_FLAG_NONE;
+                    stackNodes.push_back(stackNode);
                     childMap[functionId] = nodeId;
                     parentNodeId = nodeId;
                 }
@@ -817,8 +823,11 @@ class memGlobalInfo
                     uint64_t tickMs = static_cast<uint64_t>(tickEntry.first);
                     const auto &frame = tickEntry.second;
 
-                    tickData[tickMs][threadId].push_back(memFgbFrameRecord{leafNodeId, static_cast<uint64_t>(frame.mallocBytes),
-                                                                           static_cast<uint64_t>(frame.freeBytes)});
+                    memFgbFrameRecord frameRecord;
+                    frameRecord.leafNodeId = leafNodeId;
+                    frameRecord.mallocBytes = static_cast<uint64_t>(frame.mallocBytes);
+                    frameRecord.freeBytes = static_cast<uint64_t>(frame.freeBytes);
+                    tickData[tickMs][threadId].push_back(frameRecord);
 
                     threadInfo.totalMallocBytes += static_cast<uint64_t>(frame.mallocBytes);
                     threadInfo.totalFreeBytes += static_cast<uint64_t>(frame.freeBytes);
@@ -956,8 +965,11 @@ class memGlobalInfo
 
         for (const auto &tickEntry : tickData)
         {
-            tickDirectoryEntries.push_back(
-                memFgbTickDirectoryEntry{tickEntry.first, fileOffset, static_cast<uint32_t>(tickEntry.second.size())});
+            memFgbTickDirectoryEntry tickDirectoryEntry;
+            tickDirectoryEntry.tickMs = tickEntry.first;
+            tickDirectoryEntry.fileOffset = fileOffset;
+            tickDirectoryEntry.threadBlockCount = static_cast<uint32_t>(tickEntry.second.size());
+            tickDirectoryEntries.push_back(tickDirectoryEntry);
 
             for (const auto &threadEntry : tickEntry.second)
             {
@@ -1599,6 +1611,14 @@ extern "C"
     extern void *__real_mmap(void *, size_t, int, int, int, off_t);
     extern int __real_munmap(void *, size_t);
     extern void *__real_mremap(void *, size_t, size_t, int, ...);
+#endif
+
+#if defined(TC_MALLOC) || defined(JE_MALLOC)
+    #define __FASTGRIND_HAS_ALIGNED_ALLOC_WRAP 1
+#elif defined(DEFAULT_MALLOC) && defined(__GLIBC__) && defined(__GLIBC_PREREQ)
+    #if __GLIBC_PREREQ(2, 16)
+        #define __FASTGRIND_HAS_ALIGNED_ALLOC_WRAP 1
+    #endif
 #endif
 
     static thread_local bool __mem_in_probe_ = false;
@@ -2452,7 +2472,8 @@ extern "C"
     }
     // #endif
 
-    // #if defined(__CPP_STD_14)
+#if defined(__CPP_STD_14)
+    // C++14 sized delete wrappers must stay out of C++11 builds.
     // override operator delete(void*, std::size_t)
     MEM_NO_INSTRUMENT MEM_INLINE_USED inline void __wrap__ZdlPvm(void *p, size_t sz)
     {
@@ -2512,9 +2533,12 @@ extern "C"
     #endif
         (void) sz;
     }
+
+#endif
 #endif
 
-#if defined(__CPP_STD_17)
+#if defined(__FASTGRIND_HAS_ALIGNED_ALLOC_WRAP)
+    // aligned_alloc is a C11/GNU libc surface, not a C++17-only API.
     MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap_aligned_alloc(size_t alignment, size_t size)
     {
         if (alignment == 0 || (alignment & (alignment - 1)) || (alignment % sizeof(void *) != 0))
@@ -2556,6 +2580,10 @@ extern "C"
         __mem_in_probe_ = false;
         return p;
     }
+
+#endif
+
+#if defined(__CPP_STD_17)
 
     // override operator new(std::size_t, std::align_val_t)
     MEM_NO_INSTRUMENT MEM_INLINE_USED inline void *__wrap__ZnwmSt11align_val_t(size_t size, std::align_val_t al)
@@ -3193,13 +3221,16 @@ extern "C"
         (void *) &__wrap_memalign,
         (void *) &__wrap_posix_memalign,
         (void *) &__wrap_reallocarray,
-        // #endif
-        // #if defined(__CPP_STD_14)
+    #if defined(__CPP_STD_14)
+        // C++14 sized delete wrappers are unavailable in C++11 mode.
         (void *) &__wrap__ZdlPvm,
         (void *) &__wrap__ZdaPvm,
 #endif
-#if defined(__CPP_STD_17)
+#if defined(__FASTGRIND_HAS_ALIGNED_ALLOC_WRAP)
+        // C11/GNU aligned_alloc is availability-gated rather than C++17-gated.
         (void *) &__wrap_aligned_alloc,
+#endif
+#if defined(__CPP_STD_17)
         (void *) &__wrap__ZnwmSt11align_val_t,
         (void *) &__wrap__ZnamSt11align_val_t,
         (void *) &__wrap__ZdlPvSt11align_val_t,
@@ -3214,6 +3245,7 @@ extern "C"
         (void *) &__wrap__ZdaPvSt11align_val_tRKSt9nothrow_t,
         (void *) &__wrap__ZdlPvmSt11align_val_tRKSt9nothrow_t,
         (void *) &__wrap__ZdaPvmSt11align_val_tRKSt9nothrow_t,
+#endif
 #endif
     };
 };

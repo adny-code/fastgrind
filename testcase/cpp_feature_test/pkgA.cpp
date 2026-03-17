@@ -1,7 +1,10 @@
 #include "pkgA.h"
+#include "cpp_feature_compat.h"
 #include <iostream>
 #include <memory>
 #include <vector>
+
+using fastgrind_testcase_support::makeUniqueCompat;
 
 void testVirtualFunctions()
 {
@@ -18,8 +21,8 @@ void testVirtualFunctions()
     rectangle.draw();
 
     std::cout << "\nThrough base class pointers:" << std::endl;
-    std::unique_ptr<Shape> shape1 = std::make_unique<Circle>(3.0);
-    std::unique_ptr<Shape> shape2 = std::make_unique<Rectangle>(2.0, 8.0);
+    std::unique_ptr<Shape> shape1 = makeUniqueCompat<Circle>(3.0);
+    std::unique_ptr<Shape> shape2 = makeUniqueCompat<Rectangle>(2.0, 8.0);
 
     std::cout << "Shape1 area: " << shape1->area() << std::endl;
     shape1->draw();
@@ -28,9 +31,9 @@ void testVirtualFunctions()
     shape2->draw();
 
     std::vector<std::unique_ptr<Shape>> shapes;
-    shapes.push_back(std::make_unique<Circle>(2.0));
-    shapes.push_back(std::make_unique<Rectangle>(3.0, 4.0));
-    shapes.push_back(std::make_unique<Circle>(1.5));
+    shapes.push_back(makeUniqueCompat<Circle>(2.0));
+    shapes.push_back(makeUniqueCompat<Rectangle>(3.0, 4.0));
+    shapes.push_back(makeUniqueCompat<Circle>(1.5));
 
     std::cout << "\nPolymorphic container iteration:" << std::endl;
     for (const auto &shape : shapes)
@@ -96,13 +99,13 @@ void testAbstractClasses()
 {
     std::cout << "\n=== Testing Abstract Classes and Interfaces ===" << std::endl;
 
-    std::unique_ptr<ILogger> consoleLogger = std::make_unique<ConsoleLogger>();
-    std::unique_ptr<ILogger> fileLogger = std::make_unique<FileLogger>("app.log");
+    std::unique_ptr<ILogger> consoleLogger = makeUniqueCompat<ConsoleLogger>();
+    std::unique_ptr<ILogger> fileLogger = makeUniqueCompat<FileLogger>("app.log");
 
     std::vector<std::unique_ptr<ILogger>> loggers;
-    loggers.push_back(std::make_unique<ConsoleLogger>());
-    loggers.push_back(std::make_unique<FileLogger>("debug.log"));
-    loggers.push_back(std::make_unique<FileLogger>("error.log"));
+    loggers.push_back(makeUniqueCompat<ConsoleLogger>());
+    loggers.push_back(makeUniqueCompat<FileLogger>("debug.log"));
+    loggers.push_back(makeUniqueCompat<FileLogger>("error.log"));
 
     std::cout << "Testing polymorphic logging:" << std::endl;
     for (auto &logger : loggers)
@@ -119,10 +122,10 @@ void testPolymorphism()
     std::cout << "\n=== Testing Advanced Polymorphism ===" << std::endl;
 
     std::vector<std::unique_ptr<Animal>> zoo;
-    zoo.push_back(std::make_unique<Dog>());
-    zoo.push_back(std::make_unique<Bird>());
-    zoo.push_back(std::make_unique<Dog>());
-    zoo.push_back(std::make_unique<Bird>());
+    zoo.push_back(makeUniqueCompat<Dog>());
+    zoo.push_back(makeUniqueCompat<Bird>());
+    zoo.push_back(makeUniqueCompat<Dog>());
+    zoo.push_back(makeUniqueCompat<Bird>());
 
     std::cout << "Welcome to the polymorphic zoo!" << std::endl;
 
@@ -135,8 +138,8 @@ void testPolymorphism()
 
     std::cout << "\n--- Runtime Type Identification Test ---" << std::endl;
 
-    std::unique_ptr<Animal> mysteryAnimal1 = std::make_unique<Dog>();
-    std::unique_ptr<Animal> mysteryAnimal2 = std::make_unique<Bird>();
+    std::unique_ptr<Animal> mysteryAnimal1 = makeUniqueCompat<Dog>();
+    std::unique_ptr<Animal> mysteryAnimal2 = makeUniqueCompat<Bird>();
 
     Dog *dogPtr = dynamic_cast<Dog *>(mysteryAnimal1.get());
     Bird *birdPtr = dynamic_cast<Bird *>(mysteryAnimal1.get());
@@ -158,7 +161,7 @@ void testPolymorphism()
 
     std::cout << "\n--- Virtual Function Behavior Test ---" << std::endl;
     {
-        std::unique_ptr<Animal> animal = std::make_unique<Dog>();
+        std::unique_ptr<Animal> animal = makeUniqueCompat<Dog>();
         std::cout << "Animal in scope, calling virtual functions:" << std::endl;
         animal->makeSound();
         animal->move();

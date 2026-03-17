@@ -18,7 +18,7 @@ option(FASTGRIND_BUILD_TESTS "Build fastgrind testcase targets" ${FASTGRIND_TOP_
 option(FASTGRIND_INSTALL "Install fastgrind headers and CMake package files" ${FASTGRIND_TOP_LEVEL})
 
 if(FASTGRIND_BUILD_TESTS AND NOT DEFINED CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 11)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
     set(CMAKE_CXX_EXTENSIONS OFF)
 endif()

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 
+#include "cpp_feature_compat.h"
 #include "fastgrind.h"
 #include "modern_cpp.h"
 #include "namespace_test.h"
@@ -223,7 +224,11 @@ void runAllTests()
     std::cout << "• Smart pointers, move semantics ✅" << std::endl;
     std::cout << "• Range-for, initializer lists ✅" << std::endl;
     std::cout << "• nullptr, scoped enums ✅" << std::endl;
+#if defined(FASTGRIND_TESTCASE_HAS_CXX17)
     std::cout << "• C++17 features (optional, variant, any) ✅" << std::endl;
+#else
+    std::cout << "• C++17 features (optional, variant, any) skipped in this build" << std::endl;
+#endif
     std::cout << "• Threading and async programming ✅" << std::endl;
     std::cout << "• Namespace scoping and conflict resolution ✅" << std::endl;
     std::cout << "• ADL, inline namespaces ✅" << std::endl;

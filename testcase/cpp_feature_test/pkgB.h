@@ -1,6 +1,9 @@
 #ifndef PKGB_H
 #define PKGB_H
 
+#include "cpp_feature_compat.h"
+
+#include <algorithm>
 #include <exception>
 #include <functional>
 #include <iostream>
@@ -124,7 +127,12 @@ template <typename T> typename std::enable_if<!std::is_arithmetic<T>::value, T>:
 
 template <typename... Args> void printArgs(Args... args)
 {
+#if defined(FASTGRIND_TESTCASE_HAS_CXX17)
     ((std::cout << args << " "), ...);
+#else
+    using expander = int[];
+    (void) expander{0, ((void) (std::cout << args << " "), 0)...};
+#endif
     std::cout << std::endl;
 }
 

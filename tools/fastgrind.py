@@ -96,6 +96,27 @@ class SeriesResponse:
 
 
 METRIC_OPTIONS = ("malloc", "free", "net", "live")
+METRIC_ALIASES = {
+    "tick_res": "net",
+    "sum_res": "live",
+}
+METRIC_DISPLAY_NAMES = {
+    "malloc": "malloc",
+    "free": "free",
+    "net": "tick_res",
+    "live": "sum_res",
+    "memory": "memory",
+}
+
+
+def _normalize_metric_name(metric: str) -> str:
+    name = str(metric).strip().casefold()
+    return METRIC_ALIASES.get(name, name)
+
+
+def _metric_display_name(metric: str) -> str:
+    normalized = _normalize_metric_name(metric)
+    return METRIC_DISPLAY_NAMES.get(normalized, str(metric).strip())
 
 
 def _format_bytes(value: int) -> str:
@@ -123,9 +144,10 @@ def _tick_axis_label() -> str:
 
 
 def _metric_axis_label(metric: str) -> str:
-    if metric == "memory":
+    display_name = _metric_display_name(metric)
+    if display_name == "memory":
         return "Memory (bytes)"
-    return f"{metric} (bytes)"
+    return f"{display_name} (bytes)"
 
 
 def _time_window_label(start_ms: int, end_ms: int) -> str:
@@ -825,6 +847,7 @@ class FastgrindQueryEngine:
         split: str = "auto",
         resolution: int | None = None,
     ) -> SeriesResponse:
+        metric = _normalize_metric_name(metric)
         start_tick, end_tick = self._normalize_window(start_ms, end_ms)
         selected_threads = self._normalize_thread_ids(thread_ids)
         selected_functions = self._normalize_function_ids(function_ids)
@@ -905,6 +928,7 @@ class FastgrindQueryEngine:
         metric: str = "net",
         scope: str = "exclusive",
     ) -> list[dict[str, Any]]:
+        metric = _normalize_metric_name(metric)
         start_tick, end_tick = self._normalize_window(start_ms, end_ms)
         selected_threads = self._normalize_thread_ids(thread_ids)
         totals: dict[int, float] = defaultdict(float)
@@ -953,6 +977,7 @@ class FastgrindQueryEngine:
         end_ms: int | None = None,
         metric: str = "net",
     ) -> dict[str, Any]:
+        metric = _normalize_metric_name(metric)
         start_tick, end_tick = self._normalize_window(start_ms, end_ms)
         tree: dict[str, Any] = {
             "thread_id": thread_id,
@@ -1080,7 +1105,7 @@ class FastgrindQueryEngine:
                 thread_ids=selected_threads,
                 focus_thread=focus_thread,
             ),
-            "selected_metrics": list(selected_metrics),
+            "selected_metrics": [_metric_display_name(metric_name) for metric_name in selected_metrics],
             "primary_metric": primary_metric,
         }
 
@@ -1124,8 +1149,13 @@ class FastgrindQueryEngine:
 
         merged_series: dict[str, list[float]] = {}
         for metric_name, response in zip(selected_metrics, responses):
+            display_metric_name = _metric_display_name(metric_name)
             for label, values in response.series.items():
-                merged_label = metric_name if label == "Total" and len(response.series) == 1 else f"{metric_name}::{label}"
+                merged_label = (
+                    display_metric_name
+                    if label == "Total" and len(response.series) == 1
+                    else f"{display_metric_name}::{label}"
+                )
                 merged_series[merged_label] = values
 
         return SeriesResponse(
@@ -1154,18 +1184,19 @@ class FastgrindQueryEngine:
         return tuple(sorted({int(thread_id) for thread_id in thread_ids}))
 
     def _normalize_metrics(self, metrics: Sequence[str] | None, default: str = "live") -> tuple[str, ...]:
+        default_name = _normalize_metric_name(default)
         seen: set[str] = set()
         normalized: list[str] = []
-        raw_metrics = metrics if metrics is not None else (default,)
+        raw_metrics = metrics if metrics is not None else (default_name,)
         for metric_name in raw_metrics:
-            name = str(metric_name).strip().casefold()
+            name = _normalize_metric_name(metric_name)
             if name not in METRIC_OPTIONS or name in seen:
                 continue
             seen.add(name)
             normalized.append(name)
         if normalized:
             return tuple(normalized)
-        return (default,)
+        return (default_name,)
 
     def _primary_metric(self, metrics: Sequence[str]) -> str:
         selected = set(metrics)
@@ -1450,6 +1481,7 @@ def generate_snapshot_html(
     tick_axis_json = _json_for_html_script(_tick_axis_label())
     metric_axis_json = _json_for_html_script(_metric_axis_label(series.metric))
     detail_context_html = html_escape(f"Context: {detail_context.get('summary', '')}")
+    top_heading_html = html_escape(f"Top Function (by {_metric_display_name('net')})")
     return f"""<!DOCTYPE html>
 <html lang=\"en\">
 <head>
@@ -1492,7 +1524,7 @@ def generate_snapshot_html(
       <div id=\"plot\"></div>
     </div>
     <div class=\"panel\">
-                        <h3>Top Function (by net)</h3>
+                                                <h3>{top_heading_html}</h3>
                         <div class=\"panel-context\">{detail_context_html}</div>
       <table>
         <thead><tr><th>Function</th><th>Value</th></tr></thead>
@@ -1588,8 +1620,8 @@ def generate_dynamic_html_page() -> str:
                         <select id="metricSel" class="metric-select" multiple size="4">
                             <option value="malloc">malloc</option>
                             <option value="free">free</option>
-                            <option value="net">net</option>
-                            <option value="live" selected>live</option>
+                            <option value="tick_res">tick_res</option>
+                            <option value="sum_res" selected>sum_res</option>
                         </select>
                     </div>
                     <div>
@@ -1617,7 +1649,7 @@ def generate_dynamic_html_page() -> str:
             <div id="plot"></div>
         </div>
         <div class="panel">
-            <h3>Top Function (by net)</h3>
+            <h3>Top Function (by tick_res)</h3>
             <div id="detailContext" class="panel-context">Context: Loading...</div>
             <table>
                 <thead><tr><th>Function</th><th>Value</th></tr></thead>
@@ -1835,10 +1867,15 @@ def generate_dynamic_html_page() -> str:
         }
 
         function metricAxisLabel(metric) {
-            if (metric === 'memory') {
+            const displayMetric = metric === 'net' || metric === 'tick_res'
+                ? 'tick_res'
+                : metric === 'live' || metric === 'sum_res'
+                    ? 'sum_res'
+                    : metric;
+            if (displayMetric === 'memory') {
                 return 'Memory (bytes)';
             }
-            return `${metric} (bytes)`;
+            return `${displayMetric} (bytes)`;
         }
 
         function selectedMetrics() {
@@ -1847,10 +1884,10 @@ def generate_dynamic_html_page() -> str:
             if (values.length > 0) {
                 return values;
             }
-            const fallback = Array.from(metricSel.options).find(option => option.value === 'live');
+            const fallback = Array.from(metricSel.options).find(option => option.value === 'sum_res');
             if (fallback) {
                 fallback.selected = true;
-                return ['live'];
+                return ['sum_res'];
             }
             return [];
         }
@@ -1945,7 +1982,7 @@ def generate_dynamic_html_page() -> str:
                 start: document.getElementById('startInput').value,
                 end: document.getElementById('endInput').value,
                 limit: '12',
-                metric: 'net',
+                metric: 'tick_res',
                 scope: 'exclusive'
             });
             renderTop(await fetchJson('/api/top?' + params));
@@ -1960,7 +1997,7 @@ def generate_dynamic_html_page() -> str:
                 thread: threadId,
                 start: document.getElementById('startInput').value,
                 end: document.getElementById('endInput').value,
-                metric: 'net'
+                metric: 'tick_res'
             }));
             renderStackTree(stack.tree);
         }
@@ -1979,7 +2016,7 @@ def generate_dynamic_html_page() -> str:
                 start: tick,
                 end: tick,
                 limit: '12',
-                metric: 'net',
+                metric: 'tick_res',
                 scope: 'exclusive'
             });
             renderTop(await fetchJson('/api/top?' + params));
@@ -1993,7 +2030,7 @@ def generate_dynamic_html_page() -> str:
                 thread: threadId,
                 start: tick,
                 end: tick,
-                metric: 'net'
+                metric: 'tick_res'
             }));
             renderStackTree(stack.tree);
         }
@@ -2214,6 +2251,21 @@ class FastgrindDesktopUI:
         self.function_index_by_id: dict[int, int] = {}
         self.top_function_ids: dict[str, int] = {}
         self.stack_item_nodes: dict[str, dict[str, Any]] = {}
+        self.stack_column_widths: dict[str, int] = {
+            "#0": 320,
+            "share": 74,
+            "value": 90,
+            "malloc": 90,
+            "free": 90,
+        }
+        self.stack_column_minwidths: dict[str, int] = {
+            "#0": 180,
+            "share": 56,
+            "value": 72,
+            "malloc": 72,
+            "free": 72,
+        }
+        self.stack_columns_user_resized = False
 
         self.metric_vars = {
             metric_name: tk.BooleanVar(value=(metric_name == "live")) for metric_name in METRIC_OPTIONS
@@ -2278,7 +2330,7 @@ class FastgrindDesktopUI:
         for index, metric_name in enumerate(METRIC_OPTIONS):
             self.ttk.Checkbutton(
                 metric_frame,
-                text=metric_name,
+                text=_metric_display_name(metric_name),
                 variable=self.metric_vars[metric_name],
                 command=lambda changed_metric=metric_name: self._on_metric_toggle(changed_metric),
             ).grid(row=index // 2, column=index % 2, sticky="w", padx=(0, 10))
@@ -2313,7 +2365,7 @@ class FastgrindDesktopUI:
             props=dict(alpha=0.2, facecolor="#d46a1f"),
         )
 
-        self.ttk.Label(right, text="Top Function (by net)").pack(anchor="w")
+        self.ttk.Label(right, text=f"Top Function (by {_metric_display_name('net')})").pack(anchor="w")
         self.ttk.Label(right, textvariable=self.detail_context_var, justify="left", wraplength=380).pack(fill=self.tk.X, pady=(2, 8))
         self.top_tree = self.ttk.Treeview(right, columns=("value",), show="tree headings", height=20)
         self.top_tree.heading("#0", text="Function")
@@ -2345,11 +2397,7 @@ class FastgrindDesktopUI:
         self.stack_tree.heading("value", text="Value")
         self.stack_tree.heading("malloc", text="Malloc")
         self.stack_tree.heading("free", text="Free")
-        self.stack_tree.column("#0", width=320, stretch=True)
-        self.stack_tree.column("share", width=74, anchor="e", stretch=False)
-        self.stack_tree.column("value", width=90, anchor="e", stretch=False)
-        self.stack_tree.column("malloc", width=90, anchor="e", stretch=False)
-        self.stack_tree.column("free", width=90, anchor="e", stretch=False)
+        self._configure_stack_tree_columns()
 
         stack_y_scroll = self.ttk.Scrollbar(stack_frame, orient="vertical", command=self.stack_tree.yview)
         stack_x_scroll = self.ttk.Scrollbar(stack_frame, orient="horizontal", command=self.stack_tree.xview)
@@ -2360,6 +2408,7 @@ class FastgrindDesktopUI:
         stack_frame.columnconfigure(0, weight=1)
         stack_frame.rowconfigure(0, weight=1)
         self.stack_tree.bind("<<TreeviewSelect>>", self._on_stack_tree_select)
+        self.stack_tree.bind("<ButtonRelease-1>", self._on_stack_tree_resize_release, add="+")
 
         self.ttk.Label(right, text="Full Symbol").pack(anchor="w", pady=(8, 0))
         self.stack_selected_entry = self.ttk.Entry(right, textvariable=self.stack_selected_var, state="readonly")
@@ -2415,6 +2464,54 @@ class FastgrindDesktopUI:
         self._render_overview(response)
         self._plot_current()
 
+    def _configure_stack_tree_columns(self) -> None:
+        frame_stretch = not self.stack_columns_user_resized
+        self.stack_tree.column(
+            "#0",
+            width=self.stack_column_widths["#0"],
+            minwidth=self.stack_column_minwidths["#0"],
+            stretch=frame_stretch,
+        )
+        self.stack_tree.column(
+            "share",
+            width=self.stack_column_widths["share"],
+            minwidth=self.stack_column_minwidths["share"],
+            anchor="e",
+            stretch=False,
+        )
+        self.stack_tree.column(
+            "value",
+            width=self.stack_column_widths["value"],
+            minwidth=self.stack_column_minwidths["value"],
+            anchor="e",
+            stretch=False,
+        )
+        self.stack_tree.column(
+            "malloc",
+            width=self.stack_column_widths["malloc"],
+            minwidth=self.stack_column_minwidths["malloc"],
+            anchor="e",
+            stretch=False,
+        )
+        self.stack_tree.column(
+            "free",
+            width=self.stack_column_widths["free"],
+            minwidth=self.stack_column_minwidths["free"],
+            anchor="e",
+            stretch=False,
+        )
+
+    def _on_stack_tree_resize_release(self, _event: Any) -> None:
+        current_widths = {
+            column_id: int(self.stack_tree.column(column_id, option="width"))
+            for column_id in self.stack_column_widths
+        }
+        if current_widths == self.stack_column_widths:
+            return
+        self.stack_column_widths = current_widths
+        self.stack_columns_user_resized = True
+        self._configure_stack_tree_columns()
+
     def _build_overview_response(self, metrics: Sequence[str]) -> SeriesResponse:
         return self.engine.query_multi_series(
             metrics=metrics,
@@ -2427,7 +2524,7 @@ class FastgrindDesktopUI:
         self.overview_ax.clear()
         for label, values in response.series.items():
             self.overview_ax.plot(response.ticks, values, label=label)
-        self.overview_ax.set_title("Overview (Total)")
+        self.overview_ax.set_title("overview(all thread sum)")
         self.overview_ax.set_ylabel(_metric_axis_label(response.metric))
         self.overview_ax.grid(True, linestyle="--", alpha=0.25)
         if 1 < len(response.series) <= 12:

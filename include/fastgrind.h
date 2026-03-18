@@ -201,6 +201,7 @@ MEM_NO_INSTRUMENT static void memAppendU64LE(std::vector<unsigned char> &out, ui
         out.push_back(static_cast<unsigned char>((value >> shift) & 0xffu));
 }
 
+// CRC32 implementation
 MEM_NO_INSTRUMENT static uint32_t memCrc32Update(uint32_t crc, const unsigned char *data, size_t size)
 {
     static uint32_t table[256] = {0};

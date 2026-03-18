@@ -119,6 +119,11 @@ def _metric_display_name(metric: str) -> str:
     return METRIC_DISPLAY_NAMES.get(normalized, str(metric).strip())
 
 
+def _detail_metric_name(metric: str) -> str:
+    normalized = _normalize_metric_name(metric)
+    return "net" if normalized == "live" else normalized
+
+
 def _format_bytes(value: int) -> str:
     units = ["B", "KiB", "MiB", "GiB", "TiB"]
     size = float(value)
@@ -1036,10 +1041,10 @@ class FastgrindQueryEngine:
             resolution=400,
         )
         primary_metric = self._primary_metric(selected_metrics)
-        top_metric = "net" if primary_metric == "live" else primary_metric
-        top = self.top_functions(start_tick, end_tick, thread_ids=thread_ids, limit=12, metric=top_metric, scope="exclusive")
+        detail_metric = self.detail_metric(selected_metrics, default=metric)
+        top = self.top_functions(start_tick, end_tick, thread_ids=thread_ids, limit=12, metric=detail_metric, scope="exclusive")
         focus_thread = (thread_ids or self._all_thread_ids[:1])[:1]
-        stack_tree = self.stack_tree(focus_thread[0], start_tick, end_tick, metric=top_metric) if focus_thread else None
+        stack_tree = self.stack_tree(focus_thread[0], start_tick, end_tick, metric=detail_metric) if focus_thread else None
         context = self.describe_detail_context(
             start_ms=start_tick,
             end_ms=end_tick,
@@ -1052,6 +1057,7 @@ class FastgrindQueryEngine:
             meta=self.meta(),
             series=series,
             top_rows=top,
+            detail_metric=detail_metric,
             stack_tree=stack_tree,
             detail_context=context,
         )
@@ -1083,17 +1089,17 @@ class FastgrindQueryEngine:
             resolution=resolution,
         )
         primary_metric = self._primary_metric(selected_metrics)
-        top_metric = "net" if primary_metric == "live" else primary_metric
+        detail_metric = self.detail_metric(selected_metrics, default=metric)
         top = self.top_functions(
             start_ms=start_tick,
             end_ms=end_tick,
             thread_ids=selected_threads,
             limit=15,
-            metric=top_metric,
+            metric=detail_metric,
             scope="exclusive",
         )
         focus_thread = selected_threads[0] if selected_threads else (self._all_thread_ids[0] if self._all_thread_ids else None)
-        stack_tree = self.stack_tree(focus_thread, start_tick, end_tick, metric=top_metric) if focus_thread else None
+        stack_tree = self.stack_tree(focus_thread, start_tick, end_tick, metric=detail_metric) if focus_thread else None
         return {
             "series": series,
             "top": top,
@@ -1107,6 +1113,8 @@ class FastgrindQueryEngine:
             ),
             "selected_metrics": [_metric_display_name(metric_name) for metric_name in selected_metrics],
             "primary_metric": primary_metric,
+            "detail_metric": detail_metric,
+            "detail_metric_display": _metric_display_name(detail_metric),
         }
 
     def query_multi_series(
@@ -1204,6 +1212,10 @@ class FastgrindQueryEngine:
             if metric_name in selected:
                 return metric_name
         return metrics[0] if metrics else "net"
+
+    def detail_metric(self, metrics: Sequence[str] | None = None, default: str = "live") -> str:
+        selected_metrics = self._normalize_metrics(metrics, default=default)
+        return _detail_metric_name(self._primary_metric(selected_metrics))
 
     def _normalize_function_ids(self, function_ids: Sequence[int] | None) -> tuple[int, ...]:
         if not function_ids:
@@ -1451,6 +1463,7 @@ def generate_snapshot_html(
     meta: dict[str, Any],
     series: SeriesResponse,
     top_rows: Sequence[dict[str, Any]],
+    detail_metric: str,
     stack_tree: dict[str, Any] | None,
     detail_context: dict[str, Any],
 ) -> str:
@@ -1481,7 +1494,7 @@ def generate_snapshot_html(
     tick_axis_json = _json_for_html_script(_tick_axis_label())
     metric_axis_json = _json_for_html_script(_metric_axis_label(series.metric))
     detail_context_html = html_escape(f"Context: {detail_context.get('summary', '')}")
-    top_heading_html = html_escape(f"Top Function (by {_metric_display_name('net')})")
+    top_heading_html = html_escape(f"Top Function (by {_metric_display_name(detail_metric)})")
     return f"""<!DOCTYPE html>
 <html lang=\"en\">
 <head>
@@ -1649,7 +1662,7 @@ def generate_dynamic_html_page() -> str:
             <div id="plot"></div>
         </div>
         <div class="panel">
-            <h3>Top Function (by tick_res)</h3>
+            <h3 id="detailHeading">Top Function (by tick_res)</h3>
             <div id="detailContext" class="panel-context">Context: Loading...</div>
             <table>
                 <thead><tr><th>Function</th><th>Value</th></tr></thead>
@@ -1667,6 +1680,9 @@ def generate_dynamic_html_page() -> str:
         </div>
     </div>
     <script>
+        let activeDetailMetric = 'tick_res';
+        let activeDetailMetricDisplay = 'tick_res';
+
         function selectedValues(select) {
             return Array.from(select.selectedOptions).map(option => option.value);
         }
@@ -1732,6 +1748,14 @@ def generate_dynamic_html_page() -> str:
                 return;
             }
             node.textContent = formatDetailContext(context);
+        }
+
+        function setDetailHeading(displayMetric) {
+            const node = document.getElementById('detailHeading');
+            if (!node) {
+                return;
+            }
+            node.textContent = `Top Function (by ${displayMetric || 'tick_res'})`;
         }
 
         function formatStackNumber(value) {
@@ -1967,6 +1991,9 @@ def generate_dynamic_html_page() -> str:
                 yaxis: { title: metricAxisLabel(payload.metric) },
                 hovermode: 'closest'
             }, { responsive: true });
+            activeDetailMetric = payload.detail_metric || 'tick_res';
+            activeDetailMetricDisplay = payload.detail_metric_display || activeDetailMetric;
+            setDetailHeading(activeDetailMetricDisplay);
             await updateWindowDetails(payload.context);
             const plot = document.getElementById('plot');
             plot.on('plotly_click', async event => {
@@ -1982,7 +2009,7 @@ def generate_dynamic_html_page() -> str:
                 start: document.getElementById('startInput').value,
                 end: document.getElementById('endInput').value,
                 limit: '12',
-                metric: 'tick_res',
+                metric: activeDetailMetric,
                 scope: 'exclusive'
             });
             renderTop(await fetchJson('/api/top?' + params));
@@ -1997,7 +2024,7 @@ def generate_dynamic_html_page() -> str:
                 thread: threadId,
                 start: document.getElementById('startInput').value,
                 end: document.getElementById('endInput').value,
-                metric: 'tick_res'
+                metric: activeDetailMetric
             }));
             renderStackTree(stack.tree);
         }
@@ -2016,7 +2043,7 @@ def generate_dynamic_html_page() -> str:
                 start: tick,
                 end: tick,
                 limit: '12',
-                metric: 'tick_res',
+                metric: activeDetailMetric,
                 scope: 'exclusive'
             });
             renderTop(await fetchJson('/api/top?' + params));
@@ -2030,7 +2057,7 @@ def generate_dynamic_html_page() -> str:
                 thread: threadId,
                 start: tick,
                 end: tick,
-                metric: 'tick_res'
+                metric: activeDetailMetric
             }));
             renderStackTree(stack.tree);
         }
@@ -2147,16 +2174,19 @@ class FastgrindHtmlServer:
                     function_ids = _parse_csv_ints(params.get("functions", [""])[0])
                     start_ms = int(params["start"][0]) if "start" in params else None
                     end_ms = int(params["end"][0]) if "end" in params else None
+                    metric_default = params.get("value", ["malloc"])[0]
+                    selected_metrics = _parse_csv_strings(params.get("metrics", [metric_default])[0])
                     response = engine.query_multi_series(
                         thread_ids=thread_ids,
                         function_ids=function_ids,
                         start_ms=start_ms,
                         end_ms=end_ms,
-                        metrics=_parse_csv_strings(params.get("metrics", [params.get("value", ["malloc"])[0]])[0]),
+                        metrics=selected_metrics,
                         scope=params.get("scope", ["inclusive"])[0],
                         split=params.get("split", ["auto"])[0],
                         resolution=int(params["resolution"][0]) if "resolution" in params else None,
                     )
+                    detail_metric = engine.detail_metric(selected_metrics, default=metric_default)
                     self._write_json(
                         {
                             "ticks": response.ticks,
@@ -2166,6 +2196,8 @@ class FastgrindHtmlServer:
                             "metric": response.metric,
                             "scope": response.scope,
                             "split": response.split,
+                            "detail_metric": detail_metric,
+                            "detail_metric_display": _metric_display_name(detail_metric),
                             "context": engine.describe_detail_context(start_ms=start_ms, end_ms=end_ms, thread_ids=thread_ids),
                         }
                     )
@@ -2275,6 +2307,9 @@ class FastgrindDesktopUI:
         default_start, default_end = engine.default_window()
         self.start_var = tk.StringVar(value=str(default_start))
         self.end_var = tk.StringVar(value=str(default_end))
+        self.detail_metric_label_var = tk.StringVar(
+            value=f"Top Function (by {_metric_display_name(self.engine.detail_metric())})"
+        )
         self.detail_context_var = tk.StringVar(value="Context: Loading...")
         self.stack_summary_var = tk.StringVar(value="No stack data loaded")
         self.stack_selected_var = tk.StringVar(value="Select a stack frame to inspect the full symbol")
@@ -2365,7 +2400,7 @@ class FastgrindDesktopUI:
             props=dict(alpha=0.2, facecolor="#d46a1f"),
         )
 
-        self.ttk.Label(right, text=f"Top Function (by {_metric_display_name('net')})").pack(anchor="w")
+        self.ttk.Label(right, textvariable=self.detail_metric_label_var).pack(anchor="w")
         self.ttk.Label(right, textvariable=self.detail_context_var, justify="left", wraplength=380).pack(fill=self.tk.X, pady=(2, 8))
         self.top_tree = self.ttk.Treeview(right, columns=("value",), show="tree headings", height=20)
         self.top_tree.heading("#0", text="Function")
@@ -2583,6 +2618,9 @@ class FastgrindDesktopUI:
             item = self.top_tree.insert("", "end", text=row["display_name"], values=(_format_value(row["value"]),))
             self.top_function_ids[item] = row["function_id"]
 
+        self.detail_metric_label_var.set(
+            f"Top Function (by {payload.get('detail_metric_display', _metric_display_name('net'))})"
+        )
         self.detail_context_var.set(f"Context: {payload['context']['summary']}")
         self._render_stack_tree_panel(payload.get("stack_tree"))
         self.status_var.set(
@@ -2610,6 +2648,7 @@ class FastgrindDesktopUI:
         selected_threads = self._selected_threads()
         if not selected_threads:
             return
+        detail_metric = self.engine.detail_metric(self._selected_metrics())
 
         self._submit_job(
             "tick",
@@ -2619,16 +2658,22 @@ class FastgrindDesktopUI:
                     end_ms=tick,
                     thread_ids=selected_threads,
                     limit=12,
-                    metric="net",
+                    metric=detail_metric,
                     scope="exclusive",
                 ),
-                "stack_tree": self.engine.stack_tree(selected_threads[0], start_ms=tick, end_ms=tick, metric="net"),
+                "stack_tree": self.engine.stack_tree(
+                    selected_threads[0],
+                    start_ms=tick,
+                    end_ms=tick,
+                    metric=detail_metric,
+                ),
                 "context": self.engine.describe_detail_context(
                     start_ms=tick,
                     end_ms=tick,
                     thread_ids=selected_threads,
                     focus_thread=selected_threads[0],
                 ),
+                "detail_metric_display": _metric_display_name(detail_metric),
                 "tick": tick,
             },
             self._render_tick_details,
@@ -2640,6 +2685,9 @@ class FastgrindDesktopUI:
         for row in payload["top"]:
             item = self.top_tree.insert("", "end", text=row["display_name"], values=(_format_value(row["value"]),))
             self.top_function_ids[item] = row["function_id"]
+        self.detail_metric_label_var.set(
+            f"Top Function (by {payload.get('detail_metric_display', _metric_display_name('net'))})"
+        )
         self.detail_context_var.set(f"Context: {payload['context']['summary']}")
         self._render_stack_tree_panel(payload.get("stack_tree"))
         self.status_var.set(f"Inspected tick {payload['tick']}")

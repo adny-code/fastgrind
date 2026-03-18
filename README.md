@@ -211,6 +211,15 @@ python tools/fastgrind.py export-json fastgrind.fgb
 HTML remains available as a secondary workflow. `export-html` writes a compact snapshot instead of embedding the full trace.
 In headless or dependency-limited environments, `ui` will fall back to `html`, and both commands can be kept local with `--no-browser` plus a fixed `--port`.
 
+Viewer metrics use the following names:
+
+- `malloc`: allocated bytes per tick or window
+- `free`: freed bytes per tick or window
+- `tick_res`: per-tick or per-window net bytes (`malloc - free`)
+- `sum_res`: running live bytes across ticks
+
+You can select multiple metrics at once. The right-side Top and Stack panes use one detail metric at a time: `tick_res` has priority, `sum_res` falls back to `tick_res` for window attribution, then `malloc`, then `free`.
+
 **Usage**
 
 ```bash

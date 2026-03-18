@@ -8,6 +8,16 @@ If your project already uses CMake, prefer the exported interface targets instea
 
 ### Installed package
 
+Build and install fastgrind before using `find_package`:
+
+```bash
+cmake -S . -B build -DFASTGRIND_BUILD_TESTS=OFF -DFASTGRIND_INSTALL=ON
+cmake --build build -j$(nproc)
+cmake --install build --prefix "$HOME/.local"
+```
+
+If you install to a non-standard prefix, configure the consumer project with `-DCMAKE_PREFIX_PATH=/path/to/prefix` so CMake can locate `fastgrindConfig.cmake`.
+
 ```cmake
 find_package(fastgrind CONFIG REQUIRED)
 

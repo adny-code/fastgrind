@@ -68,7 +68,7 @@ cd auto_instrument/compile_with_bash    # or manual_instrument/compile_with_bash
 
 **Purpose**: CMake-based build system integration.
 
-**Description**: Shows how to integrate Fastgrind instrumentation into CMake build systems with proper dependency management and configuration.
+**Description**: Shows repo-local CMake integration through `add_subdirectory(../../..)` and the exported `fastgrind::manual` / `fastgrind::auto` interface targets, so the demo stays aligned with the root build configuration.
 
 **Files**:
 - `CMakeLists.txt` - CMake configuration
@@ -78,10 +78,9 @@ cd auto_instrument/compile_with_bash    # or manual_instrument/compile_with_bash
 **Usage**:
 ```bash
 cd auto_instrument/compile_with_cmake    # or manual_instrument/compile_with_cmake
-mkdir build && cd build
-cmake ..
-make
-./app
+cmake -S . -B build
+cmake --build build -j$(nproc)
+./build/app
 ```
 
 ### 4. `compile_with_makefile/`

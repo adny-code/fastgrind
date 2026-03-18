@@ -114,6 +114,10 @@ def _format_value(value: float) -> str:
     return f"{value:,.2f}"
 
 
+def _format_percent(value: float) -> str:
+    return f"{value:.1f}%"
+
+
 def _tick_axis_label() -> str:
     return "Tick (ms)"
 
@@ -122,6 +126,197 @@ def _metric_axis_label(metric: str) -> str:
     if metric == "memory":
         return "Memory (bytes)"
     return f"{metric} (bytes)"
+
+
+def _time_window_label(start_ms: int, end_ms: int) -> str:
+    if start_ms == end_ms:
+        return f"Tick {start_ms} ms"
+    return f"Window {start_ms}..{end_ms} ms"
+
+
+def _detail_context_payload(
+    start_ms: int,
+    end_ms: int,
+    thread_ids: Sequence[int],
+    focus_thread: int | None,
+) -> dict[str, Any]:
+    normalized_threads = [int(thread_id) for thread_id in thread_ids]
+    if not normalized_threads:
+        top_scope = "Top aggregates no threads"
+    elif len(normalized_threads) == 1:
+        top_scope = f"Top aggregates T{normalized_threads[0]}"
+    else:
+        top_scope = f"Top aggregates {len(normalized_threads)} threads"
+
+    if focus_thread is None:
+        stack_scope = "Stack has no focus thread"
+    else:
+        stack_scope = f"Stack shows T{int(focus_thread)}"
+
+    return {
+        "mode": "tick" if start_ms == end_ms else "window",
+        "start_ms": int(start_ms),
+        "end_ms": int(end_ms),
+        "thread_ids": normalized_threads,
+        "focus_thread": int(focus_thread) if focus_thread is not None else None,
+        "summary": f"{_time_window_label(start_ms, end_ms)}. {top_scope}. {stack_scope}.",
+    }
+
+
+def _stack_node_name(node: dict[str, Any]) -> str:
+    return str(node.get("display_name") or node.get("canonical_name") or "(unknown)")
+
+
+def _format_stack_summary(node: dict[str, Any]) -> str:
+    return (
+        f"share {_format_percent(float(node.get('share_percent', 0.0)))} | "
+        f"value {_format_value(float(node.get('value', 0.0)))} | "
+        f"malloc {_format_value(float(node.get('malloc', 0.0)))} | "
+        f"free {_format_value(float(node.get('free', 0.0)))}"
+    )
+
+
+def _stack_panel_script() -> str:
+        return """
+        function formatStackNumber(value) {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) {
+                return '0';
+            }
+            return numericValue.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        }
+
+        function formatStackPercent(value) {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) {
+                return '0.0%';
+            }
+            return `${numericValue.toFixed(1)}%`;
+        }
+
+        function stackNodeLabel(node) {
+            return node.display_name || node.canonical_name || '(unknown)';
+        }
+
+        function stackNodeCanonical(node) {
+            return node.canonical_name || node.display_name || '(unknown)';
+        }
+
+        function stackNodeSummary(node) {
+            return `share ${formatStackPercent(node.share_percent)} | value ${formatStackNumber(node.value)} | malloc ${formatStackNumber(node.malloc)} | free ${formatStackNumber(node.free)}`;
+        }
+
+        function updateStackSelected(selectedId, node) {
+            const selected = document.getElementById(selectedId);
+            if (!selected) {
+                return;
+            }
+            selected.textContent = stackNodeCanonical(node);
+        }
+
+        function buildStackRow(node, selectedId) {
+            const row = document.createElement('div');
+            row.className = 'stack-row';
+
+            const name = document.createElement('span');
+            name.className = 'stack-name';
+            name.textContent = stackNodeLabel(node);
+            name.title = stackNodeCanonical(node);
+
+            const share = document.createElement('span');
+            share.className = 'stack-share';
+            share.textContent = formatStackPercent(node.share_percent);
+
+            const value = document.createElement('span');
+            value.className = 'stack-value';
+            value.textContent = formatStackNumber(node.value);
+
+            const malloc = document.createElement('span');
+            malloc.className = 'stack-metric';
+            malloc.textContent = formatStackNumber(node.malloc);
+
+            const free = document.createElement('span');
+            free.className = 'stack-metric';
+            free.textContent = formatStackNumber(node.free);
+
+            row.appendChild(name);
+            row.appendChild(share);
+            row.appendChild(value);
+            row.appendChild(malloc);
+            row.appendChild(free);
+            row.addEventListener('click', () => updateStackSelected(selectedId, node));
+            return row;
+        }
+
+        function createStackNode(node, depth, selectedId) {
+            const children = Array.isArray(node.children) ? node.children : [];
+            if (children.length === 0) {
+                const leaf = document.createElement('div');
+                leaf.className = 'stack-leaf';
+                leaf.style.marginLeft = `${depth * 14}px`;
+                leaf.appendChild(buildStackRow(node, selectedId));
+                return leaf;
+            }
+
+            const details = document.createElement('details');
+            details.className = 'stack-node';
+            details.open = depth < 1;
+            details.style.marginLeft = `${depth * 14}px`;
+
+            const summary = document.createElement('summary');
+            summary.appendChild(buildStackRow(node, selectedId));
+            details.appendChild(summary);
+
+            const branch = document.createElement('div');
+            branch.className = 'stack-children';
+            for (const child of children) {
+                branch.appendChild(createStackNode(child, depth + 1, selectedId));
+            }
+            details.appendChild(branch);
+            return details;
+        }
+
+        function renderStackTree(containerId, summaryId, selectedId, tree) {
+            const container = document.getElementById(containerId);
+            const summary = document.getElementById(summaryId);
+            if (!container || !summary) {
+                return;
+            }
+
+            container.innerHTML = '';
+            if (!tree) {
+                summary.textContent = 'No stack data';
+                updateStackSelected(selectedId, { canonical_name: 'No stack data' });
+                return;
+            }
+
+            summary.textContent = `${stackNodeLabel(tree)} | ${stackNodeSummary(tree)}`;
+            updateStackSelected(selectedId, tree);
+
+            const children = Array.isArray(tree.children) ? tree.children : [];
+            if (children.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'stack-empty';
+                empty.textContent = 'No stack frames in the selected window.';
+                container.appendChild(empty);
+                return;
+            }
+
+            for (const child of children) {
+                container.appendChild(createStackNode(child, 0, selectedId));
+            }
+        }
+
+        function toggleStackTree(containerId, open) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                return;
+            }
+            for (const node of container.querySelectorAll('details')) {
+                node.open = open;
+            }
+        }
+        """
 
 
 def _align_down(value: int, interval: int) -> int:
@@ -167,6 +362,17 @@ def _parse_csv_strings(raw: str | None) -> list[str]:
 
 def _json_response(payload: Any) -> bytes:
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+
+def _json_for_html_script(payload: Any) -> str:
+    return (
+        json.dumps(payload, ensure_ascii=False)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
 
 
 class FastgrindBinaryReader:
@@ -738,8 +944,25 @@ class FastgrindQueryEngine:
         end_ms: int | None = None,
         metric: str = "net",
     ) -> str:
+        return self._stack_tree_to_text(self.stack_tree(thread_id, start_ms=start_ms, end_ms=end_ms, metric=metric))
+
+    def stack_tree(
+        self,
+        thread_id: int,
+        start_ms: int | None = None,
+        end_ms: int | None = None,
+        metric: str = "net",
+    ) -> dict[str, Any]:
         start_tick, end_tick = self._normalize_window(start_ms, end_ms)
-        tree: dict[str, Any] = {"malloc": 0.0, "free": 0.0, "children": {}}
+        tree: dict[str, Any] = {
+            "thread_id": thread_id,
+            "function_id": None,
+            "display_name": f"Thread {thread_id}",
+            "canonical_name": f"Thread {thread_id}",
+            "malloc": 0.0,
+            "free": 0.0,
+            "children": {},
+        }
 
         for _tick_ms, current_thread_id, leaf_node_id, malloc_bytes, free_bytes in self._iter_records(
             start_tick, end_tick, (thread_id,)
@@ -750,14 +973,12 @@ class FastgrindQueryEngine:
             node["malloc"] += float(malloc_bytes)
             node["free"] += float(free_bytes)
             for function_id in self.reader.node_paths[leaf_node_id]:
-                child = node["children"].setdefault(function_id, {"malloc": 0.0, "free": 0.0, "children": {}})
+                child = node["children"].setdefault(function_id, self._new_stack_tree_node(function_id))
                 child["malloc"] += float(malloc_bytes)
                 child["free"] += float(free_bytes)
                 node = child
 
-        lines = [f"Thread {thread_id}"]
-        self._render_stack_tree(tree, metric, 0, lines)
-        return "\n".join(lines)
+        return self._apply_stack_tree_shares(self._finalize_stack_tree(tree, metric))
 
     def export_json(self, output: str | Path) -> Path:
         output_path = Path(output)
@@ -793,14 +1014,21 @@ class FastgrindQueryEngine:
         top_metric = "net" if primary_metric == "live" else primary_metric
         top = self.top_functions(start_tick, end_tick, thread_ids=thread_ids, limit=12, metric=top_metric, scope="exclusive")
         focus_thread = (thread_ids or self._all_thread_ids[:1])[:1]
-        stack_text = self.stack_breakdown(focus_thread[0], start_tick, end_tick, metric=top_metric) if focus_thread else ""
+        stack_tree = self.stack_tree(focus_thread[0], start_tick, end_tick, metric=top_metric) if focus_thread else None
+        context = self.describe_detail_context(
+            start_ms=start_tick,
+            end_ms=end_tick,
+            thread_ids=thread_ids,
+            focus_thread=focus_thread[0] if focus_thread else None,
+        )
 
         html = generate_snapshot_html(
             title=f"fastgrind snapshot: {self.reader.path.name}",
             meta=self.meta(),
             series=series,
             top_rows=top,
-            stack_text=stack_text,
+            stack_tree=stack_tree,
+            detail_context=context,
         )
         output_path.write_text(html, encoding="utf-8")
         return output_path
@@ -817,12 +1045,13 @@ class FastgrindQueryEngine:
         resolution: int | None = None,
     ) -> dict[str, Any]:
         selected_threads = self._normalize_thread_ids(thread_ids)
+        start_tick, end_tick = self._normalize_window(start_ms, end_ms)
         selected_metrics = self._normalize_metrics(metrics, default=metric)
         series = self.query_multi_series(
             thread_ids=selected_threads,
             function_ids=function_ids,
-            start_ms=start_ms,
-            end_ms=end_ms,
+            start_ms=start_tick,
+            end_ms=end_tick,
             metrics=selected_metrics,
             scope=scope,
             split="auto",
@@ -831,20 +1060,26 @@ class FastgrindQueryEngine:
         primary_metric = self._primary_metric(selected_metrics)
         top_metric = "net" if primary_metric == "live" else primary_metric
         top = self.top_functions(
-            start_ms=start_ms,
-            end_ms=end_ms,
+            start_ms=start_tick,
+            end_ms=end_tick,
             thread_ids=selected_threads,
             limit=15,
             metric=top_metric,
             scope="exclusive",
         )
         focus_thread = selected_threads[0] if selected_threads else (self._all_thread_ids[0] if self._all_thread_ids else None)
-        stack_text = self.stack_breakdown(focus_thread, start_ms, end_ms, metric=top_metric) if focus_thread else ""
+        stack_tree = self.stack_tree(focus_thread, start_tick, end_tick, metric=top_metric) if focus_thread else None
         return {
             "series": series,
             "top": top,
             "focus_thread": focus_thread,
-            "stack_text": stack_text,
+            "stack_tree": stack_tree,
+            "context": self.describe_detail_context(
+                start_ms=start_tick,
+                end_ms=end_tick,
+                thread_ids=selected_threads,
+                focus_thread=focus_thread,
+            ),
             "selected_metrics": list(selected_metrics),
             "primary_metric": primary_metric,
         }
@@ -900,6 +1135,18 @@ class FastgrindQueryEngine:
             scope=responses[0].scope,
             split=responses[0].split,
         )
+
+    def describe_detail_context(
+        self,
+        start_ms: int | None = None,
+        end_ms: int | None = None,
+        thread_ids: Sequence[int] | None = None,
+        focus_thread: int | None = None,
+    ) -> dict[str, Any]:
+        start_tick, end_tick = self._normalize_window(start_ms, end_ms)
+        selected_threads = self._normalize_thread_ids(thread_ids)
+        resolved_focus_thread = focus_thread if focus_thread is not None else (selected_threads[0] if selected_threads else None)
+        return _detail_context_payload(start_tick, end_tick, selected_threads, resolved_focus_thread)
 
     def _normalize_thread_ids(self, thread_ids: Sequence[int] | None) -> tuple[int, ...]:
         if not thread_ids:
@@ -1080,21 +1327,59 @@ class FastgrindQueryEngine:
                     sampled_series[label].append(sum(chunk))
         return sampled_ticks, sampled_series
 
-    def _render_stack_tree(self, node: dict[str, Any], metric: str, depth: int, lines: list[str]) -> None:
-        children = node.get("children", {})
-        sorted_children = sorted(
-            children.items(),
-            key=lambda item: abs(self._metric_value(item[1]["malloc"], item[1]["free"], "net" if metric == "live" else metric)),
-            reverse=True,
-        )
-        for function_id, child in sorted_children:
-            value = self._metric_value(child["malloc"], child["free"], "net" if metric == "live" else metric)
-            display_name = self.reader.display_names[function_id] or self.reader.function_names[function_id] or str(function_id)
-            lines.append(
-                f"{'  ' * depth}- {display_name} malloc {_format_value(child['malloc'])} "
-                f"free {_format_value(child['free'])} value {_format_value(value)}"
-            )
-            self._render_stack_tree(child, metric, depth + 1, lines)
+    def _new_stack_tree_node(self, function_id: int) -> dict[str, Any]:
+        display_name = self.reader.display_names[function_id] or self.reader.function_names[function_id] or str(function_id)
+        canonical_name = self.reader.function_names[function_id] or display_name
+        return {
+            "thread_id": None,
+            "function_id": function_id,
+            "display_name": display_name,
+            "canonical_name": canonical_name,
+            "malloc": 0.0,
+            "free": 0.0,
+            "children": {},
+        }
+
+    def _finalize_stack_tree(self, node: dict[str, Any], metric: str) -> dict[str, Any]:
+        sort_metric = "net" if metric == "live" else metric
+        children = [self._finalize_stack_tree(child, metric) for child in node.get("children", {}).values()]
+        if sort_metric == "net":
+            children.sort(key=lambda child: (-abs(float(child["value"])), _stack_node_name(child).casefold()))
+        else:
+            children.sort(key=lambda child: (-float(child["value"]), _stack_node_name(child).casefold()))
+        return {
+            "thread_id": node.get("thread_id"),
+            "function_id": node.get("function_id"),
+            "display_name": node.get("display_name"),
+            "canonical_name": node.get("canonical_name"),
+            "malloc": float(node.get("malloc", 0.0)),
+            "free": float(node.get("free", 0.0)),
+            "value": self._metric_value(node.get("malloc", 0.0), node.get("free", 0.0), sort_metric),
+            "children": children,
+            "child_count": len(children),
+        }
+
+    def _apply_stack_tree_shares(self, tree: dict[str, Any]) -> dict[str, Any]:
+        total_value = float(tree.get("value", 0.0))
+        self._annotate_stack_tree_share(tree, total_value)
+        return tree
+
+    def _annotate_stack_tree_share(self, node: dict[str, Any], total_value: float) -> None:
+        current_value = float(node.get("value", 0.0))
+        share_percent = 0.0 if abs(total_value) < 1e-12 else (current_value / total_value) * 100.0
+        node["share_percent"] = share_percent
+        for child in node.get("children", []):
+            self._annotate_stack_tree_share(child, total_value)
+
+    def _stack_tree_to_text(self, tree: dict[str, Any]) -> str:
+        lines = [f"{_stack_node_name(tree)} {_format_stack_summary(tree)}"]
+        self._render_stack_tree_text(tree, 0, lines)
+        return "\n".join(lines)
+
+    def _render_stack_tree_text(self, node: dict[str, Any], depth: int, lines: list[str]) -> None:
+        for child in node.get("children", []):
+            lines.append(f"{'  ' * depth}- {_stack_node_name(child)} {_format_stack_summary(child)}")
+            self._render_stack_tree_text(child, depth + 1, lines)
 
     def _compatibility_json_data(self) -> dict[str, Any]:
         result: dict[str, Any] = {}
@@ -1135,7 +1420,8 @@ def generate_snapshot_html(
     meta: dict[str, Any],
     series: SeriesResponse,
     top_rows: Sequence[dict[str, Any]],
-    stack_text: str,
+    stack_tree: dict[str, Any] | None,
+    detail_context: dict[str, Any],
 ) -> str:
     traces = [
         {
@@ -1158,6 +1444,12 @@ def generate_snapshot_html(
         f"threads {meta['thread_count']}, functions {meta['function_count']}, "
         f"total malloc {_format_bytes(meta['total_malloc_bytes'])}, total free {_format_bytes(meta['total_free_bytes'])}"
     )
+    traces_json = _json_for_html_script(traces)
+    stack_tree_json = _json_for_html_script(stack_tree)
+    title_json = _json_for_html_script(title)
+    tick_axis_json = _json_for_html_script(_tick_axis_label())
+    metric_axis_json = _json_for_html_script(_metric_axis_label(series.metric))
+    detail_context_html = html_escape(f"Context: {detail_context.get('summary', '')}")
     return f"""<!DOCTYPE html>
 <html lang=\"en\">
 <head>
@@ -1172,8 +1464,24 @@ def generate_snapshot_html(
     .panel {{ background: white; border: 1px solid #ddd6c9; border-radius: 12px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); }}
     table {{ width: 100%; border-collapse: collapse; }}
     td, th {{ padding: 6px 8px; border-bottom: 1px solid #eee5d7; text-align: left; }}
-    pre {{ white-space: pre-wrap; font-size: 12px; max-height: 480px; overflow: auto; }}
+    .panel-context {{ margin: 0 0 10px; font-size: 12px; color: #5e616d; }}
+        button {{ padding: 6px 10px; border: 1px solid #ccbfa9; border-radius: 10px; background: #fffaf2; cursor: pointer; }}
     #plot {{ width: 100%; height: 560px; }}
+        .stack-toolbar {{ display: flex; gap: 8px; margin: 10px 0 8px; }}
+        .stack-summary, .stack-selected {{ font-size: 12px; color: #5e616d; margin: 8px 0; }}
+        .stack-selected {{ padding-top: 8px; border-top: 1px solid #eee5d7; }}
+        .stack-headings {{ display: grid; grid-template-columns: minmax(0, 1fr) 72px 90px 90px 90px; gap: 8px; padding: 0 0 6px; border-bottom: 1px solid #eee5d7; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #7c7f89; }}
+        .stack-tree {{ max-height: 480px; overflow: auto; background: #fcfbf8; border: 1px solid #eee5d7; border-radius: 10px; padding: 8px; }}
+        .stack-node {{ margin: 0; }}
+        .stack-node summary {{ cursor: pointer; list-style: none; }}
+        .stack-node summary::-webkit-details-marker {{ color: #b3621d; }}
+        .stack-children {{ margin-left: 10px; padding-left: 10px; border-left: 1px solid #efe6d6; }}
+        .stack-leaf {{ margin: 0; }}
+        .stack-row {{ display: grid; grid-template-columns: minmax(0, 1fr) 72px 90px 90px 90px; gap: 8px; align-items: center; padding: 4px 0; font-size: 12px; }}
+        .stack-name {{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }}
+        .stack-share, .stack-value, .stack-metric {{ text-align: right; font-variant-numeric: tabular-nums; color: #5e616d; }}
+        .stack-empty {{ padding: 8px 0; color: #5e616d; font-size: 12px; }}
+        @media (max-width: 1200px) {{ .grid {{ grid-template-columns: 1fr; }} }}
   </style>
 </head>
 <body>
@@ -1184,23 +1492,34 @@ def generate_snapshot_html(
       <div id=\"plot\"></div>
     </div>
     <div class=\"panel\">
-            <h3>Top Funciton (by net in viewing window)</h3>
+                        <h3>Top Function (by net)</h3>
+                        <div class=\"panel-context\">{detail_context_html}</div>
       <table>
         <thead><tr><th>Function</th><th>Value</th></tr></thead>
         <tbody>{top_html}</tbody>
       </table>
       <h3>Stack</h3>
-      <pre>{html_escape(stack_text)}</pre>
+            <div class=\"stack-toolbar\">
+                <button type=\"button\" onclick=\"toggleStackTree('stackTree', true)\">Expand all</button>
+                <button type=\"button\" onclick=\"toggleStackTree('stackTree', false)\">Collapse all</button>
+            </div>
+            <div id=\"stackSummary\" class=\"stack-summary\">Loading stack...</div>
+            <div class=\"stack-headings\"><span>Frame</span><span>Share</span><span>Value</span><span>Malloc</span><span>Free</span></div>
+            <div id=\"stackTree\" class=\"stack-tree\"></div>
+            <div id=\"stackSelected\" class=\"stack-selected\">Click a frame to inspect the full symbol.</div>
     </div>
   </div>
   <script>
-    const traces = {json.dumps(traces)};
+        {_stack_panel_script()}
+        const traces = {traces_json};
+        const snapshotStackTree = {stack_tree_json};
     Plotly.newPlot('plot', traces, {{
-      title: {json.dumps(title)},
-            xaxis: {{ title: {json.dumps(_tick_axis_label())} }},
-            yaxis: {{ title: {json.dumps(_metric_axis_label(series.metric))} }},
+            title: {title_json},
+            xaxis: {{ title: {tick_axis_json} }},
+            yaxis: {{ title: {metric_axis_json} }},
       hovermode: 'closest'
     }}, {{responsive: true}});
+        renderStackTree('stackTree', 'stackSummary', 'stackSelected', snapshotStackTree);
   </script>
 </body>
 </html>
@@ -1208,114 +1527,312 @@ def generate_snapshot_html(
 
 
 def generate_dynamic_html_page() -> str:
-    return """<!DOCTYPE html>
-<html lang=\"en\">
+    return '''<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset=\"utf-8\" />
-  <title>fastgrind viewer</title>
-  <script src=\"https://cdn.plot.ly/plotly-2.30.0.min.js\"></script>
-  <style>
-    body { font-family: sans-serif; margin: 18px; background: linear-gradient(180deg, #faf6ee, #f3efe7); color: #1d1d24; }
-    .layout { display: grid; grid-template-columns: 320px 1fr 360px; gap: 16px; }
-    .panel { background: rgba(255,255,255,0.94); border: 1px solid #ddd4c4; border-radius: 14px; padding: 14px; box-shadow: 0 10px 28px rgba(0,0,0,0.06); }
-    h2, h3 { margin-top: 0; }
-    .controls { display: grid; gap: 10px; }
-    select, input, button { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccbfa9; border-radius: 10px; background: white; }
-    select[multiple] { min-height: 180px; }
-    .metric-select { min-height: 120px !important; }
-    .inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    #plot { width: 100%; height: 720px; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { padding: 6px 8px; border-bottom: 1px solid #efe6d6; text-align: left; }
-    pre { white-space: pre-wrap; max-height: 360px; overflow: auto; font-size: 12px; background: #fcfbf8; padding: 10px; border-radius: 10px; }
-    .meta { font-size: 13px; color: #5d6170; margin-bottom: 12px; }
-  </style>
+    <meta charset="utf-8" />
+    <title>fastgrind viewer</title>
+    <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 18px; background: linear-gradient(180deg, #faf6ee, #f3efe7); color: #1d1d24; }
+        .layout { display: grid; grid-template-columns: 320px minmax(0, 1fr) 400px; gap: 16px; }
+        .panel { background: rgba(255,255,255,0.94); border: 1px solid #ddd4c4; border-radius: 14px; padding: 14px; box-shadow: 0 10px 28px rgba(0,0,0,0.06); }
+        h2, h3 { margin-top: 0; }
+        .controls { display: grid; gap: 10px; }
+        select, input, button { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccbfa9; border-radius: 10px; background: white; }
+        select[multiple] { min-height: 180px; }
+        .metric-select { min-height: 120px !important; }
+        .inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        #plot { width: 100%; height: 720px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 6px 8px; border-bottom: 1px solid #efe6d6; text-align: left; }
+        .meta { font-size: 13px; color: #5d6170; margin-bottom: 12px; }
+        .panel-context { font-size: 12px; color: #5d6170; margin: -4px 0 10px; }
+        .stack-toolbar { display: flex; gap: 8px; margin: 10px 0 8px; }
+        .stack-summary, .stack-selected { font-size: 12px; color: #5d6170; margin: 8px 0; }
+        .stack-selected { padding-top: 8px; border-top: 1px solid #efe6d6; overflow-x: auto; white-space: nowrap; }
+        .stack-headings { display: grid; grid-template-columns: minmax(0, 1fr) 72px 88px 88px 88px; gap: 8px; padding: 0 0 6px; border-bottom: 1px solid #efe6d6; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #7c7f89; }
+        .stack-tree { max-height: 420px; overflow: auto; font-size: 12px; background: #fcfbf8; padding: 10px; border-radius: 10px; border: 1px solid #efe6d6; }
+        .stack-node { margin: 0; }
+        .stack-node summary { list-style: none; cursor: pointer; }
+        .stack-node summary::-webkit-details-marker { color: #b3621d; }
+        .stack-children { margin-left: 10px; padding-left: 10px; border-left: 1px solid #efe6d6; }
+        .stack-row { display: grid; grid-template-columns: minmax(0, 1fr) 72px 88px 88px 88px; gap: 8px; align-items: center; padding: 4px 0; }
+        .stack-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+        .stack-share, .stack-value, .stack-metric { text-align: right; font-variant-numeric: tabular-nums; color: #5d6170; }
+        .stack-empty { padding: 8px 0; color: #5d6170; }
+        @media (max-width: 1280px) { .layout { grid-template-columns: 1fr; } }
+    </style>
 </head>
 <body>
-  <h2>fastgrind binary viewer</h2>
-  <div id=\"meta\" class=\"meta\">Loading...</div>
-  <div class=\"layout\">
-    <div class=\"panel\">
-      <div class=\"controls\">
-        <div>
-          <label>Threads</label>
-          <select id=\"threadSel\" multiple></select>
-        </div>
-        <div>
-          <label>Functions search</label>
-          <input id=\"funcSearch\" placeholder=\"Search functions\" />
-        </div>
-        <div>
-          <label>Functions</label>
-          <select id=\"funcSel\" multiple></select>
-        </div>
-        <div class=\"inline\">
-          <div>
+    <h2>fastgrind binary viewer</h2>
+    <div id="meta" class="meta">Loading...</div>
+    <div class="layout">
+        <div class="panel">
+            <div class="controls">
+                <div>
+                    <label>Threads</label>
+                    <select id="threadSel" multiple></select>
+                </div>
+                <div>
+                    <label>Functions search</label>
+                    <input id="funcSearch" placeholder="Search functions" />
+                </div>
+                <div>
+                    <label>Functions</label>
+                    <select id="funcSel" multiple></select>
+                </div>
+                <div class="inline">
+                    <div>
                         <label>Metrics</label>
                         <select id="metricSel" class="metric-select" multiple size="4">
-              <option value=\"malloc\">malloc</option>
-              <option value=\"free\">free</option>
-              <option value=\"net\">net</option>
-              <option value=\"live\" selected>live</option>
-            </select>
-          </div>
-          <div>
-            <label>Scope</label>
-            <select id=\"scopeSel\">
-              <option value=\"inclusive\" selected>inclusive</option>
-              <option value=\"exclusive\">exclusive</option>
-            </select>
-          </div>
+                            <option value="malloc">malloc</option>
+                            <option value="free">free</option>
+                            <option value="net">net</option>
+                            <option value="live" selected>live</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Scope</label>
+                        <select id="scopeSel">
+                            <option value="inclusive" selected>inclusive</option>
+                            <option value="exclusive">exclusive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="inline">
+                    <div>
+                        <label>Start</label>
+                        <input id="startInput" type="number" />
+                    </div>
+                    <div>
+                        <label>End</label>
+                        <input id="endInput" type="number" />
+                    </div>
+                </div>
+                <button id="plotBtn">Plot</button>
+            </div>
         </div>
-        <div class=\"inline\">
-          <div>
-            <label>Start</label>
-            <input id=\"startInput\" type=\"number\" />
-          </div>
-          <div>
-            <label>End</label>
-            <input id=\"endInput\" type=\"number\" />
-          </div>
+        <div class="panel">
+            <div id="plot"></div>
         </div>
-        <button id=\"plotBtn\">Plot</button>
-      </div>
+        <div class="panel">
+            <h3>Top Function (by net)</h3>
+            <div id="detailContext" class="panel-context">Context: Loading...</div>
+            <table>
+                <thead><tr><th>Function</th><th>Value</th></tr></thead>
+                <tbody id="topBody"></tbody>
+            </table>
+            <h3>Stack</h3>
+            <div class="stack-toolbar">
+                <button type="button" onclick="toggleStackTree('stackTree', true)">Expand all</button>
+                <button type="button" onclick="toggleStackTree('stackTree', false)">Collapse all</button>
+            </div>
+            <div id="stackSummary" class="stack-summary">Loading stack...</div>
+            <div class="stack-headings"><span>Frame</span><span>Share</span><span>Value</span><span>Malloc</span><span>Free</span></div>
+            <div id="stackTree" class="stack-tree"></div>
+            <div id="stackSelected" class="stack-selected">Click a frame to inspect the full symbol.</div>
+        </div>
     </div>
-    <div class=\"panel\">
-      <div id=\"plot\"></div>
-    </div>
-    <div class=\"panel\">
-            <h3>Top Funciton (by net in viewing window)</h3>
-      <table>
-        <thead><tr><th>Function</th><th>Value</th></tr></thead>
-        <tbody id=\"topBody\"></tbody>
-      </table>
-      <h3>Stack</h3>
-      <pre id=\"stackPre\">Select a point to inspect one tick.</pre>
-    </div>
-  </div>
-  <script>
-    function selectedValues(select) {
-      return Array.from(select.selectedOptions).map(option => option.value);
-    }
-
-    async function fetchJson(url) {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      return await response.json();
-    }
-
-    function queryString(params) {
-      const search = new URLSearchParams();
-      for (const [key, value] of Object.entries(params)) {
-        if (value === undefined || value === null || value === '') {
-          continue;
+    <script>
+        function selectedValues(select) {
+            return Array.from(select.selectedOptions).map(option => option.value);
         }
-        search.set(key, value);
-      }
-      return search.toString();
-    }
+
+        function effectiveThreadValues() {
+            const threadSel = document.getElementById('threadSel');
+            const selected = selectedValues(threadSel);
+            if (selected.length > 0) {
+                return selected;
+            }
+            return Array.from(threadSel.options).map(option => option.value);
+        }
+
+        async function fetchJson(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(await response.text());
+            }
+            return await response.json();
+        }
+
+        function queryString(params) {
+            const search = new URLSearchParams();
+            for (const [key, value] of Object.entries(params)) {
+                if (value === undefined || value === null || value === '') {
+                    continue;
+                }
+                search.set(key, value);
+            }
+            return search.toString();
+        }
+
+        function formatDetailContext(context) {
+            if (!context) {
+                return 'Context: unavailable';
+            }
+            if (typeof context.summary === 'string' && context.summary.length > 0) {
+                return `Context: ${context.summary}`;
+            }
+
+            const start = Number(context.start_ms);
+            const end = Number(context.end_ms);
+            const threadIds = Array.isArray(context.thread_ids) ? context.thread_ids : [];
+            const focusThread = context.focus_thread;
+            const timeLabel = start === end ? `Tick ${start} ms` : `Window ${start}..${end} ms`;
+
+            let topLabel = 'Top aggregates no threads';
+            if (threadIds.length === 1) {
+                topLabel = `Top aggregates T${threadIds[0]}`;
+            } else if (threadIds.length > 1) {
+                topLabel = `Top aggregates ${threadIds.length} threads`;
+            }
+
+            const stackLabel = focusThread === undefined || focusThread === null
+                ? 'Stack has no focus thread'
+                : `Stack shows T${focusThread}`;
+            return `Context: ${timeLabel}. ${topLabel}. ${stackLabel}.`;
+        }
+
+        function setDetailContext(context) {
+            const node = document.getElementById('detailContext');
+            if (!node) {
+                return;
+            }
+            node.textContent = formatDetailContext(context);
+        }
+
+        function formatStackNumber(value) {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) {
+                return '0';
+            }
+            return numericValue.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        }
+
+        function formatStackPercent(value) {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) {
+                return '0.0%';
+            }
+            return `${numericValue.toFixed(1)}%`;
+        }
+
+        function stackNodeLabel(node) {
+            return node.display_name || node.canonical_name || '(unknown)';
+        }
+
+        function stackNodeCanonical(node) {
+            return node.canonical_name || node.display_name || '(unknown)';
+        }
+
+        function stackNodeSummary(node) {
+            return `share ${formatStackPercent(node.share_percent)} | value ${formatStackNumber(node.value)} | malloc ${formatStackNumber(node.malloc)} | free ${formatStackNumber(node.free)}`;
+        }
+
+        function updateStackSelected(node) {
+            document.getElementById('stackSelected').textContent = stackNodeCanonical(node);
+        }
+
+        function buildStackRow(node) {
+            const row = document.createElement('div');
+            row.className = 'stack-row';
+
+            const name = document.createElement('span');
+            name.className = 'stack-name';
+            name.textContent = stackNodeLabel(node);
+            name.title = stackNodeCanonical(node);
+
+            const share = document.createElement('span');
+            share.className = 'stack-share';
+            share.textContent = formatStackPercent(node.share_percent);
+
+            const value = document.createElement('span');
+            value.className = 'stack-value';
+            value.textContent = formatStackNumber(node.value);
+
+            const malloc = document.createElement('span');
+            malloc.className = 'stack-metric';
+            malloc.textContent = formatStackNumber(node.malloc);
+
+            const free = document.createElement('span');
+            free.className = 'stack-metric';
+            free.textContent = formatStackNumber(node.free);
+
+            row.appendChild(name);
+            row.appendChild(share);
+            row.appendChild(value);
+            row.appendChild(malloc);
+            row.appendChild(free);
+            row.addEventListener('click', () => updateStackSelected(node));
+            return row;
+        }
+
+        function createStackNode(node, depth) {
+            const children = Array.isArray(node.children) ? node.children : [];
+            if (children.length === 0) {
+                const leaf = document.createElement('div');
+                leaf.className = 'stack-leaf';
+                leaf.style.marginLeft = `${depth * 14}px`;
+                leaf.appendChild(buildStackRow(node));
+                return leaf;
+            }
+
+            const details = document.createElement('details');
+            details.className = 'stack-node';
+            details.open = depth < 1;
+            details.style.marginLeft = `${depth * 14}px`;
+
+            const summary = document.createElement('summary');
+            summary.appendChild(buildStackRow(node));
+            details.appendChild(summary);
+
+            const branch = document.createElement('div');
+            branch.className = 'stack-children';
+            for (const child of children) {
+                branch.appendChild(createStackNode(child, depth + 1));
+            }
+            details.appendChild(branch);
+            return details;
+        }
+
+        function renderStackTree(tree) {
+            const container = document.getElementById('stackTree');
+            const summary = document.getElementById('stackSummary');
+            container.innerHTML = '';
+
+            if (!tree) {
+                summary.textContent = 'No stack data';
+                document.getElementById('stackSelected').textContent = 'No stack data';
+                return;
+            }
+
+            summary.textContent = `${stackNodeLabel(tree)} | ${stackNodeSummary(tree)}`;
+            updateStackSelected(tree);
+
+            const children = Array.isArray(tree.children) ? tree.children : [];
+            if (children.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'stack-empty';
+                empty.textContent = 'No stack frames in the selected window.';
+                container.appendChild(empty);
+                return;
+            }
+
+            for (const child of children) {
+                container.appendChild(createStackNode(child, 0));
+            }
+        }
+
+        function toggleStackTree(containerId, open) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                return;
+            }
+            for (const node of container.querySelectorAll('details')) {
+                node.open = open;
+            }
+        }
 
         function metricAxisLabel(metric) {
             if (metric === 'memory') {
@@ -1338,155 +1855,181 @@ def generate_dynamic_html_page() -> str:
             return [];
         }
 
-    function renderTop(rows) {
-      const body = document.getElementById('topBody');
-      body.innerHTML = '';
-      for (const row of rows) {
-        const tr = document.createElement('tr');
-        const name = document.createElement('td');
-        name.textContent = row.display_name;
-        name.title = row.canonical_name;
-        const value = document.createElement('td');
-        value.textContent = row.value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-        tr.appendChild(name);
-        tr.appendChild(value);
-        body.appendChild(tr);
-      }
-    }
-
-    async function refreshFunctions() {
-      const threadSel = document.getElementById('threadSel');
-      const funcSel = document.getElementById('funcSel');
-      const search = document.getElementById('funcSearch').value;
-      const params = queryString({
-        threads: selectedValues(threadSel).join(','),
-        q: search,
-        limit: '200',
-        sort: 'alpha'
-      });
-      const functions = await fetchJson('/api/functions?' + params);
-      const prev = new Set(selectedValues(funcSel));
-      funcSel.innerHTML = '';
-      for (const row of functions) {
-        const option = document.createElement('option');
-        option.value = String(row.function_id);
-        option.textContent = row.display_name;
-        option.title = row.canonical_name;
-        if (prev.has(option.value)) {
-          option.selected = true;
+        function focusThreadId() {
+            const threadSel = document.getElementById('threadSel');
+            const selected = selectedValues(threadSel);
+            if (selected.length > 0) {
+                return selected[0];
+            }
+            const first = threadSel.options[0];
+            return first ? first.value : '';
         }
-        funcSel.appendChild(option);
-      }
-    }
 
-    async function plotCurrent() {
-      const params = queryString({
-        threads: selectedValues(document.getElementById('threadSel')).join(','),
-        functions: selectedValues(document.getElementById('funcSel')).join(','),
-        start: document.getElementById('startInput').value,
-        end: document.getElementById('endInput').value,
+        function renderTop(rows) {
+            const body = document.getElementById('topBody');
+            body.innerHTML = '';
+            for (const row of rows) {
+                const tr = document.createElement('tr');
+                const name = document.createElement('td');
+                name.textContent = row.display_name;
+                name.title = row.canonical_name;
+                const value = document.createElement('td');
+                value.textContent = row.value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                tr.appendChild(name);
+                tr.appendChild(value);
+                body.appendChild(tr);
+            }
+        }
+
+        async function refreshFunctions() {
+            const threadSel = document.getElementById('threadSel');
+            const funcSel = document.getElementById('funcSel');
+            const search = document.getElementById('funcSearch').value;
+            const params = queryString({
+                threads: selectedValues(threadSel).join(','),
+                q: search,
+                limit: '200',
+                sort: 'alpha'
+            });
+            const functions = await fetchJson('/api/functions?' + params);
+            const prev = new Set(selectedValues(funcSel));
+            funcSel.innerHTML = '';
+            for (const row of functions) {
+                const option = document.createElement('option');
+                option.value = String(row.function_id);
+                option.textContent = row.display_name;
+                option.title = row.canonical_name;
+                if (prev.has(option.value)) {
+                    option.selected = true;
+                }
+                funcSel.appendChild(option);
+            }
+        }
+
+        async function plotCurrent() {
+            const params = queryString({
+                threads: selectedValues(document.getElementById('threadSel')).join(','),
+                functions: selectedValues(document.getElementById('funcSel')).join(','),
+                start: document.getElementById('startInput').value,
+                end: document.getElementById('endInput').value,
                 metrics: selectedMetrics().join(','),
-        scope: document.getElementById('scopeSel').value,
-        split: 'auto',
-        resolution: '500'
-      });
-      const payload = await fetchJson('/api/series?' + params);
-      const traces = payload.series.map(row => ({
-        x: payload.ticks,
-        y: row.values,
-        mode: 'lines+markers',
-        name: row.label,
-      }));
-      Plotly.newPlot('plot', traces, {
-        title: 'Memory vs Tick',
+                scope: document.getElementById('scopeSel').value,
+                split: 'auto',
+                resolution: '500'
+            });
+            const payload = await fetchJson('/api/series?' + params);
+            const traces = payload.series.map(row => ({
+                x: payload.ticks,
+                y: row.values,
+                mode: 'lines+markers',
+                name: row.label,
+            }));
+            Plotly.newPlot('plot', traces, {
+                title: 'Memory vs Tick',
                 xaxis: { title: 'Tick (ms)' },
                 yaxis: { title: metricAxisLabel(payload.metric) },
-        hovermode: 'closest'
-      }, { responsive: true });
-      await updateWindowDetails();
-      const plot = document.getElementById('plot');
-      plot.on('plotly_click', async event => {
-        const tick = event.points[0].x;
-        await updateTickDetails(tick);
-      });
-    }
+                hovermode: 'closest'
+            }, { responsive: true });
+            await updateWindowDetails(payload.context);
+            const plot = document.getElementById('plot');
+            plot.on('plotly_click', async event => {
+                const tick = event.points[0].x;
+                await updateTickDetails(tick);
+            });
+        }
 
-    async function updateWindowDetails() {
-      const params = queryString({
-        threads: selectedValues(document.getElementById('threadSel')).join(','),
-        start: document.getElementById('startInput').value,
-        end: document.getElementById('endInput').value,
-        limit: '12',
-        metric: 'net',
-        scope: 'exclusive'
-      });
-      renderTop(await fetchJson('/api/top?' + params));
-      const threadIds = selectedValues(document.getElementById('threadSel'));
-      if (threadIds.length > 0) {
-        const stack = await fetchJson('/api/stack?' + queryString({
-          thread: threadIds[0],
-          start: document.getElementById('startInput').value,
-          end: document.getElementById('endInput').value,
-          metric: 'net'
-        }));
-        document.getElementById('stackPre').textContent = stack.text;
-      }
-    }
+        async function updateWindowDetails(context) {
+            setDetailContext(context);
+            const params = queryString({
+                threads: selectedValues(document.getElementById('threadSel')).join(','),
+                start: document.getElementById('startInput').value,
+                end: document.getElementById('endInput').value,
+                limit: '12',
+                metric: 'net',
+                scope: 'exclusive'
+            });
+            renderTop(await fetchJson('/api/top?' + params));
 
-    async function updateTickDetails(tick) {
-      const threadIds = selectedValues(document.getElementById('threadSel'));
-      const params = queryString({
-        threads: threadIds.join(','),
-        start: tick,
-        end: tick,
-        limit: '12',
-        metric: 'net',
-        scope: 'exclusive'
-      });
-      renderTop(await fetchJson('/api/top?' + params));
-      if (threadIds.length > 0) {
-        const stack = await fetchJson('/api/stack?' + queryString({
-          thread: threadIds[0],
-          start: tick,
-          end: tick,
-          metric: 'net'
-        }));
-        document.getElementById('stackPre').textContent = stack.text;
-      }
-    }
+            const threadId = focusThreadId();
+            if (!threadId) {
+                renderStackTree(null);
+                return;
+            }
 
-    async function boot() {
-      const meta = await fetchJson('/api/meta');
-      document.getElementById('meta').textContent =
-        `sample interval ${meta.sample_interval_ms} ms, threads ${meta.thread_count}, functions ${meta.function_count}, ` +
-        `total malloc ${meta.total_malloc_bytes} bytes, total free ${meta.total_free_bytes} bytes`;
-      document.getElementById('startInput').value = meta.default_start_ms;
-      document.getElementById('endInput').value = meta.max_tick_ms;
+            const stack = await fetchJson('/api/stack?' + queryString({
+                thread: threadId,
+                start: document.getElementById('startInput').value,
+                end: document.getElementById('endInput').value,
+                metric: 'net'
+            }));
+            renderStackTree(stack.tree);
+        }
 
-      const threadRows = await fetchJson('/api/threads');
-      const threadSel = document.getElementById('threadSel');
-      for (const row of threadRows) {
-        const option = document.createElement('option');
-        option.value = String(row.thread_id);
-        option.textContent = `T${row.thread_id}`;
-        threadSel.appendChild(option);
-      }
+        async function updateTickDetails(tick) {
+            const threadIds = selectedValues(document.getElementById('threadSel'));
+            const threadId = focusThreadId();
+            setDetailContext({
+                start_ms: tick,
+                end_ms: tick,
+                thread_ids: effectiveThreadValues().map(value => Number(value)),
+                focus_thread: threadId ? Number(threadId) : null,
+            });
+            const params = queryString({
+                threads: threadIds.join(','),
+                start: tick,
+                end: tick,
+                limit: '12',
+                metric: 'net',
+                scope: 'exclusive'
+            });
+            renderTop(await fetchJson('/api/top?' + params));
 
-      threadSel.addEventListener('change', refreshFunctions);
-      document.getElementById('funcSearch').addEventListener('input', refreshFunctions);
-      document.getElementById('plotBtn').addEventListener('click', plotCurrent);
+            if (!threadId) {
+                renderStackTree(null);
+                return;
+            }
 
-      await refreshFunctions();
-      await plotCurrent();
-    }
+            const stack = await fetchJson('/api/stack?' + queryString({
+                thread: threadId,
+                start: tick,
+                end: tick,
+                metric: 'net'
+            }));
+            renderStackTree(stack.tree);
+        }
 
-    boot().catch(error => {
-      document.getElementById('meta').textContent = error.message;
-    });
-  </script>
+        async function boot() {
+            const meta = await fetchJson('/api/meta');
+            document.getElementById('meta').textContent =
+                `sample interval ${meta.sample_interval_ms} ms, threads ${meta.thread_count}, functions ${meta.function_count}, ` +
+                `total malloc ${meta.total_malloc_bytes} bytes, total free ${meta.total_free_bytes} bytes`;
+            document.getElementById('startInput').value = meta.default_start_ms;
+            document.getElementById('endInput').value = meta.max_tick_ms;
+
+            const threadRows = await fetchJson('/api/threads');
+            const threadSel = document.getElementById('threadSel');
+            for (const row of threadRows) {
+                const option = document.createElement('option');
+                option.value = String(row.thread_id);
+                option.textContent = `T${row.thread_id}`;
+                threadSel.appendChild(option);
+            }
+
+            threadSel.addEventListener('change', refreshFunctions);
+            document.getElementById('funcSearch').addEventListener('input', refreshFunctions);
+            document.getElementById('plotBtn').addEventListener('click', plotCurrent);
+
+            await refreshFunctions();
+            await plotCurrent();
+        }
+
+        boot().catch(error => {
+            document.getElementById('meta').textContent = error.message;
+        });
+    </script>
 </body>
 </html>
-"""
+'''
 
 
 class FastgrindHtmlServer:
@@ -1563,11 +2106,15 @@ class FastgrindHtmlServer:
                     return
 
                 if parsed.path == "/api/series":
+                    thread_ids = _parse_csv_ints(params.get("threads", [""])[0])
+                    function_ids = _parse_csv_ints(params.get("functions", [""])[0])
+                    start_ms = int(params["start"][0]) if "start" in params else None
+                    end_ms = int(params["end"][0]) if "end" in params else None
                     response = engine.query_multi_series(
-                        thread_ids=_parse_csv_ints(params.get("threads", [""])[0]),
-                        function_ids=_parse_csv_ints(params.get("functions", [""])[0]),
-                        start_ms=int(params["start"][0]) if "start" in params else None,
-                        end_ms=int(params["end"][0]) if "end" in params else None,
+                        thread_ids=thread_ids,
+                        function_ids=function_ids,
+                        start_ms=start_ms,
+                        end_ms=end_ms,
                         metrics=_parse_csv_strings(params.get("metrics", [params.get("value", ["malloc"])[0]])[0]),
                         scope=params.get("scope", ["inclusive"])[0],
                         split=params.get("split", ["auto"])[0],
@@ -1582,6 +2129,7 @@ class FastgrindHtmlServer:
                             "metric": response.metric,
                             "scope": response.scope,
                             "split": response.split,
+                            "context": engine.describe_detail_context(start_ms=start_ms, end_ms=end_ms, thread_ids=thread_ids),
                         }
                     )
                     return
@@ -1601,15 +2149,21 @@ class FastgrindHtmlServer:
                 if parsed.path == "/api/stack":
                     thread_values = _parse_csv_ints(params.get("thread", [""])[0])
                     if not thread_values:
-                        self._write_json({"text": "no thread selected"})
+                        self._write_json({"thread_id": None, "text": "no thread selected", "tree": None})
                         return
-                    text = engine.stack_breakdown(
+                    tree = engine.stack_tree(
                         thread_values[0],
                         start_ms=int(params["start"][0]) if "start" in params else None,
                         end_ms=int(params["end"][0]) if "end" in params else None,
                         metric=params.get("metric", ["net"])[0],
                     )
-                    self._write_json({"thread_id": thread_values[0], "text": text})
+                    self._write_json(
+                        {
+                            "thread_id": thread_values[0],
+                            "text": engine._stack_tree_to_text(tree),
+                            "tree": tree,
+                        }
+                    )
                     return
 
                 self.send_response(404)
@@ -1659,6 +2213,7 @@ class FastgrindDesktopUI:
         self.function_options: list[dict[str, Any]] = []
         self.function_index_by_id: dict[int, int] = {}
         self.top_function_ids: dict[str, int] = {}
+        self.stack_item_nodes: dict[str, dict[str, Any]] = {}
 
         self.metric_vars = {
             metric_name: tk.BooleanVar(value=(metric_name == "live")) for metric_name in METRIC_OPTIONS
@@ -1668,6 +2223,9 @@ class FastgrindDesktopUI:
         default_start, default_end = engine.default_window()
         self.start_var = tk.StringVar(value=str(default_start))
         self.end_var = tk.StringVar(value=str(default_end))
+        self.detail_context_var = tk.StringVar(value="Context: Loading...")
+        self.stack_summary_var = tk.StringVar(value="No stack data loaded")
+        self.stack_selected_var = tk.StringVar(value="Select a stack frame to inspect the full symbol")
         self.status_var = tk.StringVar(value="Ready")
 
         self.figure = Figure(figsize=(9.6, 7.2), dpi=100)
@@ -1694,7 +2252,7 @@ class FastgrindDesktopUI:
         center.pack(side=self.tk.LEFT, fill=self.tk.BOTH, expand=True, padx=10)
 
         right = self.ttk.Frame(main)
-        right.pack(side=self.tk.LEFT, fill=self.tk.Y)
+        right.pack(side=self.tk.LEFT, fill=self.tk.BOTH)
 
         self.ttk.Label(left, text="Threads").pack(anchor="w")
         self.thread_list = self.tk.Listbox(left, selectmode=self.tk.EXTENDED, exportselection=False, height=18, width=24)
@@ -1755,7 +2313,8 @@ class FastgrindDesktopUI:
             props=dict(alpha=0.2, facecolor="#d46a1f"),
         )
 
-        self.ttk.Label(right, text="Top Funciton (by net in viewing window)").pack(anchor="w")
+        self.ttk.Label(right, text="Top Function (by net)").pack(anchor="w")
+        self.ttk.Label(right, textvariable=self.detail_context_var, justify="left", wraplength=380).pack(fill=self.tk.X, pady=(2, 8))
         self.top_tree = self.ttk.Treeview(right, columns=("value",), show="tree headings", height=20)
         self.top_tree.heading("#0", text="Function")
         self.top_tree.heading("value", text="Value")
@@ -1765,8 +2324,46 @@ class FastgrindDesktopUI:
         self.top_tree.bind("<Double-1>", self._select_top_function)
 
         self.ttk.Label(right, text="Stack").pack(anchor="w", pady=(10, 0))
-        self.stack_text = self.tk.Text(right, width=48, height=34, wrap="word")
-        self.stack_text.pack(fill=self.tk.BOTH, expand=True)
+        self.ttk.Label(right, textvariable=self.stack_summary_var, justify="left", wraplength=380).pack(fill=self.tk.X, pady=(4, 6))
+
+        stack_toolbar = self.ttk.Frame(right)
+        stack_toolbar.pack(fill=self.tk.X, pady=(0, 6))
+        self.ttk.Button(stack_toolbar, text="Expand All", command=lambda: self._set_stack_tree_open(True)).pack(side=self.tk.LEFT)
+        self.ttk.Button(stack_toolbar, text="Collapse All", command=lambda: self._set_stack_tree_open(False)).pack(side=self.tk.LEFT, padx=(6, 0))
+
+        stack_frame = self.ttk.Frame(right)
+        stack_frame.pack(fill=self.tk.BOTH, expand=True)
+        self.stack_tree = self.ttk.Treeview(
+            stack_frame,
+            columns=("share", "value", "malloc", "free"),
+            show="tree headings",
+            height=24,
+            selectmode="browse",
+        )
+        self.stack_tree.heading("#0", text="Frame")
+        self.stack_tree.heading("share", text="Share")
+        self.stack_tree.heading("value", text="Value")
+        self.stack_tree.heading("malloc", text="Malloc")
+        self.stack_tree.heading("free", text="Free")
+        self.stack_tree.column("#0", width=320, stretch=True)
+        self.stack_tree.column("share", width=74, anchor="e", stretch=False)
+        self.stack_tree.column("value", width=90, anchor="e", stretch=False)
+        self.stack_tree.column("malloc", width=90, anchor="e", stretch=False)
+        self.stack_tree.column("free", width=90, anchor="e", stretch=False)
+
+        stack_y_scroll = self.ttk.Scrollbar(stack_frame, orient="vertical", command=self.stack_tree.yview)
+        stack_x_scroll = self.ttk.Scrollbar(stack_frame, orient="horizontal", command=self.stack_tree.xview)
+        self.stack_tree.configure(yscrollcommand=stack_y_scroll.set, xscrollcommand=stack_x_scroll.set)
+        self.stack_tree.grid(row=0, column=0, sticky="nsew")
+        stack_y_scroll.grid(row=0, column=1, sticky="ns")
+        stack_x_scroll.grid(row=1, column=0, sticky="ew")
+        stack_frame.columnconfigure(0, weight=1)
+        stack_frame.rowconfigure(0, weight=1)
+        self.stack_tree.bind("<<TreeviewSelect>>", self._on_stack_tree_select)
+
+        self.ttk.Label(right, text="Full Symbol").pack(anchor="w", pady=(8, 0))
+        self.stack_selected_entry = self.ttk.Entry(right, textvariable=self.stack_selected_var, state="readonly")
+        self.stack_selected_entry.pack(fill=self.tk.X)
 
         self.ttk.Label(root, textvariable=self.status_var, anchor="w").pack(fill=self.tk.X, padx=8, pady=(0, 8))
 
@@ -1889,8 +2486,8 @@ class FastgrindDesktopUI:
             item = self.top_tree.insert("", "end", text=row["display_name"], values=(_format_value(row["value"]),))
             self.top_function_ids[item] = row["function_id"]
 
-        self.stack_text.delete("1.0", self.tk.END)
-        self.stack_text.insert(self.tk.END, payload["stack_text"])
+        self.detail_context_var.set(f"Context: {payload['context']['summary']}")
+        self._render_stack_tree_panel(payload.get("stack_tree"))
         self.status_var.set(
             f"Rendered {len(response.series)} series across {len(response.ticks)} ticks for {', '.join(payload.get('selected_metrics', []))}"
         )
@@ -1928,7 +2525,13 @@ class FastgrindDesktopUI:
                     metric="net",
                     scope="exclusive",
                 ),
-                "stack": self.engine.stack_breakdown(selected_threads[0], start_ms=tick, end_ms=tick, metric="net"),
+                "stack_tree": self.engine.stack_tree(selected_threads[0], start_ms=tick, end_ms=tick, metric="net"),
+                "context": self.engine.describe_detail_context(
+                    start_ms=tick,
+                    end_ms=tick,
+                    thread_ids=selected_threads,
+                    focus_thread=selected_threads[0],
+                ),
                 "tick": tick,
             },
             self._render_tick_details,
@@ -1940,8 +2543,8 @@ class FastgrindDesktopUI:
         for row in payload["top"]:
             item = self.top_tree.insert("", "end", text=row["display_name"], values=(_format_value(row["value"]),))
             self.top_function_ids[item] = row["function_id"]
-        self.stack_text.delete("1.0", self.tk.END)
-        self.stack_text.insert(self.tk.END, payload["stack"])
+        self.detail_context_var.set(f"Context: {payload['context']['summary']}")
+        self._render_stack_tree_panel(payload.get("stack_tree"))
         self.status_var.set(f"Inspected tick {payload['tick']}")
 
     def _select_top_function(self, _event: Any) -> None:
@@ -1956,6 +2559,67 @@ class FastgrindDesktopUI:
         self.function_list.selection_set(index)
         self.function_list.see(index)
         self._plot_current()
+
+    def _render_stack_tree_panel(self, tree: dict[str, Any] | None) -> None:
+        self.stack_tree.delete(*self.stack_tree.get_children())
+        self.stack_item_nodes.clear()
+
+        if not tree:
+            self.stack_summary_var.set("No stack data")
+            self.stack_selected_var.set("No stack data")
+            return
+
+        self.stack_summary_var.set(f"{_stack_node_name(tree)} | {_format_stack_summary(tree)}")
+        self.stack_selected_var.set(tree.get("canonical_name") or tree.get("display_name") or "")
+
+        children = tree.get("children", [])
+        if not children:
+            self.stack_tree.insert("", "end", text="(no stack frames)", values=("0.0%", "0", "0", "0"))
+            return
+
+        for child in children:
+            self._insert_stack_tree_node("", child, open_state=True)
+
+        roots = self.stack_tree.get_children("")
+        if roots:
+            self.stack_tree.selection_set(roots[0])
+            self.stack_tree.focus(roots[0])
+            self._on_stack_tree_select(None)
+
+    def _insert_stack_tree_node(self, parent: str, node: dict[str, Any], open_state: bool = False) -> None:
+        item = self.stack_tree.insert(
+            parent,
+            "end",
+            text=_stack_node_name(node),
+            values=(
+                _format_percent(float(node.get("share_percent", 0.0))),
+                _format_value(float(node.get("value", 0.0))),
+                _format_value(float(node.get("malloc", 0.0))),
+                _format_value(float(node.get("free", 0.0))),
+            ),
+            open=open_state,
+        )
+        self.stack_item_nodes[item] = node
+        for child in node.get("children", []):
+            self._insert_stack_tree_node(item, child, open_state=False)
+
+    def _on_stack_tree_select(self, _event: Any) -> None:
+        selection = self.stack_tree.selection()
+        if not selection:
+            return
+        node = self.stack_item_nodes.get(selection[0])
+        if not node:
+            return
+        self.stack_selected_var.set(node.get("canonical_name") or node.get("display_name") or "")
+
+    def _set_stack_tree_open(self, open_state: bool) -> None:
+        for item in self.stack_tree.get_children(""):
+            self._set_stack_branch_open(item, open_state)
+
+    def _set_stack_branch_open(self, item: str, open_state: bool) -> None:
+        self.stack_tree.item(item, open=open_state)
+        for child in self.stack_tree.get_children(item):
+            self._set_stack_branch_open(child, open_state)
 
     def _save_png(self) -> None:
         output = self.filedialog.asksaveasfilename(

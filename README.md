@@ -1,248 +1,99 @@
 # Fastgrind
 
-## Overview
+Fastgrind is a header-only memory profiler for C++ applications on Linux toolchains that support GNU ld `--wrap`. This release branch is trimmed for package consumption: it ships the runtime header, the installable CMake package, the Python trace viewer, and one installed-package CMake example.
 
-**Fastgrind** is a head-only, lightweight, fast, thread safe, valgrind-like memory profiler designed for runtime memory allocation tracking and call stack analysis in C++ applications. Fastgrind provides comprehensive memory usage insights through both automatic and manual instrumentation approaches.
+## Release Contents
 
-## Repository Structure
+- `include/fastgrind.h`: header-only runtime
+- `CMakeLists.txt`: installable CMake package export
+- `tools/fastgrind.py`: trace inspection and UI tool
+- `demo/cmake_installed_package`: minimal consumer example using `find_package`
+- `doc/compile.md`: integration details for `fastgrind::manual` and `fastgrind::auto`
 
-```
-fastgrind/
-├── include/fastgrind.h           # Core code (head only)
-│
-├── demo/
-│   ├── manual_instrument/        # Manual instrumentation demos
-│   ├── auto_instrument/          # Automatic instrumentation demos  
-│   └── build_all_demo.sh         # Build all individual demo
-│
-├── testcase/
-│   ├── benchmark_box_grouping/   # Performance benchmarking
-│   ├── cpp_feature_test/         # Modern C++ feature test
-│   ├── glibc_je_tc_availabe/     # Allocator compatibility test
-│   ├── multi_pkg_compile/        # Multi-package compilation test
-│   ├── thirdparty_leveldb_test/  # Third-party open source library test (https://github.com/google/leveldb)
-│   └── thirdparty_zlib_test      # Third-party open source library test (https://zlib.net)
-│
-├── doc/
-│   ├── compile.md                # Description of integrate and compile
-│   ├── demo.md                   # Description of demo
-│   ├── feature_list.md           # Description of fastgrind's feature
-│   ├── querstion_list.md         # Description of problems and solutions in using fastgrind
-│   └── testcase.md               # Description of testcase
-│
-├── tools/fastgrind.py            # Binary trace tools (python tools/fastgrind.py ui fastgrind.fgb)
-│
-├── CMakeList.txt                 # Top Cmake for testcase
-├── Doxyfile                      # Doxyfile to generate manual
-└── README.md                     # Description of repository
-```
+## Install
 
-## Quick Start
-
-### Complie testcase
+Install fastgrind into any prefix before using it from another CMake project:
 
 ```bash
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-```
-
-### Run testcase
-
-```bash
-cd build/testcase/benchmark_box_grouping
-./benchmark_raw
-./benchmark_fastgrind
-./run_valgrind.sh
-
-cd build/testcase/cpp_feature_test
-./cpp_feature_test
-
-...
-
-cd build/testcase/multi_pkg_compile
-./multi_pkg_main
-```
-
-### Call Stack Report
-Two report file will be generated when program exits
-
-```bash
-[FASTGRIND] Start summary memory info
-[FASTGRIND] saved: fastgrind.text (size=2335 bytes)
-[FASTGRIND] saved: fastgrind.fgb (size=5601 bytes)
-```
-**For more file detail**, please check: [Output and Analysis](#output-and-analysis)
-
-
-## Using In Your Project
-
-For CMake consumers, the recommended path is to use the exported interface targets instead of copying compiler and linker flags by hand.
-
-### Install fastgrind
-
-Build and install fastgrind to any prefix before using `find_package`. The example below installs into `$HOME/.local` so no system-wide write access is required.
-
-```bash
-cmake -S . -B build -DFASTGRIND_BUILD_TESTS=OFF -DFASTGRIND_INSTALL=ON
+cmake -S . -B build
 cmake --build build -j$(nproc)
 cmake --install build --prefix "$HOME/.local"
 ```
 
-Then point your consumer project at that prefix when configuring it:
+This installs:
+
+- `include/fastgrind.h`
+- `lib/cmake/fastgrind/fastgrindConfig.cmake`
+- `lib/cmake/fastgrind/fastgrindConfigVersion.cmake`
+- `lib/cmake/fastgrind/fastgrindTargets.cmake`
+- `bin/fastgrind.py`
+
+## Use From Your CMake Project
+
+Point CMake at the install prefix when configuring your own project:
 
 ```bash
 cmake -S . -B build -DCMAKE_PREFIX_PATH="$HOME/.local"
 cmake --build build -j$(nproc)
 ```
 
-### **Recommended CMake Integration**
-
-#### 1. Installed package: `find_package`
+Minimal consumer setup:
 
 ```cmake
+find_package(Threads REQUIRED)
 find_package(fastgrind CONFIG REQUIRED)
 
 add_executable(my_app main.cpp)
-target_link_libraries(my_app PRIVATE fastgrind::manual)
-# Or: fastgrind::auto
+target_link_libraries(my_app PRIVATE fastgrind::manual Threads::Threads)
+# Or use fastgrind::auto for compiler-driven instrumentation.
 ```
 
-Use this when fastgrind is already installed. If it is not installed into a standard prefix, configure your app with `-DCMAKE_PREFIX_PATH=/path/to/prefix`.
+The repository includes a working installed-package case in `demo/cmake_installed_package`.
 
-#### 2. Download at configure time: `FetchContent`
+## Instrumentation Modes
 
-```cmake
-include(FetchContent)
+`fastgrind::manual`
 
-FetchContent_Declare(
-    fastgrind
-    GIT_REPOSITORY https://github.com/adny-code/fastgrind.git
-    GIT_TAG main
-)
+- Adds the include path
+- Adds the allocator wrap linker flags
+- Use `__FASTGRIND__::FAST_GRIND;` inside the functions you want to track
 
-set(FASTGRIND_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(FASTGRIND_INSTALL OFF CACHE BOOL "" FORCE)
+`fastgrind::auto`
 
-FetchContent_MakeAvailable(fastgrind)
+- Includes everything from `fastgrind::manual`
+- Adds `-DFASTGRIND_INSTRUMENT`
+- Adds `-finstrument-functions`
+- Adds the exclude-file list used by the project
+- Adds `-Wl,--export-dynamic`
 
-add_executable(my_app main.cpp)
-target_link_libraries(my_app PRIVATE fastgrind::auto)
-```
+Automatic mode still requires including `fastgrind.h` in at least one translation unit.
 
-Use this when you want CMake to download fastgrind automatically.
+## Output Files
 
+When an instrumented program exits, fastgrind writes these files to the current working directory:
 
-**For detail compile & link options**, please check: [doc/compile.md](doc/compile.md)
+- `fastgrind.text`: human-readable summary
+- `fastgrind.fgb`: binary trace for the viewer
 
-### **Manual Instrumentation**
-```cpp
-#include "fastgrind.h"
-
-using namespace __FASTGRIND__;
-
-void processData() {
-    FAST_GRIND;                       // Enable call stack tracking for this function
-    
-    int* data = new int[1000];
-    // ... process data ...
-    delete[] data;
-}
-
-int main() {
-    FAST_GRIND;                       // Enable call stack tracking for this function
-    processData();
-    return 0;
-}
-```
-
-### **Auto Instrumentation**
-
-Include **fastgrind.h** in any one of source code, and with compile options, All functions outside the exclude file are automatically instrumented
-
-
-## Output and Analysis
-​When a Fastgrind-instrumented application exits, two files are automatically generated: `fastgrind.text` and `fastgrind.fgb` 
-
-### **fastgrind.text**
-​This is a linux perf like report
-
-![text_zlib](doc/rsc/text_zlib.png)
-
-### **fastgrind.fgb**
-Structured binary trace containing:
-- Time-sliced memory usage statistics  
-- Per-thread memory allocation details
-- Complete call stack information
-- Function-level allocation breakdown
-
-Use `python tools/fastgrind.py export-json fastgrind.fgb` only when a compatibility JSON is needed for debugging.
-
-**Per-time frame, per-thread, per function recorder**:
-
-- Single thread
-
-![fgb_single_thread](doc/rsc/fgb_single_thread.png)
-
-- Multi thread
-
-![fgb_multi_thread](doc/rsc/fgb_multi_thread.png)
-
-
-## Visualization
-Use `tools/fastgrind.py` as the primary binary trace tool.
-
-The default workflow is the Python-first UI:
+Use the viewer directly from the repository or from the installed prefix:
 
 ```bash
 python tools/fastgrind.py ui fastgrind.fgb
-```
-
-Other useful commands:
-
-```bash
 python tools/fastgrind.py inspect fastgrind.fgb
-python tools/fastgrind.py html fastgrind.fgb
-python tools/fastgrind.py html fastgrind.fgb --no-browser --port 8000
 python tools/fastgrind.py export-html fastgrind.fgb
-python tools/fastgrind.py export-json fastgrind.fgb
 ```
 
-HTML remains available as a secondary workflow. `export-html` writes a compact snapshot instead of embedding the full trace.
-In headless or dependency-limited environments, `ui` will fall back to `html`, and both commands can be kept local with `--no-browser` plus a fixed `--port`.
-
-Viewer metrics use the following names:
-
-- `malloc`: allocated bytes per tick or window
-- `free`: freed bytes per tick or window
-- `tick_res`: per-tick or per-window net bytes (`malloc - free`)
-- `sum_res`: running live bytes across ticks
-
-You can select multiple metrics at once. The right-side Top and Stack panes use one detail metric at a time: `tick_res` has priority, `sum_res` falls back to `tick_res` for window attribution, then `malloc`, then `free`.
-
-**Usage**
+If `bin` is on your `PATH`, the installed script can be invoked as:
 
 ```bash
-python tools/fastgrind.py ui fastgrind.fgb
-python tools/fastgrind.py ui     # auto search fastgrind.fgb in current folder
-python tools/fastgrind.py ui fastgrind.fgb --no-browser --port 8000
+fastgrind.py ui fastgrind.fgb
 ```
 
-- **matplot**
+## Requirements
 
-![fgb_python_ui](doc/rsc/fgb_plot.png)
-
-- **html**
-
-![fgb_html_viewer](doc/rsc/fgb_html.png)
-
-
-## Limitations and Considerations
-
-- **Cross-Frame Allocation**: Memory allocated in one function and freed in another will be recorded truthfully, resulting in those function stack frames freed less or more then allocated.
-- **Template Complexity**: Complex template metaprogramming may show generic names in reports
-- **File Overwriting**: Output files overwrite previous content on each run
-- **System Dependencies**: Requires GNU ld for `--wrap` functionality
+- Linux
+- GCC or Clang
+- GNU ld compatible `--wrap` support
 
 
 ## Contributing and Support
@@ -255,4 +106,4 @@ For questions, bug reports, or contributions, please contact us:
 
 ## License
 
-This project is licensed under the MIT License. See `LICENSE` file for details.
+Fastgrind is released under the MIT License. See `LICENSE` for details.

@@ -5,18 +5,32 @@ project(fastgrind VERSION 1.0 LANGUAGES CXX)
 # -----------------------------------------------------------------------------
 # Global configuration
 # -----------------------------------------------------------------------------
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-# Install into /usr/local by default (CMake's default; keep explicit for clarity)
-set(CMAKE_INSTALL_PREFIX "/usr/local" CACHE PATH "Install prefix")
-
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    set(FASTGRIND_TOP_LEVEL ON)
+else()
+    set(FASTGRIND_TOP_LEVEL OFF)
+endif()
+
+option(FASTGRIND_BUILD_TESTS "Build fastgrind testcase targets" ${FASTGRIND_TOP_LEVEL})
+option(FASTGRIND_INSTALL "Install fastgrind headers and CMake package files" ${FASTGRIND_TOP_LEVEL})
+
+if(FASTGRIND_BUILD_TESTS AND NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+endif()
 
 # Public include directory for all targets in this project
 add_library(fastgrind_includes INTERFACE)
-target_include_directories(fastgrind_includes INTERFACE ${CMAKE_SOURCE_DIR}/include)
+set_target_properties(fastgrind_includes PROPERTIES EXPORT_NAME includes)
+target_include_directories(fastgrind_includes INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+add_library(fastgrind::includes ALIAS fastgrind_includes)
 
 # -----------------------------------------------------------------------------
 # Linker wrap flags (centralized)
@@ -69,7 +83,9 @@ set(WRAP_FLAGS
     -Wl,--wrap=_ZdaPvmSt11align_val_tRKSt9nothrow_t
 )
 add_library(fastgrind_wrap_flags INTERFACE)
+set_target_properties(fastgrind_wrap_flags PROPERTIES EXPORT_NAME wrap_flags)
 target_link_options(fastgrind_wrap_flags INTERFACE ${WRAP_FLAGS})
+add_library(fastgrind::wrap_flags ALIAS fastgrind_wrap_flags)
 
 # -----------------------------------------------------------------------------
 # Instrumentation exclusion list & helper interface
@@ -92,18 +108,72 @@ list(APPEND fastgrind_instrument_compile_opts -finstrument-functions -finstrumen
 
 # Export all symbols for dynamic lookup
 add_library(fastgrind_instrument INTERFACE)
+set_target_properties(fastgrind_instrument PROPERTIES EXPORT_NAME instrument)
 target_compile_options(fastgrind_instrument INTERFACE ${fastgrind_instrument_compile_opts})
 target_link_options(fastgrind_instrument INTERFACE -Wl,--export-dynamic)
+add_library(fastgrind::instrument ALIAS fastgrind_instrument)
+
+# -----------------------------------------------------------------------------
+# Consumer-facing convenience targets
+# -----------------------------------------------------------------------------
+add_library(fastgrind_manual INTERFACE)
+set_target_properties(fastgrind_manual PROPERTIES EXPORT_NAME manual)
+target_link_libraries(fastgrind_manual INTERFACE fastgrind_includes fastgrind_wrap_flags)
+add_library(fastgrind::manual ALIAS fastgrind_manual)
+
+add_library(fastgrind_auto INTERFACE)
+set_target_properties(fastgrind_auto PROPERTIES EXPORT_NAME auto)
+target_link_libraries(fastgrind_auto INTERFACE fastgrind_manual fastgrind_instrument)
+add_library(fastgrind::auto ALIAS fastgrind_auto)
 
 # -----------------------------------------------------------------------------
 # Subdirectories
 # -----------------------------------------------------------------------------
-add_subdirectory(testcase/glibc_je_tc_availabe)
-add_subdirectory(testcase/multi_pkg_compile)
-add_subdirectory(testcase/benchmark_box_grouping)
-add_subdirectory(testcase/cpp_feature_test)
+if(FASTGRIND_BUILD_TESTS)
+    add_subdirectory(testcase/glibc_je_tc_availabe)
+    add_subdirectory(testcase/multi_pkg_compile)
+    add_subdirectory(testcase/benchmark_box_grouping)
+    add_subdirectory(testcase/cpp_feature_test)
+endif()
 
 # -----------------------------------------------------------------------------
-# Install headers
+# Install headers and package metadata
 # -----------------------------------------------------------------------------
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+if(FASTGRIND_INSTALL)
+    set(fastgrind_cmake_install_dir "${CMAKE_INSTALL_LIBDIR}/cmake/fastgrind")
+
+    configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/fastgrindConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/fastgrindConfig.cmake
+        INSTALL_DESTINATION ${fastgrind_cmake_install_dir}
+    )
+
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/fastgrindConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+
+    install(TARGETS
+        fastgrind_includes
+        fastgrind_wrap_flags
+        fastgrind_instrument
+        fastgrind_manual
+        fastgrind_auto
+        EXPORT fastgrindTargets
+    )
+
+    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    install(EXPORT fastgrindTargets
+        FILE fastgrindTargets.cmake
+        NAMESPACE fastgrind::
+        DESTINATION ${fastgrind_cmake_install_dir}
+    )
+
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/fastgrindConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/fastgrindConfigVersion.cmake
+        DESTINATION ${fastgrind_cmake_install_dir}
+    )
+endif()

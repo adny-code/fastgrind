@@ -3,13 +3,37 @@
 #include <iostream>
 #include <map>
 #include <numeric>
-#include <optional>
 #include <random>
-#include <variant>
+#include <typeinfo>
 #include <vector>
+
+#if defined(FASTGRIND_TESTCASE_HAS_CXX17)
+    #include <optional>
+    #include <variant>
+#endif
 
 namespace test_modern_cpp
 {
+
+namespace
+{
+
+template <typename Left, typename Right> auto multiplyValues(Left lhs, Right rhs) -> decltype(lhs * rhs)
+{
+    return lhs * rhs;
+}
+
+template <typename NameT> MoveableClass makeForwardedMoveable(NameT &&name)
+{
+    return MoveableClass(std::forward<NameT>(name), {100, 200, 300});
+}
+
+void printSkippedFeature(const char *feature, const char *minimumStandard)
+{
+    std::cout << feature << " requires " << minimumStandard << "; skipping in this build." << std::endl;
+}
+
+} // namespace
 
 void testAutoKeyword()
 {
@@ -40,7 +64,7 @@ void testAutoKeyword()
     std::cout << "\nauto with lambda:" << std::endl;
     std::cout << "lambda(5) = " << result << std::endl;
 
-    auto findMax = [](const std::vector<int> &v) -> auto
+    auto findMax = [](const std::vector<int> &v) -> int
     {
         return *std::max_element(v.begin(), v.end());
     };
@@ -50,15 +74,20 @@ void testAutoKeyword()
 
     int x = 10;
     decltype(x) y = 20;
+#if defined(FASTGRIND_TESTCASE_HAS_CXX14)
     decltype(auto) z = x;
+#else
+    decltype(x) z = x;
+#endif
 
     std::cout << "\ndecltype examples:" << std::endl;
     std::cout << "x: " << x << ", y: " << y << ", z: " << z << std::endl;
+#if !defined(FASTGRIND_TESTCASE_HAS_CXX14)
+    std::cout << "decltype(auto) requires C++14 and is skipped in this build." << std::endl;
+#endif
 
-    auto multiply = [](auto a, auto b) -> decltype(a * b) { return a * b; };
-
-    auto product1 = multiply(3, 4);
-    auto product2 = multiply(2.5, 3);
+    auto product1 = multiplyValues(3, 4);
+    auto product2 = multiplyValues(2.5, 3);
 
     std::cout << "multiply(3, 4) = " << product1 << std::endl;
     std::cout << "multiply(2.5, 3) = " << product2 << std::endl;
@@ -75,10 +104,17 @@ void testConstexpr()
     std::cout << "factorial(5) = " << fact5 << std::endl;
     std::cout << "factorial(10) = " << fact10 << std::endl;
 
+#if defined(FASTGRIND_TESTCASE_HAS_CXX14)
     constexpr bool is17Prime = isPrime(17);
     constexpr bool is18Prime = isPrime(18);
 
     std::cout << "\nCompile-time prime checks:" << std::endl;
+#else
+    const bool is17Prime = isPrime(17);
+    const bool is18Prime = isPrime(18);
+
+    std::cout << "\nPrime checks (runtime in C++11 build):" << std::endl;
+#endif
     std::cout << "isPrime(17) = " << std::boolalpha << is17Prime << std::endl;
     std::cout << "isPrime(18) = " << std::boolalpha << is18Prime << std::endl;
 
@@ -135,13 +171,18 @@ void testLambdaExpressions()
     std::cout << "refLambda(42) = " << refLambda(42) << std::endl;
     std::cout << "mixedLambda(7) = " << mixedLambda(7) << std::endl;
 
+#if defined(FASTGRIND_TESTCASE_HAS_CXX14)
     auto genericLambda = [](auto x, auto y) { return x + y; };
 
     std::cout << "\nGeneric lambda (C++14):" << std::endl;
     std::cout << "genericLambda(1, 2) = " << genericLambda(1, 2) << std::endl;
     std::cout << "genericLambda(1.5, 2.5) = " << genericLambda(1.5, 2.5) << std::endl;
-    std::cout << "genericLambda(\"Hello\", \" World\") = " << genericLambda(std::string("Hello"), std::string(" World"))
-              << std::endl;
+    std::cout << "genericLambda(\"Hello\", \" World\") = "
+              << genericLambda(std::string("Hello"), std::string(" World")) << std::endl;
+#else
+    std::cout << "\nGeneric lambda (C++14):" << std::endl;
+    printSkippedFeature("Generic lambda", "C++14");
+#endif
 
     std::vector<int> numbers = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
@@ -177,7 +218,7 @@ void testSmartPointers()
 
     std::cout << "Testing unique_ptr:" << std::endl;
     {
-        auto resource1 = std::make_unique<Resource>("unique_resource1");
+        auto resource1 = fastgrind_testcase_support::makeUniqueCompat<Resource>("unique_resource1");
         resource1->processData();
 
         auto resource2 = std::move(resource1);
@@ -274,11 +315,9 @@ void testMoveSemantics()
     std::cout << "copied after move: size = " << copied.getSize() << std::endl;
 
     std::cout << "\nPerfect forwarding example:" << std::endl;
-    auto factory = [](auto &&arg) { return MoveableClass(std::forward<decltype(arg)>(arg), {100, 200, 300}); };
-
     std::string name1 = "forwarded_copy";
-    auto obj1 = factory(name1);
-    auto obj2 = factory(std::move(name1));
+    auto obj1 = makeForwardedMoveable(name1);
+    auto obj2 = makeForwardedMoveable(std::move(name1));
 
     obj1.printData();
     obj2.printData();
@@ -305,9 +344,9 @@ void testRangeForAndInitLists()
     std::cout << std::endl;
 
     std::cout << "Range-for with map:" << std::endl;
-    for (const auto &[key, value] : map)
+    for (const auto &entry : map)
     {
-        std::cout << "  " << key << " = " << value << std::endl;
+        std::cout << "  " << entry.first << " = " << entry.second << std::endl;
     }
 
     std::cout << "\nModifying elements:" << std::endl;
@@ -493,6 +532,8 @@ void testCpp17Features()
 {
     std::cout << "\n=== Testing C++17 Features ===" << std::endl;
 
+#if defined(FASTGRIND_TESTCASE_HAS_CXX17)
+
     std::cout << "Testing structured bindings:" << std::endl;
 
     std::pair<int, std::string> pair = {42, "hello"};
@@ -574,6 +615,9 @@ void testCpp17Features()
         std::cout << "Bad any_cast caught: " << e.what() << std::endl;
         std::cout << "Correct value: " << std::any_cast<double>(anything) << std::endl;
     }
+#else
+    printSkippedFeature("C++17 optional/variant/any tests", "C++17");
+#endif
 }
 
 void runAllModernCppTests()

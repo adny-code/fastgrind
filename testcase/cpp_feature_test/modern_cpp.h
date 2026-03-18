@@ -1,21 +1,26 @@
 #ifndef MODERN_CPP_H
 #define MODERN_CPP_H
 
+#include "cpp_feature_compat.h"
+
 #include <algorithm>
-#include <any>
 #include <chrono>
 #include <functional>
 #include <future>
 #include <initializer_list>
 #include <iostream>
 #include <memory>
-#include <optional>
 #include <string>
 #include <thread>
 #include <tuple>
 #include <utility>
-#include <variant>
 #include <vector>
+
+#if defined(FASTGRIND_TESTCASE_HAS_CXX17)
+    #include <any>
+    #include <optional>
+    #include <variant>
+#endif
 
 namespace test_modern_cpp
 {
@@ -27,7 +32,11 @@ constexpr int factorial(int n)
     return (n <= 1) ? 1 : n * factorial(n - 1);
 }
 
+#if defined(FASTGRIND_TESTCASE_HAS_CXX14)
 constexpr bool isPrime(int n)
+#else
+inline bool isPrime(int n)
+#endif
 {
     if (n <= 1)
         return false;

@@ -66,6 +66,7 @@ void deepFunction()
 } // namespace inner
 } // namespace outer
 
+#if defined(FASTGRIND_TESTCASE_HAS_CXX17)
 namespace company::product::version
 {
 std::string getVersion()
@@ -91,6 +92,45 @@ void LongNamedClass::process()
     std::cout << "LongNamedClass::process() called" << std::endl;
 }
 } // namespace very_long_company_name::very_long_product_name::very_long_version_name
+#else
+namespace company
+{
+namespace product
+{
+namespace version
+{
+std::string getVersion()
+{
+    return "1.0.0";
+}
+
+void ProductInfo::displayInfo()
+{
+    std::cout << "Product: CompanyProduct, Version: " << getVersion() << std::endl;
+}
+} // namespace version
+} // namespace product
+} // namespace company
+
+namespace very_long_company_name
+{
+namespace very_long_product_name
+{
+namespace very_long_version_name
+{
+void doSomething()
+{
+    std::cout << "Long namespace function executed" << std::endl;
+}
+
+void LongNamedClass::process()
+{
+    std::cout << "LongNamedClass::process() called" << std::endl;
+}
+} // namespace very_long_version_name
+} // namespace very_long_product_name
+} // namespace very_long_company_name
+#endif
 
 namespace math_utils
 {
@@ -246,11 +286,15 @@ void testNestedNamespace()
 
     outer::inner::deep::deepFunction();
 
-    std::cout << "\nTesting C++17 nested namespace syntax:" << std::endl;
+    std::cout << "\nTesting nested namespace access:" << std::endl;
     std::cout << "Version: " << company::product::version::getVersion() << std::endl;
 
     company::product::version::ProductInfo info;
     info.displayInfo();
+
+#if !defined(FASTGRIND_TESTCASE_HAS_CXX17)
+    std::cout << "C++17 nested namespace syntax is unavailable in this build; using equivalent C++11 namespace blocks." << std::endl;
+#endif
 }
 
 void testAnonymousNamespace()

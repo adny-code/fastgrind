@@ -1,4 +1,4 @@
-# Multi package compile example producing shared libraries then linking to an executable
+# Multi package compile example producing static libraries then linking to an executable
 
 add_library(pkgA_shared STATIC pkgA/PackageA.cpp)
 set_target_properties(pkgA_shared PROPERTIES OUTPUT_NAME pkgA)

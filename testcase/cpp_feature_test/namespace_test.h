@@ -1,6 +1,8 @@
 #ifndef NAMESPACE_TEST_H
 #define NAMESPACE_TEST_H
 
+#include "cpp_feature_compat.h"
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -35,6 +37,7 @@ void deepFunction();
 } // namespace inner
 } // namespace outer
 
+#if defined(FASTGRIND_TESTCASE_HAS_CXX17)
 namespace company::product::version
 {
 std::string getVersion();
@@ -44,6 +47,23 @@ class ProductInfo
     void displayInfo();
 };
 } // namespace company::product::version
+#else
+namespace company
+{
+namespace product
+{
+namespace version
+{
+std::string getVersion();
+class ProductInfo
+{
+  public:
+    void displayInfo();
+};
+} // namespace version
+} // namespace product
+} // namespace company
+#endif
 
 namespace
 {
